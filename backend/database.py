@@ -73,6 +73,15 @@ def init_db():
     );
     """)
 
+    # System settings table (e.g. live internet NAT gateway toggle)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS system_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
     # Seed default teacher accounts if not exists
     default_teachers = [
         ('teacher', 'SinterklaasOp6December', 'Docent PXL (Gert & David)', 'teacher', 'PXL-SNE'),
@@ -259,4 +268,24 @@ def list_students_with_progress(exam_id='01_pxl_standard'):
             'last_saved': r['last_saved'] or '-'
         })
     return students
+
+def get_system_setting(key: str, default: str = None) -> str:
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT value FROM system_settings WHERE key = ?", (key,))
+    row = cursor.fetchone()
+    conn.close()
+    return row['value'] if row else default
+
+def set_system_setting(key: str, value: str):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO system_settings (key, value, updated_at)
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+    """, (key, str(value)))
+    conn.commit()
+    conn.close()
+
 

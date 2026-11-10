@@ -78,6 +78,16 @@ class TeacherStudio {
                   <option value="false">Score verbergen tot na inlevering (Strikte Examenmodus)</option>
                 </select>
               </div>
+              <div class="pt-form-group">
+                <label>🌐 Echte Internet NAT Gateway (Live WAN Bridge):</label>
+                <select id="studioLiveInternet" class="pt-input" onchange="window.PXLApp.toggleLiveInternet(this.value === 'true')">
+                  <option value="false">❌ Gesimuleerd Internet (Veilig voor examens • Lokale Pagina)</option>
+                  <option value="true">✅ Echte Internet Toegang (NAT Bridge via Fysieke Cloud Adapter)</option>
+                </select>
+                <small style="color: #64748b; font-size: 11px;">
+                  Wanneer actief, wordt 'Het Internet' verbonden met de fysieke adapter van de server (Google Cloud Run / Host). Studenten krijgen dan vanuit de browser en pings daadwerkelijk live internettoegang.
+                </small>
+              </div>
             </div>
             <div class="pt-form-group">
               <label>Instructies voor Studenten (Markdown / HTML):</label>
@@ -290,6 +300,14 @@ class TeacherStudio {
     if (titleEl) titleEl.value = draft.title || '';
     if (timerEl) timerEl.value = draft.timeLimitMinutes || 80;
     if (scoreEl) scoreEl.value = draft.showLiveScore !== false ? 'true' : 'false';
+    const liveInetEl = document.getElementById('studioLiveInternet');
+    if (liveInetEl) {
+      if (typeof draft.liveInternet === 'boolean') {
+        liveInetEl.value = draft.liveInternet ? 'true' : 'false';
+      } else if (window.PXLApp && window.PXLApp.sim) {
+        liveInetEl.value = window.PXLApp.sim.liveInternetEnabled ? 'true' : 'false';
+      }
+    }
     if (instrEl) instrEl.value = draft.instructions || '';
 
     const topo = draft.initialTopology || draft.topology || { devices: [], cables: [] };
@@ -547,11 +565,18 @@ class TeacherStudio {
     this.examDraft.title = document.getElementById('studioExamTitle').value || 'PXL Examen';
     this.examDraft.timeLimitMinutes = parseInt(document.getElementById('studioExamTimer').value, 10) || 80;
     this.examDraft.showLiveScore = document.getElementById('studioShowScore').value === 'true';
+    const liveInetEl = document.getElementById('studioLiveInternet');
+    if (liveInetEl) {
+      this.examDraft.liveInternet = liveInetEl.value === 'true';
+    }
     this.examDraft.instructions = document.getElementById('studioExamInstructions').value || '';
   }
 
   applyExamToSession() {
     this.syncFormDraft();
+    if (typeof this.examDraft.liveInternet === 'boolean' && window.PXLApp && window.PXLApp.toggleLiveInternet) {
+      window.PXLApp.toggleLiveInternet(this.examDraft.liveInternet);
+    }
     this.app.loadExam(this.examDraft);
     this.closeStudioModal();
     this.app.showToast('✅ Examen en rubric succesvol geactiveerd in de sessie!');

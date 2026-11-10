@@ -10,6 +10,10 @@ import os
 import sys
 import json
 import time
+import socket
+import urllib.request
+import urllib.error
+import urllib.parse
 from flask import Flask, request, jsonify, send_from_directory, session
 from backend.pka_parser import convert_pka_to_netsim
 from backend.database import (
@@ -20,6 +24,8 @@ from backend.database import (
     get_student_progress,
     list_students_with_progress,
     bulk_import_students,
+    get_system_setting,
+    set_system_setting,
     get_db
 )
 
@@ -247,6 +253,152 @@ def submit_exam_endpoint():
         })
     except Exception as e:
         return jsonify({"error": f"Kon inzending niet opslaan: {str(e)}"}), 500
+
+
+# --- REAL-WORLD LIVE INTERNET NAT GATEWAY ---
+@app.route("/api/settings/live-internet", methods=["GET", "POST"])
+def live_internet_settings():
+    if request.method == "POST":
+        data = request.get_json(force=True) or {}
+        enabled = str(data.get("enabled", False)).lower() == "true"
+        set_system_setting("live_internet_enabled", "true" if enabled else "false")
+        return jsonify({
+            "success": True,
+            "live_internet_enabled": enabled,
+            "message": f"Live Internet NAT Gateway is nu {'actief (NAT verbonden met fysieke adapter)' if enabled else 'inactief (gesimuleerde modus)'}"
+        })
+    else:
+        is_enabled = get_system_setting("live_internet_enabled", "false") == "true"
+        return jsonify({
+            "live_internet_enabled": is_enabled
+        })
+
+
+@app.route("/api/gateway/proxy", methods=["GET", "POST"])
+def gateway_proxy():
+    """
+    Acts as a NAT proxy gateway forwarding HTTP/HTTPS traffic from simulated
+    PC Desktop Web Browser directly out through the physical instance adapter (Cloud Run / Host).
+    """
+    if request.method == "POST":
+        data = request.get_json(force=True) or {}
+        target_url = data.get("url", "")
+    else:
+        target_url = request.args.get("url", "")
+
+    if not target_url:
+        return jsonify({"success": False, "reason": "Geen doel URL opgegeven"}), 400
+
+    target_url = target_url.strip()
+    if not (target_url.startswith("http://") or target_url.startswith("https://")):
+        target_url = "http://" + target_url
+
+    try:
+        req = urllib.request.Request(
+            target_url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PXL-WebNetSim-NAT-Gateway/2.1 (Hogeschool PXL SNE)"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=8.0) as response:
+            content_type = response.headers.get("Content-Type", "")
+            raw_body = response.read()
+
+            charset = "utf-8"
+            if "charset=" in content_type:
+                charset = content_type.split("charset=")[-1].split(";")[0].strip()
+
+            try:
+                html_body = raw_body.decode(charset, errors="replace")
+            except Exception:
+                html_body = raw_body.decode("utf-8", errors="replace")
+
+            final_url = response.geturl()
+
+            parsed_url = urllib.parse.urlparse(final_url)
+            base_href = f"{parsed_url.scheme}://{parsed_url.netloc}/"
+            banner = f"""
+            <div style="background: #065f46; color: #ecfdf5; padding: 10px 18px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #10b981; box-sizing: border-box; width: 100%; position: sticky; top: 0; z-index: 999999;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 16px;">🌐</span>
+                    <span><strong>LIVE INTERNET NAT VERBINDING</strong> &bull; Fysieke Instance Adapter (Google Cloud / Host)</span>
+                </div>
+                <span style="font-weight: bold; background: #047857; padding: 3px 10px; border-radius: 12px; font-size: 12px;">{final_url}</span>
+            </div>
+            """
+
+            if "<head>" in html_body:
+                html_body = html_body.replace("<head>", f"<head><base href=\"{base_href}\">", 1)
+            elif "<html>" in html_body:
+                html_body = html_body.replace("<html>", f"<html><head><base href=\"{base_href}\"></head>", 1)
+
+            if "<body>" in html_body:
+                html_body = html_body.replace("<body>", f"<body>{banner}", 1)
+            else:
+                html_body = banner + html_body
+
+            return jsonify({
+                "success": True,
+                "html": html_body,
+                "final_url": final_url,
+                "status_code": response.getcode()
+            })
+    except urllib.error.HTTPError as e:
+        return jsonify({
+            "success": False,
+            "status_code": e.code,
+            "reason": f"HTTP Fout {e.code}: {e.reason} bij openen van {target_url}"
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "reason": f"NAT Gateway Fout bij bereiken van {target_url}: {str(e)}"
+        }), 200
+
+
+@app.route("/api/gateway/probe", methods=["POST"])
+def gateway_probe():
+    """
+    Performs real live TCP/DNS probe out of physical adapter to test actual reachability & latency.
+    """
+    data = request.get_json(force=True) or {}
+    target = data.get("target", "").strip()
+    if not target:
+        return jsonify({"success": False, "reason": "Target ontbreekt"}), 400
+
+    target = target.replace("http://", "").replace("https://", "").split("/")[0].split(":")[0]
+
+    start_t = time.time()
+    try:
+        resolved_ip = socket.gethostbyname(target)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(2.5)
+        port = 443 if not target.startswith("8.8.") and not target.startswith("1.1.") else 53
+        try:
+            sock.connect((resolved_ip, port))
+            sock.close()
+        except Exception:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(2.5)
+                sock.connect((resolved_ip, 80))
+                sock.close()
+            except Exception:
+                pass
+
+        elapsed_ms = round((time.time() - start_t) * 1000, 1)
+        return jsonify({
+            "success": True,
+            "target": target,
+            "resolved_ip": resolved_ip,
+            "latency_ms": max(elapsed_ms, 1.2)
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "target": target,
+            "reason": f"Bestemming onbereikbaar via fysieke adapter: {str(e)}"
+        })
 
 
 @app.route("/<path:path>")

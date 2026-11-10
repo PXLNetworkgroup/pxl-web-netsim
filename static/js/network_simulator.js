@@ -9,6 +9,29 @@ class NetworkSimulator {
     this.devices = {};   // id -> CiscoDevice
     this.cables = [];    // array of Cable objects
     this.wirelessAssociations = {}; // laptopId -> apId
+    this.liveInternetEnabled = false;
+    this.fetchLiveInternetStatus();
+  }
+
+  async fetchLiveInternetStatus() {
+    try {
+      const res = await fetch('/api/settings/live-internet');
+      if (res.ok) {
+        const data = await res.json();
+        this.liveInternetEnabled = data.live_internet_enabled === true;
+      }
+    } catch (e) {
+      // Offline fallback
+    }
+  }
+
+  setLiveInternet(enabled) {
+    this.liveInternetEnabled = !!enabled;
+    fetch('/api/settings/live-internet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: this.liveInternetEnabled })
+    }).catch(() => {});
   }
 
   registerDevice(device) {
@@ -316,6 +339,16 @@ class NetworkSimulator {
     // Check if packet was received by Het Internet Cloud Simulator
     const inetCloud = Object.values(this.devices).find(d => d.type === 'internet_cloud' && d.powerOn);
     if (inetCloud && (pingResult.reason === 'Echo reply from Het Internet' || pingResult.hops.includes('Het Internet') || targetIp === '193.190.173.1' || !this.findDeviceByIp(targetIp))) {
+      // If live internet NAT bridge is active, forward out to real internet!
+      if (this.liveInternetEnabled) {
+        return {
+          success: true,
+          targetIp: targetIp,
+          isLiveProxy: true,
+          liveUrl: target.startsWith('http') ? target : `http://${target}`
+        };
+      }
+
       return {
         success: true,
         targetIp: targetIp,

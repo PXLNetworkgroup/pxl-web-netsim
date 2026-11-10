@@ -196,6 +196,10 @@ class PXLNetSimApp {
 
     this.renderOpdrachtDropdown();
 
+    if (typeof exam.liveInternet === 'boolean') {
+      this.toggleLiveInternet(exam.liveInternet);
+    }
+
     this.canvasWorkspace.render();
     this.triggerScoreUpdate();
   }
@@ -562,25 +566,44 @@ class PXLNetSimApp {
 
     // Internet Cloud Simulator Status View
     if (dev.type === 'internet_cloud') {
+      const isLive = this.sim.liveInternetEnabled;
       container.innerHTML = `
         <div style="background: #0f172a; color: #f8fafc; padding: 25px; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 15px; margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 15px; margin-bottom: 18px;">
             <div style="display: flex; align-items: center; gap: 12px;">
               <span style="font-size: 32px;">🌐</span>
               <div>
                 <h3 style="margin: 0; color: #38bdf8;">Het Internet (PXL Global Cloud Gateway)</h3>
-                <span style="font-size: 12px; color: #94a3b8;">Simulatie van het publieke wereldwijde internet</span>
+                <span style="font-size: 12px; color: #94a3b8;">Virtuele WAN Gateway &bull; PXL NetSim</span>
               </div>
             </div>
-            <div style="background: #065f46; color: #34d399; font-weight: bold; font-size: 12px; padding: 4px 12px; border-radius: 20px; border: 1px solid #059669;">
-              ● ONLINE (ANY-IP RESPONDER)
+            <div style="background: ${isLive ? '#065f46' : '#1e3a8a'}; color: ${isLive ? '#34d399' : '#60a5fa'}; font-weight: bold; font-size: 12px; padding: 5px 14px; border-radius: 20px; border: 1px solid ${isLive ? '#059669' : '#3b82f6'};">
+              ${isLive ? '● LIVE INTERNET NAT (FYSIEKE ADAPTER)' : '● GESIMULEERD INTERNET (EXAMENMODUS)'}
             </div>
           </div>
-          <p style="color: #cbd5e1; font-size: 13.5px; line-height: 1.6;">
-            Dit cloud-apparaat simuleert het volledige publieke internet. Sluit er een kabel op aan vanuit jouw router of switch. Het reageert met 100% succes op <strong>ALLE</strong> bestemmingen (bv. <code>8.8.8.8</code>, <code>1.1.1.1</code>, <code>pxl.be</code>). In de web browser van elke verbonden PC toont het de webpagina: <strong>"Welkom op het Internet"</strong> met het officiële PXL-symbool.
+
+          <!-- Interactive Live Internet NAT Gateway Switch -->
+          <div style="background: #1e293b; padding: 16px 20px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="max-width: 65%;">
+              <strong style="color: #38bdf8; font-size: 14px;">🌐 Fysieke Internet NAT Bridge:</strong>
+              <div style="font-size: 12px; color: #94a3b8; margin-top: 3px; line-height: 1.4;">
+                Koppel deze virtuele cloud aan de fysieke adapter van de server (Google Cloud Run / Host). Wanneer actief, krijgen studenten vanuit de browser en pings <strong>echte live internettoegang</strong>.
+              </div>
+            </div>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; background: #0f172a; padding: 8px 16px; border-radius: 24px; border: 2px solid ${isLive ? '#10b981' : '#475569'};">
+              <input type="checkbox" id="chkLiveInternetModal" ${isLive ? 'checked' : ''} onchange="window.PXLApp.toggleLiveInternet(this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
+              <span style="font-weight: 800; font-size: 12px; color: ${isLive ? '#34d399' : '#cbd5e1'};">
+                ${isLive ? 'LIVE NAT AAN' : 'SIMULATIE'}
+              </span>
+            </label>
+          </div>
+
+          <p style="color: #cbd5e1; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px 0;">
+            Dit cloud-apparaat simuleert het volledige publieke internet. Sluit er een kabel op aan vanuit jouw router of switch. Het reageert met 100% succes op <strong>ALLE</strong> mogelijke doellocaties (bv. <code>8.8.8.8</code>, <code>1.1.1.1</code>, <code>pxl.be</code>).
           </p>
-          <div style="margin-top: 20px;">
-            <h4 style="color: #38bdf8; margin-bottom: 10px;">Beschikbare Internet Ingress Poorten:</h4>
+
+          <div style="margin-top: 15px;">
+            <h4 style="color: #38bdf8; margin-bottom: 10px; font-size: 13px;">Beschikbare Internet Ingress Poorten:</h4>
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
               ${Object.entries(dev.interfaces).map(([p, intf]) => `
                 <div style="background: #1e293b; padding: 10px; border-radius: 6px; border: 1px solid #334155; font-size: 12px;">
@@ -895,12 +918,36 @@ class PXLNetSimApp {
     const url = input.value.trim();
     if (!url) return;
 
-    area.innerHTML = `<div style="text-align: center; color: #0284c7; margin-top: 40px;">⏳ Website laden vanaf ${url}...</div>`;
+    area.innerHTML = `<div style="text-align: center; color: #0284c7; margin-top: 40px;">⏳ Verbinding maken met ${url}...</div>`;
 
-    setTimeout(() => {
+    setTimeout(async () => {
       const res = this.sim.fetchHttp(this.activeDevice.id, url);
       if (res.success) {
-        area.innerHTML = res.html;
+        if (res.isLiveProxy) {
+          area.innerHTML = `<div style="text-align: center; color: #0284c7; margin-top: 40px;">🌐 Echte live website ophalen via fysieke Cloud NAT Gateway: <strong>${res.liveUrl}</strong>...</div>`;
+          try {
+            const proxyRes = await fetch('/api/gateway/proxy', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: res.liveUrl })
+            });
+            const data = await proxyRes.json();
+            if (data.success) {
+              area.innerHTML = data.html;
+            } else {
+              area.innerHTML = `
+                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px; color: #991b1b; text-align: left; max-width: 500px; margin: 20px auto;">
+                  <h4 style="margin-top:0;">Kan live website niet laden</h4>
+                  <p><strong>Fout:</strong> ${data.reason}</p>
+                </div>
+              `;
+            }
+          } catch (err) {
+            area.innerHTML = `<div style="color: red; padding: 20px;">Fout bij verbinden met fysieke NAT gateway: ${err.message}</div>`;
+          }
+        } else {
+          area.innerHTML = res.html;
+        }
       } else {
         area.innerHTML = `
           <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px; color: #991b1b; text-align: left; max-width: 500px; margin: 20px auto;">
@@ -911,7 +958,19 @@ class PXLNetSimApp {
           </div>
         `;
       }
-    }, 150);
+    }, 100);
+  }
+
+  toggleLiveInternet(enabled) {
+    this.sim.setLiveInternet(enabled);
+    this.showToast(enabled ? '🌐 Echte Internet NAT Gateway geactiveerd (Live WAN)!' : '🔒 Gesimuleerde examenmodus geactiveerd.');
+    const chk = document.getElementById('chkLiveInternetModal');
+    if (chk) chk.checked = enabled;
+    const studioSel = document.getElementById('studioLiveInternet');
+    if (studioSel) studioSel.value = enabled ? 'true' : 'false';
+    if (this.activeDevice && this.activeDevice.type === 'internet_cloud') {
+      this.renderCliTab();
+    }
   }
 
   savePcIpConfig() {
