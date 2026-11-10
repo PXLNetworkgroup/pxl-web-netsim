@@ -71,6 +71,57 @@ class CiscoDevice {
       channel: options.channel || 6
     };
 
+    // Server Services (HTTP Web Server, DNS Server, FTP Server)
+    this.services = options.services ? JSON.parse(JSON.stringify(options.services)) : {
+      http: {
+        enabled: this.type === 'server',
+        port: 80,
+        content: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PXL NetSim Web Server</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; text-align: center; padding: 40px; margin: 0; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 30px; display: inline-block; max-width: 520px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+    h1 { color: #38bdf8; margin-top: 0; font-size: 24px; }
+    .badge { background: #10b981; color: white; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; display: inline-block; margin-bottom: 15px; }
+    p { color: #94a3b8; line-height: 1.6; font-size: 15px; }
+    .footer { margin-top: 20px; font-size: 12px; color: #64748b; border-top: 1px solid #334155; padding-top: 15px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">🌐 HTTP SERVER ACTIVE</div>
+    <h1>Hogeschool PXL • NetSim Webserver</h1>
+    <p>Welkom op het Cisco Packet Tracer simulatieplatform van Hogeschool PXL!</p>
+    <p>De HTTP webdienst en DNS-resolutie functioneren succesvol over het netwerk.</p>
+    <div class="footer">Cisco Systems • Integrated Services Architecture (v2.1)</div>
+  </div>
+</body>
+</html>`
+      },
+      dns: {
+        enabled: this.type === 'server',
+        records: [
+          { name: 'www.pxl.be', type: 'A', ip: '172.16.1.10' },
+          { name: 'cisco.pxl', type: 'A', ip: '172.16.1.10' }
+        ]
+      },
+      ftp: {
+        enabled: this.type === 'server',
+        users: [
+          { username: 'cisco', password: 'cisco', permissions: 'RWDNL' },
+          { username: 'anonymous', password: '', permissions: 'R' }
+        ],
+        files: [
+          { name: 'c4300-universalk9-mz.SPA.154-3.M2.bin', size: '12402176 bytes' },
+          { name: 'pxl-lab-oefening.pka', size: '45020 bytes' },
+          { name: 'sample.txt', size: '1024 bytes' }
+        ]
+      }
+    };
+
     // Layer 2 Dynamic Tables
     this.arpTable = {}; // ip -> { mac, intf, t }
     this.macTable = {}; // mac -> { port, t } (Switches only)
@@ -104,7 +155,7 @@ class CiscoDevice {
       return;
     }
 
-    const genMac = (prefix) => `${prefix}.${Math.floor(Math.random()*65535).toString(16).padStart(4,'0')}.${Math.floor(Math.random()*65535).toString(16).padStart(4,'0')}`;
+    const genMac = (prefix) => `${prefix}.${Math.floor(Math.random() * 65535).toString(16).padStart(4, '0')}.${Math.floor(Math.random() * 65535).toString(16).padStart(4, '0')}`;
 
     if (this.type === 'router') {
       // Cisco 4331 Router standard ports: Gi0/0/0, Gi0/0/1, Gi0/0/2, Serial0/1/0, Serial0/1/1
@@ -179,7 +230,7 @@ class CiscoDevice {
     'bannerMotd', 'domainName', 'rsaKeyBits', 'sshVersion', 'users', 'consolePassword',
     'consoleLoginRequired', 'vtyLines', 'maxConfiguredVty', 'vtyPassword', 'vtyLoginMode',
     'vtyTransportInput', 'interfaces', 'defaultGateway', 'staticRoutes', 'ipClassless',
-    'ip', 'mask', 'gateway', 'dns', 'dhcpEnabled', 'wireless'
+    'ip', 'mask', 'gateway', 'dns', 'dhcpEnabled', 'wireless', 'services'
   ];
 
   snapshotConfig() {
@@ -207,10 +258,47 @@ class CiscoDevice {
 
   reboot() {
     if (!this.powerOn) return;
-    this.restoreConfig(this.savedStartupConfig ? JSON.parse(this.savedStartupConfig) : this.factoryState);
+    if (this.savedStartupConfig) {
+      this.restoreConfig(JSON.parse(this.savedStartupConfig));
+    } else {
+      this.factoryReset();
+      return;
+    }
     this.arpTable = {};
     this.macTable = {};
     this.terminalBuffer = `Cisco IOS Software, ${this.model} Software (X86_64_LINUX_IOSD-UNIVERSALK9-M), Version 15.4(3)M2\nTechnical Support: http://www.cisco.com/techsupport\nCopyright (c) 1986-2026 by Cisco Systems, Inc.\n\n`;
+  }
+
+  factoryReset() {
+    this.savedStartupConfig = null;
+    this.hostname = this.defaultHostname;
+    this.enableSecret = null;
+    this.enablePassword = null;
+    this.servicePasswordEncryption = false;
+    this.bannerMotd = "";
+    this.domainName = "";
+    this.rsaKeyBits = null;
+    this.sshVersion = null;
+    this.users = {};
+    this.consolePassword = "";
+    this.consoleLoginRequired = false;
+    this.vtyPassword = "";
+    this.defaultGateway = "";
+    this.staticRoutes = [];
+    this.arpTable = {};
+    this.macTable = {};
+    this.mode = 'USER_EXEC';
+    this.currentInterface = null;
+    this.currentLine = null;
+    this.promptState = null;
+    this.history = [];
+    this.historyIndex = -1;
+
+    // Reinitialize interfaces to clean state
+    this.initDefaultInterfaces();
+
+    this.terminalBuffer = `Cisco IOS Software, ${this.model} Software (X86_64_LINUX_IOSD-UNIVERSALK9-M), Version 15.4(3)M2\nTechnical Support: http://www.cisco.com/techsupport\nCopyright (c) 1986-2026 by Cisco Systems, Inc.\n\nPress RETURN to get started!\n\n`;
+    this.markModified();
   }
 
   saveStartupConfig() {

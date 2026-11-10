@@ -19,6 +19,11 @@ class TeacherStudio {
   }
 
   openStudioModal() {
+    if (!this.app.currentUser || this.app.currentUser.role !== 'teacher') {
+      this.app.openLoginModal('teacher');
+      this.app.showToast('🔒 Docentenruimte beveiligd: Log in met docentenaccount.');
+      return;
+    }
     let modal = document.getElementById('teacherStudioModal');
     if (!modal) {
       modal = this.createStudioModalDom();
@@ -51,6 +56,7 @@ class TeacherStudio {
           <button class="pt-tab-btn" onclick="window.PXLApp.teacherStudio.switchTab('topology')">2. Topologie Snapshot</button>
           <button class="pt-tab-btn" onclick="window.PXLApp.teacherStudio.switchTab('rubric')">3. Puntenverdeling & Rubric</button>
           <button class="pt-tab-btn" onclick="window.PXLApp.teacherStudio.switchTab('pka')">4. Packet Tracer (.PKA) Import</button>
+          <button class="pt-tab-btn" onclick="window.PXLApp.teacherStudio.switchTab('students')">5. Studenten & CSV Import</button>
         </div>
 
         <div class="pt-studio-content">
@@ -131,6 +137,31 @@ class TeacherStudio {
               <div id="studioPkaStatus" class="pt-status-msg"></div>
             </div>
           </div>
+
+          <!-- TAB 5: Students & CSV Import -->
+          <div id="studioTabStudents" class="pt-studio-pane">
+            <h4>Studenten Accounts & Klaslijsten Beheren</h4>
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">
+              Importeer studentenaccounts in bulk via CSV. Studenten kunnen inloggen op de examensite en hun voortgang wordt elke minuut automatisch opgeslagen in de SQLite database.
+            </p>
+            <div class="pt-form-group">
+              <label>CSV Invoer (formaat: <code>username;wachtwoord;volledige_naam;klas</code>):</label>
+              <textarea id="studioStudentCsv" class="pt-input" style="height: 90px; font-family: monospace; font-size: 11px;" placeholder="jparren;Welkom2026!;Jonas Parren;1TIN-A&#10;mvwaeyen;Welkom2026!;Max Van Waeyenberg;1TIN-B&#10;sclaes;Welkom2026!;Sam Claes;1TIN-A"></textarea>
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+              <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.teacherStudio.importStudentCsv()">
+                📥 Importeer Studentenlijst
+              </button>
+              <button class="pt-btn pt-btn-secondary" onclick="window.PXLApp.teacherStudio.loadStudentsTable()">
+                🔄 Tabel Vernieuwen
+              </button>
+            </div>
+            <div id="studioCsvResult" style="margin-bottom: 12px; font-size: 12px;"></div>
+            <h4>Geregistreerde Studenten & Live Examenvoortgang</h4>
+            <div id="studioStudentsListContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 6px;">
+              <div style="padding: 20px; text-align: center; color: #94a3b8;">Studenten laden...</div>
+            </div>
+          </div>
         </div>
 
         <div class="pt-studio-footer">
@@ -148,7 +179,7 @@ class TeacherStudio {
   }
 
   switchTab(tabKey) {
-    const tabs = ['general', 'topology', 'rubric', 'pka'];
+    const tabs = ['general', 'topology', 'rubric', 'pka', 'students'];
     tabs.forEach(t => {
       const pane = document.getElementById(`studioTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
       if (pane) pane.classList.remove('active');
@@ -162,6 +193,91 @@ class TeacherStudio {
     // Highlight button
     const idx = tabs.indexOf(tabKey);
     if (idx >= 0 && btns[idx]) btns[idx].classList.add('active');
+
+    if (tabKey === 'students') {
+      this.loadStudentsTable();
+    }
+  }
+
+  async loadStudentsTable() {
+    const container = document.getElementById('studioStudentsListContainer');
+    if (!container) return;
+    container.innerHTML = `<div style="padding: 20px; text-align: center; color: #64748b;">⏳ Studentenlijst ophalen uit database...</div>`;
+
+    try {
+      const examId = this.app.activeExam ? this.app.activeExam.id : '01_pxl_standard';
+      const res = await fetch(`/api/teacher/students?exam_id=${examId}`);
+      const data = await res.json();
+      const students = data.students || [];
+
+      if (students.length === 0) {
+        container.innerHTML = `<div style="padding: 20px; text-align: center; color: #94a3b8;">Nog geen studenten geregistreerd. Voer hierboven een CSV in.</div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+          <thead>
+            <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
+              <th style="padding: 8px 12px;">Gebruikersnaam</th>
+              <th style="padding: 8px 12px;">Naam</th>
+              <th style="padding: 8px 12px;">Klas</th>
+              <th style="padding: 8px 12px;">Live Score</th>
+              <th style="padding: 8px 12px;">Laatste Auto-save</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${students.map(s => `
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 8px 12px; font-weight: 600; font-family: monospace;">${s.username}</td>
+                <td style="padding: 8px 12px;">${s.full_name}</td>
+                <td style="padding: 8px 12px;"><span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${s.class_group}</span></td>
+                <td style="padding: 8px 12px; font-weight: 700; color: ${s.percentage >= 50 ? '#16a34a' : '#d97706'};">
+                  ${s.score}/${s.max_score} (${s.percentage}%)
+                </td>
+                <td style="padding: 8px 12px; color: #64748b; font-size: 11px;">${s.last_saved}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } catch (err) {
+      container.innerHTML = `<div style="padding: 20px; color: #ef4444;">Fout bij ophalen van studenten: ${err.message}</div>`;
+    }
+  }
+
+  async importStudentCsv() {
+    const input = document.getElementById('studioStudentCsv');
+    const resultBox = document.getElementById('studioCsvResult');
+    if (!input || !resultBox) return;
+
+    const csvText = input.value.trim();
+    if (!csvText) {
+      resultBox.innerHTML = `<span style="color: #ef4444;">Voer eerst CSV-gegevens in.</span>`;
+      return;
+    }
+
+    resultBox.innerHTML = `<span style="color: #0284c7;">⏳ Bezig met importeren in database...</span>`;
+
+    try {
+      const res = await fetch('/api/teacher/import-students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv_text: csvText })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        resultBox.innerHTML = `<span style="color: #16a34a; font-weight: 600;">✅ ${data.message}</span>`;
+        input.value = '';
+        this.loadStudentsTable();
+        this.app.showToast(`✅ ${data.created} studenten accounts aangemaakt`);
+      } else {
+        resultBox.innerHTML = `<span style="color: #ef4444;">Fout: ${data.error || 'Kon niet importeren'}</span>`;
+      }
+    } catch (err) {
+      resultBox.innerHTML = `<span style="color: #ef4444;">Netwerkfout: ${err.message}</span>`;
+    }
   }
 
   populateStudioFields() {

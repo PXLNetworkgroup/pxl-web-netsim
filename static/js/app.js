@@ -16,11 +16,18 @@ class PXLNetSimApp {
     this.gradingEngine = new GradingEngine();
     this.canvasWorkspace = new CanvasWorkspace('canvasContainer');
     this.teacherStudio = new TeacherStudio(this);
+    this.currentUser = null;
+    this.autoSaveInterval = null;
+    this.activeServiceSubtab = 'http';
 
     this.initPresetExams();
     this.initEventListeners();
     this.initDeviceShelf();
     this.startExamTimer();
+
+    // Check authentication & initialize 1-minute auto-save
+    this.checkAuthStatus();
+    this.initAutoSaveTimer();
 
     // Load default exam
     this.loadExam(this.presetExams['01_pxl_standard']);
@@ -280,14 +287,23 @@ class PXLNetSimApp {
 
     // Show/hide appropriate tabs
     const isHost = (device.type === 'pc' || device.type === 'laptop' || device.type === 'server');
+    const isServer = (device.type === 'server');
     const cliTabBtn = document.getElementById('tabBtnCli');
     const desktopTabBtn = document.getElementById('tabBtnDesktop');
+    const servicesTabBtn = document.getElementById('tabBtnServices');
 
     if (cliTabBtn) cliTabBtn.style.display = isHost ? 'none' : 'inline-block';
-    if (desktopTabBtn) desktopTabBtn.style.display = isHost ? 'inline-block' : 'none';
+    if (desktopTabBtn) desktopTabBtn.style.display = (device.type === 'pc' || device.type === 'laptop') ? 'inline-block' : 'none';
+    if (servicesTabBtn) servicesTabBtn.style.display = isServer ? 'inline-block' : 'none';
 
     // Switch to primary operational tab
-    this.switchDeviceModalTab(isHost ? 'desktop' : 'cli');
+    if (isServer) {
+      this.switchDeviceModalTab('services');
+    } else if (isHost) {
+      this.switchDeviceModalTab('desktop');
+    } else {
+      this.switchDeviceModalTab('cli');
+    }
 
     modal.style.display = 'flex';
   }
@@ -299,7 +315,7 @@ class PXLNetSimApp {
   }
 
   switchDeviceModalTab(tabKey) {
-    const tabs = ['physical', 'config', 'cli', 'desktop'];
+    const tabs = ['physical', 'config', 'cli', 'desktop', 'services'];
     tabs.forEach(t => {
       const pane = document.getElementById(`modalPane${t.charAt(0).toUpperCase() + t.slice(1)}`);
       if (pane) pane.classList.remove('active');
@@ -316,6 +332,7 @@ class PXLNetSimApp {
     if (tabKey === 'config') this.renderConfigTab();
     if (tabKey === 'cli') this.renderCliTab();
     if (tabKey === 'desktop') this.renderDesktopTab();
+    if (tabKey === 'services') this.renderServicesTab();
   }
 
   // 1. PHYSICAL TAB
@@ -331,6 +348,9 @@ class PXLNetSimApp {
             <label class="pt-switch-label">Aan/Uit Schakelaar:</label>
             <button class="pt-power-btn ${dev.powerOn ? 'on' : 'off'}" onclick="window.PXLApp.toggleDevicePower()">
               ${dev.powerOn ? '🟢 POWER ON' : '🔴 POWER OFF'}
+            </button>
+            <button class="pt-btn-secondary" style="margin-left: 15px; border-color: #ef4444; color: #ef4444;" onclick="window.PXLApp.factoryResetDevice()">
+              ⚡ Wis Config (Factory Reset)
             </button>
           </div>
           <div class="pt-physical-desc">
@@ -393,9 +413,31 @@ class PXLNetSimApp {
             </div>
           ` : ''}
           <p class="pt-help-text">Klik op een interface aan de linkerkant om IP, subnetmasker en poortstatus in te stellen.</p>
+          <div style="margin-top: 25px; border-top: 1px solid #334155; padding-top: 15px;">
+            <button class="pt-btn-secondary" style="border-color: #ef4444; color: #ef4444; width: 100%;" onclick="window.PXLApp.factoryResetDevice()">
+              ⚡ Wis Configuratie & Fabrieksinstellingen
+            </button>
+          </div>
         </div>
       </div>
     `;
+  }
+
+  factoryResetDevice() {
+    const dev = this.activeDevice;
+    if (!dev) return;
+    if (confirm(`Weet je zeker dat je alle configuraties op ${dev.hostname} wilt wissen en herstellen naar fabrieksinstellingen?`)) {
+      dev.factoryReset();
+      this.renderPhysicalTab();
+      this.renderConfigTab();
+      this.canvasWorkspace.render();
+      this.triggerScoreUpdate();
+      this.showToast(`⚠️ ${dev.hostname} is hersteld naar fabrieksinstellingen`);
+      const cliTab = document.getElementById('tabBtnCli');
+      if (cliTab && cliTab.classList.contains('active')) {
+        this.renderCliTab();
+      }
+    }
   }
 
   selectConfigPort(portName) {
@@ -478,13 +520,9 @@ class PXLNetSimApp {
     const container = document.getElementById('modalPaneCli');
     if (!dev || !container) return;
 
-    if (!dev.terminalBuffer) {
-      dev.terminalBuffer = `Cisco IOS Software, ${dev.model} Software (X86_64_LINUX_IOSD-UNIVERSALK9-M), Version 15.4(3)M2\nTechnical Support: http://www.cisco.com/techsupport\nCopyright (c) 1986-2026 by Cisco Systems, Inc.\n\n`;
-    }
-
     container.innerHTML = `
       <div class="pt-terminal-wrapper" style="cursor: text;">
-        <pre class="pt-terminal-screen" id="cliTerminalScreen"></pre>
+        <div class="pt-terminal-screen" id="cliTerminalScreen"></div>
         <div class="pt-terminal-input-bar">
           <span class="pt-terminal-prompt" id="cliTerminalPrompt">${dev.getPrompt()}</span>
           <input type="text" class="pt-terminal-input" id="cliTerminalInput" autocomplete="off" spellcheck="false" autofocus>
@@ -497,9 +535,6 @@ class PXLNetSimApp {
     const input = document.getElementById('cliTerminalInput');
     const wrapper = container.querySelector('.pt-terminal-wrapper');
 
-    screen.textContent = dev.terminalBuffer;
-    screen.scrollTop = screen.scrollHeight;
-
     // Clicking anywhere in the terminal focuses the input
     if (wrapper) {
       wrapper.onclick = () => {
@@ -510,8 +545,7 @@ class PXLNetSimApp {
     this.activeTerminalParser = new CiscoCLIParser(
       dev,
       (text) => {
-        dev.terminalBuffer += `${text}\n`;
-        screen.textContent = dev.terminalBuffer;
+        screen.innerHTML += `${text}\n`;
         screen.scrollTop = screen.scrollHeight;
       },
       () => {
@@ -522,17 +556,44 @@ class PXLNetSimApp {
       }
     );
 
+    // Initial boot message
+    if (!dev.history || dev.history.length === 0) {
+      screen.innerHTML = `Cisco IOS Software, ${dev.model} Software (X86_64_LINUX_IOSD-UNIVERSALK9-M), Version 15.4(3)M2\nTechnical Support: http://www.cisco.com/techsupport\nCopyright (c) 1986-2026 by Cisco Systems, Inc.\n\n`;
+    }
+
     prompt.innerText = dev.getPrompt();
     setTimeout(() => {
       if (input) input.focus();
     }, 50);
 
     input.onkeydown = (e) => {
+      // Pager intercept for Space, Enter, q (--More--)
+      if (this.activeTerminalParser && this.activeTerminalParser.pagerState) {
+        if (e.key === ' ' || e.code === 'Space') {
+          e.preventDefault();
+          this.activeTerminalParser.handlePagerKey('space');
+          prompt.innerText = dev.getPrompt();
+          screen.scrollTop = screen.scrollHeight;
+          return;
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          this.activeTerminalParser.handlePagerKey('enter');
+          prompt.innerText = dev.getPrompt();
+          screen.scrollTop = screen.scrollHeight;
+          return;
+        } else if (e.key === 'q' || e.key === 'Q') {
+          e.preventDefault();
+          this.activeTerminalParser.handlePagerKey('quit');
+          prompt.innerText = dev.getPrompt();
+          screen.scrollTop = screen.scrollHeight;
+          return;
+        }
+      }
+
       if (e.key === 'Enter') {
         const cmd = input.value;
         const currentPrompt = dev.getPrompt();
-        dev.terminalBuffer += `${currentPrompt} ${cmd}\n`;
-        screen.textContent = dev.terminalBuffer;
+        screen.innerHTML += `${currentPrompt} ${cmd}\n`;
         input.value = '';
         this.activeTerminalParser.handleCommand(cmd);
         prompt.innerText = dev.getPrompt();
@@ -582,6 +643,10 @@ class PXLNetSimApp {
         <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('ipconfig')">
           <div class="pt-desktop-app-icon">⚙️</div>
           <span>IP Configuration</span>
+        </div>
+        <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('web')">
+          <div class="pt-desktop-app-icon">🌐</div>
+          <span>Web Browser</span>
         </div>
         ${dev.type === 'laptop' ? `
           <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('wireless')">
@@ -673,7 +738,55 @@ class PXLNetSimApp {
           <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.savePcWireless()">Verbinden</button>
         </div>
       `;
+    } else if (appKey === 'web') {
+      viewport.innerHTML = `
+        <div class="pt-app-window pt-browser-window">
+          <div class="pt-browser-bar">
+            <span style="font-weight: 700; color: #475569; display: flex; align-items: center; gap: 4px;">🌐 URL:</span>
+            <input type="text" id="browserUrlInput" value="http://www.pxl.be" placeholder="http://www.pxl.be of http://172.16.1.10">
+            <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.browseToUrl()">Go</button>
+          </div>
+          <div class="pt-browser-frame" id="browserContentArea">
+            <div style="text-align: center; color: #64748b; margin-top: 40px;">
+              <div style="font-size: 32px; margin-bottom: 10px;">🌐</div>
+              <p>Voer een webadres in (bv. <code>http://www.pxl.be</code>) en klik op <strong>Go</strong> om te verbinden via DNS en routering.</p>
+            </div>
+          </div>
+        </div>
+      `;
+      const urlInput = document.getElementById('browserUrlInput');
+      if (urlInput) {
+        urlInput.onkeydown = (e) => {
+          if (e.key === 'Enter') this.browseToUrl();
+        };
+      }
     }
+  }
+
+  browseToUrl() {
+    const input = document.getElementById('browserUrlInput');
+    const area = document.getElementById('browserContentArea');
+    if (!input || !area || !this.activeDevice) return;
+    const url = input.value.trim();
+    if (!url) return;
+
+    area.innerHTML = `<div style="text-align: center; color: #0284c7; margin-top: 40px;">⏳ Website laden vanaf ${url}...</div>`;
+
+    setTimeout(() => {
+      const res = this.sim.fetchHttp(this.activeDevice.id, url);
+      if (res.success) {
+        area.innerHTML = res.html;
+      } else {
+        area.innerHTML = `
+          <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px; color: #991b1b; text-align: left; max-width: 500px; margin: 20px auto;">
+            <h4 style="margin-top:0;">Kan website niet openen</h4>
+            <p><strong>Fout:</strong> ${res.reason}</p>
+            <hr style="border: 0; border-top: 1px solid #fecaca; margin: 15px 0;">
+            <p style="font-size: 11px; color: #7f1d1d;">Controleer of de host een correct IP-adres, Default Gateway en DNS Server IP heeft geconfigureerd, en of de webserver bereikbaar is via routering.</p>
+          </div>
+        `;
+      }
+    }, 150);
   }
 
   savePcIpConfig() {
@@ -803,6 +916,446 @@ class PXLNetSimApp {
     setTimeout(() => {
       toast.className = 'pt-toast';
     }, 3500);
+  }
+
+  // --- SERVER SERVICES (HTTP WEB, DNS, FTP) ---
+  renderServicesTab() {
+    const dev = this.activeDevice;
+    const container = document.getElementById('modalPaneServices');
+    if (!dev || !container) return;
+
+    if (!dev.services) {
+      dev.services = {
+        http: { enabled: true, port: 80, content: '<h1>PXL Web Server</h1>' },
+        dns: { enabled: true, records: [{ name: 'www.pxl.be', type: 'A', ip: dev.ip || '172.16.1.10' }] },
+        ftp: { enabled: true, users: [{ username: 'cisco', password: 'cisco', permissions: 'RWDNL' }], files: [] }
+      };
+    }
+
+    const sub = this.activeServiceSubtab || 'http';
+
+    container.innerHTML = `
+      <div class="pt-services-container">
+        <div class="pt-services-sidebar">
+          <h4 style="font-size: 11px; text-transform: uppercase; color: #94a3b8; padding-left: 8px; margin: 4px 0 10px;">Server Diensten</h4>
+          <button class="pt-service-nav-btn ${sub === 'http' ? 'active' : ''}" onclick="window.PXLApp.switchServiceSubtab('http')">🌐 HTTP / Web</button>
+          <button class="pt-service-nav-btn ${sub === 'dns' ? 'active' : ''}" onclick="window.PXLApp.switchServiceSubtab('dns')">🔎 DNS Service</button>
+          <button class="pt-service-nav-btn ${sub === 'ftp' ? 'active' : ''}" onclick="window.PXLApp.switchServiceSubtab('ftp')">📁 FTP Service</button>
+        </div>
+        <div class="pt-service-content">
+          ${this.getServiceSubtabHtml(sub, dev)}
+        </div>
+      </div>
+    `;
+  }
+
+  switchServiceSubtab(sub) {
+    this.activeServiceSubtab = sub;
+    this.renderServicesTab();
+  }
+
+  getServiceSubtabHtml(sub, dev) {
+    if (sub === 'http') {
+      const http = dev.services.http;
+      return `
+        <h3>🌐 HTTP Webserver Configuratie</h3>
+        <div class="pt-service-status-bar">
+          <span>Dienst Status:</span>
+          <label><input type="radio" name="srvHttp" ${http.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceHttp(true)"> Ingeschakeld (On)</label>
+          <label><input type="radio" name="srvHttp" ${!http.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceHttp(false)"> Uitgeschakeld (Off)</label>
+          <span style="margin-left: auto; color: #64748b; font-size: 12px;">Poort: 80</span>
+        </div>
+        <div class="pt-form-group">
+          <label>Website Broncode (index.html):</label>
+          <textarea id="httpHtmlInput" class="pt-input" style="height: 240px; font-family: monospace; font-size: 12px;">${dev.services.http.content}</textarea>
+        </div>
+        <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.saveHttpContent()">💾 Website Opslaan & Publiceren</button>
+      `;
+    } else if (sub === 'dns') {
+      const dns = dev.services.dns;
+      return `
+        <h3>🔎 DNS Server Configuratie</h3>
+        <div class="pt-service-status-bar">
+          <span>Dienst Status:</span>
+          <label><input type="radio" name="srvDns" ${dns.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceDns(true)"> Ingeschakeld (On)</label>
+          <label><input type="radio" name="srvDns" ${!dns.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceDns(false)"> Uitgeschakeld (Off)</label>
+        </div>
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+          <h4 style="margin: 0 0 10px;">Nieuw Resource Record Toevoegen:</h4>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="dnsNameInput" class="pt-input" placeholder="Domeinnaam (bv. www.pxl.be)" style="flex: 2;">
+            <select id="dnsTypeInput" class="pt-input" style="flex: 1;"><option value="A">A Record</option></select>
+            <input type="text" id="dnsIpInput" class="pt-input" placeholder="IP Adres (bv. 172.16.1.10)" style="flex: 2;">
+            <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.addDnsRecord()">+ Toevoegen</button>
+          </div>
+        </div>
+        <h4>Actieve DNS Records:</h4>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px;">
+          <thead>
+            <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
+              <th style="padding: 6px 10px;">Domeinnaam</th>
+              <th style="padding: 6px 10px;">Type</th>
+              <th style="padding: 6px 10px;">IP Adres</th>
+              <th style="padding: 6px 10px; width: 60px;">Actie</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${dns.records.map((r, i) => `
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 6px 10px; font-weight: 600;">${r.name}</td>
+                <td style="padding: 6px 10px;">${r.type}</td>
+                <td style="padding: 6px 10px; font-family: monospace;">${r.ip}</td>
+                <td style="padding: 6px 10px;"><button class="pt-btn-del" onclick="window.PXLApp.deleteDnsRecord(${i})">🗑️</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } else if (sub === 'ftp') {
+      const ftp = dev.services.ftp;
+      return `
+        <h3>📁 FTP Server Configuratie</h3>
+        <div class="pt-service-status-bar">
+          <span>Dienst Status:</span>
+          <label><input type="radio" name="srvFtp" ${ftp.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceFtp(true)"> Ingeschakeld (On)</label>
+          <label><input type="radio" name="srvFtp" ${!ftp.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceFtp(false)"> Uitgeschakeld (Off)</label>
+        </div>
+        <h4>Geregistreerde FTP Gebruikers:</h4>
+        <div style="font-size: 12px; color: #475569; margin-bottom: 15px;">
+          ${ftp.users.map(u => `<div>👤 Gebruiker: <strong>${u.username}</strong> | Permissies: <code>${u.permissions}</code></div>`).join('')}
+        </div>
+        <h4>Beschikbare Bestanden op FTP Server:</h4>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+          <thead>
+            <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
+              <th style="padding: 6px 10px;">Bestandsnaam</th>
+              <th style="padding: 6px 10px;">Grootte</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ftp.files.map(f => `
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 6px 10px; font-family: monospace;">${f.name}</td>
+                <td style="padding: 6px 10px; color: #64748b;">${f.size}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+    return '';
+  }
+
+  setServiceHttp(val) {
+    if (this.activeDevice && this.activeDevice.services) {
+      this.activeDevice.services.http.enabled = val;
+      this.triggerScoreUpdate();
+    }
+  }
+
+  saveHttpContent() {
+    const ta = document.getElementById('httpHtmlInput');
+    if (this.activeDevice && this.activeDevice.services && ta) {
+      this.activeDevice.services.http.content = ta.value;
+      this.showToast('✅ Website index.html succesvol opgeslagen');
+      this.triggerScoreUpdate();
+    }
+  }
+
+  setServiceDns(val) {
+    if (this.activeDevice && this.activeDevice.services) {
+      this.activeDevice.services.dns.enabled = val;
+      this.triggerScoreUpdate();
+    }
+  }
+
+  addDnsRecord() {
+    const nameInput = document.getElementById('dnsNameInput');
+    const ipInput = document.getElementById('dnsIpInput');
+    if (!nameInput || !ipInput || !this.activeDevice) return;
+    const name = nameInput.value.trim();
+    const ip = ipInput.value.trim();
+    if (!name || !IPUtils.isValidIp(ip)) {
+      this.showToast('⚠️ Voer een geldige domeinnaam en IPv4-adres in');
+      return;
+    }
+    this.activeDevice.services.dns.records.push({ name, type: 'A', ip });
+    this.renderServicesTab();
+    this.showToast(`✅ DNS Record '${name} -> ${ip}' toegevoegd`);
+    this.triggerScoreUpdate();
+  }
+
+  deleteDnsRecord(idx) {
+    if (this.activeDevice && this.activeDevice.services) {
+      this.activeDevice.services.dns.records.splice(idx, 1);
+      this.renderServicesTab();
+      this.triggerScoreUpdate();
+    }
+  }
+
+  setServiceFtp(val) {
+    if (this.activeDevice && this.activeDevice.services) {
+      this.activeDevice.services.ftp.enabled = val;
+      this.triggerScoreUpdate();
+    }
+  }
+
+  // --- OPDRACHT & RUBRIC DROPDOWN ---
+  toggleOpdrachtDropdown() {
+    const el = document.getElementById('opdrachtDropdownPanel');
+    if (!el) return;
+    const isHidden = (el.style.display === 'none' || !el.style.display);
+    if (isHidden) {
+      this.renderOpdrachtDropdown();
+      el.style.display = 'flex';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  closeOpdrachtDropdown() {
+    const el = document.getElementById('opdrachtDropdownPanel');
+    if (el) el.style.display = 'none';
+  }
+
+  renderOpdrachtDropdown() {
+    const exam = this.activeExam;
+    const titleEl = document.getElementById('opdrachtDropdownTitle');
+    const bodyEl = document.getElementById('opdrachtDropdownBody');
+    if (!exam || !bodyEl) return;
+
+    if (titleEl) titleEl.innerText = exam.title;
+
+    const evalRes = this.gradingEngine.evaluate();
+    const objectives = evalRes.objectives || [];
+
+    let rubricHtml = '';
+    if (objectives.length > 0) {
+      rubricHtml = `
+        <h4 style="margin: 18px 0 8px; color: #0284c7;">🎯 Beoordelingscriteria & Live Punten (${evalRes.earnedPoints}/${evalRes.totalPoints} pt):</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Criterium</th>
+              <th>Omschrijving</th>
+              <th style="width: 70px; text-align: center;">Punten</th>
+              <th style="width: 80px; text-align: center;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${objectives.map(obj => `
+              <tr>
+                <td style="font-weight: 600;">${obj.title}</td>
+                <td style="font-size: 11px; color: #475569;">${obj.desc || ''}</td>
+                <td style="text-align: center; font-weight: 700;">${obj.points} pt</td>
+                <td style="text-align: center; font-weight: 700; color: ${obj.passed ? '#16a34a' : '#94a3b8'};">
+                  ${obj.passed ? '✅ GESLAAGD' : '⏳ NOG NIET'}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    bodyEl.innerHTML = `
+      <div style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 12px; margin-bottom: 15px; border-radius: 4px;">
+        <h4 style="margin: 0 0 6px;">Examen Opgave: ${exam.title}</h4>
+        <div style="font-size: 12px; color: #334155; line-height: 1.5;">
+          ${(exam.instructions || '').replace(/\n/g, '<br>')}
+        </div>
+      </div>
+      ${rubricHtml}
+    `;
+  }
+
+  // --- AUTHENTICATION & AUTOSAVE ---
+  async checkAuthStatus() {
+    try {
+      const res = await fetch('/api/auth/me');
+      const data = await res.json();
+      if (data.authenticated) {
+        this.currentUser = data.user;
+      } else {
+        this.currentUser = null;
+      }
+      this.updateAuthUi();
+      if (this.currentUser && this.currentUser.role === 'student') {
+        this.loadSavedTopology();
+      }
+    } catch (err) {
+      console.log('Auth check error (offline mode):', err);
+    }
+  }
+
+  updateAuthUi() {
+    const container = document.getElementById('userAuthContainer');
+    if (!container) return;
+
+    if (this.currentUser) {
+      const isTeacher = (this.currentUser.role === 'teacher');
+      container.innerHTML = `
+        <span class="pt-auth-badge ${isTeacher ? 'teacher' : ''}">
+          ${isTeacher ? '🎓 Docent' : '👨‍🎓 Student'}: ${this.currentUser.full_name}
+        </span>
+        ${!isTeacher ? `<span class="pt-autosave-indicator" id="autoSaveLabel">💾 Auto-save actief</span>` : ''}
+        <button class="pt-btn pt-btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="window.PXLApp.logout()">
+          Uitloggen
+        </button>
+      `;
+    } else {
+      container.innerHTML = `
+        <button class="pt-btn pt-btn-secondary" id="btnLoginModal" onclick="window.PXLApp.openLoginModal()">
+          🔑 Inloggen
+        </button>
+      `;
+    }
+  }
+
+  openLoginModal(defaultRole = 'student') {
+    const modal = document.getElementById('loginModal');
+    if (!modal) return;
+    this.switchLoginTab(defaultRole);
+    modal.style.display = 'flex';
+    const userInput = document.getElementById('loginUsername');
+    if (userInput) userInput.focus();
+  }
+
+  closeLoginModal() {
+    const modal = document.getElementById('loginModal');
+    if (modal) modal.style.display = 'none';
+    const err = document.getElementById('loginErrorMsg');
+    if (err) err.style.display = 'none';
+  }
+
+  switchLoginTab(role) {
+    const sBtn = document.getElementById('tabBtnLoginStudent');
+    const tBtn = document.getElementById('tabBtnLoginTeacher');
+    const uLabel = document.getElementById('loginUserLabel');
+    const uInput = document.getElementById('loginUsername');
+
+    if (role === 'teacher') {
+      if (tBtn) tBtn.classList.add('active');
+      if (sBtn) sBtn.classList.remove('active');
+      if (uLabel) uLabel.innerText = 'Docenten Gebruikersnaam:';
+      if (uInput) uInput.placeholder = 'teacher of david';
+    } else {
+      if (sBtn) sBtn.classList.add('active');
+      if (tBtn) tBtn.classList.remove('active');
+      if (uLabel) uLabel.innerText = 'Studentennummer / Gebruikersnaam:';
+      if (uInput) uInput.placeholder = 'bv. student1 of 12600786';
+    }
+  }
+
+  async handleLoginSubmit() {
+    const uInput = document.getElementById('loginUsername');
+    const pInput = document.getElementById('loginPassword');
+    const errBox = document.getElementById('loginErrorMsg');
+
+    const username = uInput ? uInput.value.trim() : '';
+    const password = pInput ? pInput.value : '';
+
+    if (!username || !password) return;
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        this.currentUser = data.user;
+        this.closeLoginModal();
+        this.updateAuthUi();
+        this.showToast(`👋 Welkom ${data.user.full_name}!`);
+        if (pInput) pInput.value = '';
+        if (this.currentUser.role === 'student') {
+          this.loadSavedTopology();
+        }
+      } else {
+        if (errBox) {
+          errBox.innerText = data.error || 'Inloggen mislukt';
+          errBox.style.display = 'block';
+        }
+      }
+    } catch (err) {
+      if (errBox) {
+        errBox.innerText = 'Netwerkfout bij inloggen: ' + err.message;
+        errBox.style.display = 'block';
+      }
+    }
+  }
+
+  async logout() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {}
+    this.currentUser = null;
+    this.updateAuthUi();
+    this.showToast('Succesvol uitgelogd');
+  }
+
+  initAutoSaveTimer() {
+    if (this.autoSaveInterval) clearInterval(this.autoSaveInterval);
+    // Autosave every 60 seconds (1 minute)
+    this.autoSaveInterval = setInterval(() => {
+      this.saveActiveTopology();
+    }, 60000);
+  }
+
+  async saveActiveTopology() {
+    if (!this.currentUser) return;
+    const examId = this.activeExam ? this.activeExam.id : '01_pxl_standard';
+    const evalResult = this.gradingEngine ? this.gradingEngine.evaluate() : { earnedPoints: 0, totalPoints: 100, percentage: 0 };
+    const score = evalResult.earnedPoints || 0;
+    const maxScore = evalResult.totalPoints || 100;
+    const percentage = evalResult.percentage || 0;
+    const topology = this.sim.exportTopology();
+
+    try {
+      const res = await fetch('/api/student/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exam_id: examId,
+          topology: topology,
+          score: score,
+          max_score: maxScore,
+          percentage: percentage
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        const lbl = document.getElementById('autoSaveLabel');
+        if (lbl) {
+          lbl.innerText = `💾 Opgeslagen om ${data.saved_at}`;
+          lbl.style.color = '#10b981';
+        }
+      }
+    } catch (err) {
+      console.warn('Auto-save failed:', err);
+    }
+  }
+
+  async loadSavedTopology() {
+    if (!this.currentUser) return;
+    const examId = this.activeExam ? this.activeExam.id : '01_pxl_standard';
+    try {
+      const res = await fetch(`/api/student/load?exam_id=${examId}`);
+      const data = await res.json();
+      if (data.found && data.progress && data.progress.topology) {
+        if (confirm(`Welkom terug ${this.currentUser.full_name}! Er is een eerdere sessie opgeslagen om ${data.progress.updated_at}. Wil je verdergaan waar je gebleven was?`)) {
+          this.sim.importTopology(data.progress.topology);
+          this.canvasWorkspace.render();
+          this.triggerScoreUpdate();
+          this.showToast(`✅ Eerdere sessie geladen (${data.progress.score}/${data.progress.max_score} pt)`);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not load saved topology:', err);
+    }
   }
 }
 

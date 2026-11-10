@@ -35,12 +35,18 @@ class PCDesktopHandler {
       case 'traceroute':
         this.handleTracert(parts.slice(1));
         break;
+      case 'nslookup':
+        this.handleNslookup(parts.slice(1));
+        break;
+      case 'ftp':
+        this.handleFtp(parts.slice(1));
+        break;
       case 'cls':
       case 'clear':
         if (window.PXLApp) window.PXLApp.clearActiveTerminal();
         break;
       case 'help':
-        this.print("Supported commands: ipconfig, ipconfig /all, ping <ip>, tracert <ip>, cls");
+        this.print("Supported commands: ipconfig, ipconfig /all, ping <ip>, tracert <ip>, nslookup <domain>, ftp <target>, cls");
         break;
       default:
         this.print(`'${cmd}' is not recognized as an internal or external command.`);
@@ -75,6 +81,71 @@ class PCDesktopHandler {
       this.print(`   DNS Servers . . . . . . . . . . . : ${dev.dns || '0.0.0.0'}`);
     }
     this.print("");
+  }
+
+  handleNslookup(args) {
+    if (args.length === 0) {
+      this.print("Default Server: " + (this.device.dns || "Unknown"));
+      this.print("Address: " + (this.device.dns || "0.0.0.0") + "\n");
+      return;
+    }
+    const host = args[0];
+    if (!this.device.dns) {
+      this.print("*** Can't find server name for address: No response from server");
+      this.print(`*** Default servers are not available\nServer:  UnKnown\nAddress:  0.0.0.0\n`);
+      return;
+    }
+    this.print(`Server:  dns.pxl.be`);
+    this.print(`Address:  ${this.device.dns}\n`);
+    if (window.PXLNetworkSim) {
+      const res = window.PXLNetworkSim.resolveDns(this.device.id, host);
+      if (res.success) {
+        this.print(`Name:    ${host}`);
+        this.print(`Address: ${res.ip}\n`);
+      } else {
+        this.print(`*** dns.pxl.be can't find ${host}: Non-existent domain\n`);
+      }
+    }
+  }
+
+  handleFtp(args) {
+    if (args.length === 0) {
+      this.print("Usage: ftp [hostname/IP]");
+      return;
+    }
+    const target = args[0];
+    this.print(`Connected to ${target}.`);
+    if (window.PXLNetworkSim) {
+      let targetIp = target;
+      if (!IPUtils.isValidIp(target)) {
+        const dns = window.PXLNetworkSim.resolveDns(this.device.id, target);
+        if (!dns.success) {
+          this.print(`% Unknown host: ${target}`);
+          return;
+        }
+        targetIp = dns.ip;
+      }
+      const ping = window.PXLNetworkSim.executePing(this.device.id, targetIp);
+      if (!ping.success) {
+        this.print(`ftp: connect: Connection timed out`);
+        return;
+      }
+      const dst = window.PXLNetworkSim.findDeviceByIp(targetIp);
+      if (dst && dst.device.services && dst.device.services.ftp && dst.device.services.ftp.enabled) {
+        this.print("220 Cisco NetSim FTP Server ready.");
+        this.print("230 User logged in (anonymous mode).");
+        this.print("ftp> dir");
+        this.print("200 PORT command successful.");
+        this.print("150 Opening ASCII mode data connection for file list.");
+        dst.device.services.ftp.files.forEach(f => {
+          this.print(`-rw-r--r--   1 ftp      ftp      ${f.size.padEnd(14, ' ')} ${f.name}`);
+        });
+        this.print("226 Transfer complete.");
+        this.print("221 Goodbye.\n");
+        return;
+      }
+    }
+    this.print("ftp: connect: Connection refused\n");
   }
 
   handlePing(args) {

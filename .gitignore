@@ -12,3 +12,5 @@ build/
 .DS_Store
 Thumbs.db
 
+data/*.db
+screenshot_*.png

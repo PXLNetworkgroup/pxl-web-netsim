@@ -252,6 +252,58 @@ class NetworkSimulator {
     return res.hops;
   }
 
+  // --- DNS & HTTP & FTP SERVICES SIMULATION ---
+  resolveDns(srcDevId, domainName) {
+    const cleanHost = domainName.replace(/^https?:\/\//i, '').split('/')[0].trim();
+    const srcDev = this.devices[srcDevId];
+    if (!srcDev || !srcDev.dns) {
+      return { success: false, reason: 'DNS server IP not configured on host' };
+    }
+    const dnsIp = srcDev.dns;
+    const pingResult = this.executePing(srcDevId, dnsIp);
+    if (!pingResult.success) {
+      return { success: false, reason: `DNS server ${dnsIp} unreachable (timeout)` };
+    }
+    const dstInfo = this.findDeviceByIp(dnsIp);
+    if (!dstInfo || !dstInfo.device.services || !dstInfo.device.services.dns || !dstInfo.device.services.dns.enabled) {
+      return { success: false, reason: `DNS service inactive or not running on ${dnsIp}` };
+    }
+    const rec = dstInfo.device.services.dns.records.find(r => r.name.toLowerCase() === cleanHost.toLowerCase());
+    if (!rec) {
+      return { success: false, reason: `Host Name Unresolved: '${cleanHost}' not found in DNS zone` };
+    }
+    return { success: true, ip: rec.ip, dnsServerIp: dnsIp };
+  }
+
+  fetchHttp(srcDevId, target) {
+    let cleanTarget = target.replace(/^https?:\/\//i, '').split('/')[0].trim();
+    let targetIp = cleanTarget;
+
+    if (!IPUtils.isValidIp(cleanTarget)) {
+      const dnsRes = this.resolveDns(srcDevId, cleanTarget);
+      if (!dnsRes.success) {
+        return { success: false, reason: dnsRes.reason };
+      }
+      targetIp = dnsRes.ip;
+    }
+
+    const pingResult = this.executePing(srcDevId, targetIp);
+    if (!pingResult.success) {
+      return { success: false, reason: `Request Timeout: could not connect to ${targetIp}:80` };
+    }
+
+    const dstInfo = this.findDeviceByIp(targetIp);
+    if (!dstInfo || !dstInfo.device.services || !dstInfo.device.services.http || !dstInfo.device.services.http.enabled) {
+      return { success: false, reason: `Connection Refused: HTTP web service inactive on ${targetIp}` };
+    }
+
+    return {
+      success: true,
+      targetIp: targetIp,
+      html: dstInfo.device.services.http.content
+    };
+  }
+
   findDeviceByIp(targetIp) {
     for (const dev of Object.values(this.devices)) {
       if (!dev.powerOn) continue;
@@ -353,6 +405,55 @@ class NetworkSimulator {
     }
 
     return this.routePacket(nextHopDev.device.id, targetIp, visited, hops);
+  }
+
+  exportTopology() {
+    return {
+      devices: Object.values(this.devices).map(d => ({
+        id: d.id,
+        type: d.type,
+        model: d.model,
+        hostname: d.hostname,
+        displayName: d.displayName,
+        x: d.x,
+        y: d.y,
+        powerOn: d.powerOn,
+        config: d.snapshotConfig(),
+        savedStartupConfig: d.savedStartupConfig,
+        terminalBuffer: d.terminalBuffer
+      })),
+      cables: this.cables
+    };
+  }
+
+  importTopology(data) {
+    if (!data) return;
+    this.clear();
+    if (data.devices) {
+      data.devices.forEach(d => {
+        const dev = new CiscoDevice(d.id, d.type, d.hostname, {
+          model: d.model,
+          x: d.x,
+          y: d.y,
+          powerOn: d.powerOn !== false
+        });
+        if (d.config) {
+          dev.restoreConfig(d.config);
+        }
+        if (d.savedStartupConfig) {
+          dev.savedStartupConfig = d.savedStartupConfig;
+        }
+        if (d.terminalBuffer) {
+          dev.terminalBuffer = d.terminalBuffer;
+        }
+        this.registerDevice(dev);
+      });
+    }
+    if (data.cables) {
+      data.cables.forEach(c => {
+        this.addCable(c);
+      });
+    }
   }
 }
 

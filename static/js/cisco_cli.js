@@ -125,21 +125,17 @@ class CiscoCLIParser {
     const dev = this.device;
     const cmd = tokens[0].toLowerCase();
 
-    // Universal navigation: 'exit', 'ex', 'quit', 'logout'
-    if (cmd === 'exit' || cmd === 'ex' || cmd === 'quit' || (dev.mode === 'USER_EXEC' && (cmd === 'logout' || cmd === 'log'))) {
+    // Universal navigation: 'exit' and 'end'
+    if (this.matchCmd(cmd, 'exit')) {
       this.handleExit();
       return;
     }
-
-    // 'end' is strictly 'end' (or Ctrl+Z) and is ONLY valid in CONFIG* modes to return to PRIV_EXEC
-    if (cmd === 'end') {
-      if (dev.mode.startsWith('CONFIG')) {
+    if (this.matchCmd(cmd, 'end')) {
+      if (dev.mode !== 'USER_EXEC' && dev.mode !== 'PRIV_EXEC') {
         dev.mode = 'PRIV_EXEC';
         dev.currentInterface = null;
         dev.currentLine = null;
         this.print("");
-      } else {
-        this.print("% Invalid input detected at '^' marker.");
       }
       return;
     }
@@ -182,7 +178,6 @@ class CiscoCLIParser {
     } else if (dev.mode === 'PRIV_EXEC') {
       dev.mode = 'USER_EXEC';
     } else if (dev.mode === 'USER_EXEC') {
-      dev.consoleReady = false;
       this.print(`\n[Connection to ${dev.hostname} closed. Press RETURN to re-open]`);
     }
   }
@@ -204,11 +199,6 @@ class CiscoCLIParser {
       return;
     }
 
-    if (this.matchCmd(cmd0, 'configure')) {
-      this.print("% Type 'enable' (or 'en') first to enter privileged EXEC mode before configuring.");
-      return;
-    }
-
     if (this.matchCmd(cmd0, 'show')) {
       this.handleShowCommands(tokens.slice(1));
       return;
@@ -221,15 +211,6 @@ class CiscoCLIParser {
   handlePrivExec(tokens, fullLine) {
     const dev = this.device;
     const cmd0 = tokens[0].toLowerCase();
-
-    if (this.matchCmd(cmd0, 'enable')) {
-      return; // Already in privileged EXEC mode
-    }
-
-    if (this.matchCmd(cmd0, 'ping')) {
-      this.handlePing(tokens);
-      return;
-    }
 
     if (this.matchCmd(cmd0, 'disable')) {
       dev.mode = 'USER_EXEC';
@@ -262,6 +243,23 @@ class CiscoCLIParser {
       if (tokens.length === 1 || this.matchCmd(tokens[1], 'memory')) {
         dev.saveStartupConfig();
         this.print("Building configuration...\n[OK]");
+      } else if (tokens.length >= 2 && this.matchCmd(tokens[1], 'erase')) {
+        dev.promptState = {
+          type: 'ERASE_CONFIRM',
+          promptText: 'Erasing the nvram filesystem will remove all configuration files! Continue? [confirm]'
+        };
+      }
+      return;
+    }
+
+    if (this.matchCmd(cmd0, 'erase')) {
+      if (tokens.length >= 2 && (this.matchCmd(tokens[1], 'startup-config') || tokens[1].startsWith('nvram'))) {
+        dev.promptState = {
+          type: 'ERASE_CONFIRM',
+          promptText: 'Erasing the nvram filesystem will remove all configuration files! Continue? [confirm]'
+        };
+      } else {
+        this.print("% Incomplete command. Syntax: erase startup-config (or write erase)");
       }
       return;
     }
@@ -476,24 +474,6 @@ class CiscoCLIParser {
 
     const cmd0 = tokens[0].toLowerCase();
 
-    // Direct interface / line switching
-    if (this.matchCmd(cmd0, 'interface')) {
-      if (tokens.length >= 2) {
-        const rawName = tokens.slice(1).join(' ');
-        const resolved = this.resolveInterfaceName(rawName);
-        if (resolved) {
-          dev.currentInterface = resolved;
-        } else {
-          this.print(`% Invalid interface name '${rawName}'`);
-        }
-      }
-      return;
-    }
-    if (this.matchCmd(cmd0, 'line')) {
-      this.handleConfigGlobal(tokens, fullLine);
-      return;
-    }
-
     // ip address <ip> <mask> (or ip add <ip> <mask>)
     if (this.matchCmd(cmd0, 'ip')) {
       if (tokens.length >= 4 && this.matchCmd(tokens[1], 'address')) {
@@ -517,15 +497,15 @@ class CiscoCLIParser {
       return;
     }
 
-    // shutdown / shut (or no shutdown / no shut / no sh)
-    if (cmd0 === 'shutdown' || cmd0 === 'shut') {
+    // shutdown / no shutdown (or shut / no shut / sh / no sh)
+    if (this.matchCmd(cmd0, 'shutdown')) {
       intf.shutdown = true;
       dev.markModified();
       this.print(`%LINK-5-CHANGED: Interface ${dev.currentInterface}, changed state to administratively down`);
       return;
     }
     if (this.matchCmd(cmd0, 'no')) {
-      if (tokens.length >= 2 && (this.matchCmd(tokens[1], 'shutdown') || tokens[1].toLowerCase() === 'sh')) {
+      if (tokens.length >= 2 && this.matchCmd(tokens[1], 'shutdown')) {
         intf.shutdown = false;
         dev.markModified();
         this.print(`%LINK-3-UPDOWN: Interface ${dev.currentInterface}, changed state to up`);
@@ -556,12 +536,6 @@ class CiscoCLIParser {
   handleConfigLine(tokens, fullLine) {
     const dev = this.device;
     const cmd0 = tokens[0].toLowerCase();
-
-    // Direct navigation to interface or another line
-    if (this.matchCmd(cmd0, 'line') || this.matchCmd(cmd0, 'interface')) {
-      this.handleConfigGlobal(tokens, fullLine);
-      return;
-    }
 
     // password <pw>
     if (this.matchCmd(cmd0, 'password')) {
@@ -782,19 +756,44 @@ class CiscoCLIParser {
       this.pagerState = null;
       this.updatePrompt();
     } else {
-      this.print("--More-- (Press Space for next page, Enter for line, 'q' to quit)");
+      this.print("--More-- (Druk op Spatie voor volgende pagina, Enter voor regel, 'q' om te stoppen)");
     }
+  }
+
+  handlePagerKey(key) {
+    if (!this.pagerState) return false;
+    if (key === 'quit' || key === 'q') {
+      this.pagerState = null;
+      this.print("");
+      this.updatePrompt();
+      return true;
+    }
+    if (key === 'enter') {
+      const { lines, index } = this.pagerState;
+      if (index < lines.length) {
+        this.print(lines[index]);
+        this.pagerState.index += 1;
+        if (this.pagerState.index >= lines.length) {
+          this.pagerState = null;
+          this.updatePrompt();
+        }
+      }
+      return true;
+    }
+    if (key === 'space') {
+      this.showNextPage();
+      return true;
+    }
+    return false;
   }
 
   handlePagerInput(rawLine) {
     const k = rawLine.trim().toLowerCase();
     if (k === 'q') {
-      this.pagerState = null;
-      this.print("");
-      this.updatePrompt();
+      this.handlePagerKey('quit');
       return;
     }
-    this.showNextPage();
+    this.handlePagerKey('space');
   }
 
   // --- MULTI-STEP PROMPT HANDLING ---
@@ -823,6 +822,15 @@ class CiscoCLIParser {
     if (st.type === 'COPY_CONFIRM') {
       dev.saveStartupConfig();
       this.print("Building configuration...\n[OK]");
+      dev.promptState = null;
+      return;
+    }
+
+    if (st.type === 'ERASE_CONFIRM') {
+      if (line === '' || line.toLowerCase() === 'y' || line.toLowerCase() === 'yes') {
+        dev.savedStartupConfig = null;
+        this.print("[OK]\nErase of nvram: complete\n%SYS-7-NV_BLOCK_INIT: Initialized the geometry of nvram");
+      }
       dev.promptState = null;
       return;
     }

@@ -1,4 +1,4 @@
-# PXL Web NetSim • CiscoExa NextGen
+# PXL Web NetSim • CiscoExa NextGen (v2.1)
 > **Online Cisco Packet Tracer Exam & Lab Simulation Platform**  
 > *Ontwikkeld voor Hogeschool PXL — Departement Toegepaste Informatica / SNE (System & Network Engineering)*  
 > **Auteurs & Copyright:** © David Parren, Gert Van Waeyenberg, Lode Frissaer, Jean, Hombroeks • Hogeschool PXL
@@ -21,22 +21,25 @@ Wanneer studenten de native desktopversie van Cisco Packet Tracer draaien, moet 
 - Geen externe software of installaties nodig op studentenlaptops.
 - Biedt een authentieke Cisco Packet Tracer interface (officiële Cisco symbolen, grid-canvas, dynamische bekabeling, fysieke chassis, Cisco IOS CLI en PC desktop).
 - Inclusief **Teacher Studio** waarmee docenten in enkele klikken nieuwe examens kunnen ontwerpen, punten per commando kunnen instellen en bestaande `.pka` bestanden kunnen importeren!
+- Bevat **Server Services** (HTTP Webserver, DNS Service, FTP Server) en PC **Web Browser** en **FTP Client**.
+- Volledige **SQLite persistentie met 1-minuut auto-save** en docenten monitoring via CSV-import.
 
 ---
 
-## 🚀 Belangrijkste Verbeteringen t.o.v. het Eerste Prototype
+## 🚀 Overzicht van Functionaliteiten
 
-| Eigenschap | Origineel Prototype | PXL Web NetSim (NextGen) |
-| :--- | :--- | :--- |
-| **Topologie Model** | Vaste lineaire 6-toestellen balk (`PCA-SW1-R1=R2-SW2-PCB`) | **Dynamische Graaf**: onbeperkt aantal routers, switches, PC's, laptops, wireless AP's |
-| **Bekabeling** | Statisch en voorgeprogrammeerd | **Interactieve Bekabeling**: student trekt zelf straight-through, crossover, serial of console kabels |
-| **Look & Feel** | Donkere generieke AI-dashboard layout | **Authentiek Cisco Packet Tracer**: rasterachtergrond, officiële Cisco SVG iconen, link-status LED's |
-| **Draadloos (WiFi)** | Geen ondersteuning | **Volledige WLAN Simulatie**: WRT300N AP, SSID broadcast, WPA2-PSK authenticatie, draadloze golven |
-| **CLI & Terminal** | Basis parser | **Geavanceerde Cisco IOS Engine**: afkortingen (`sh ip int br`), tab-completion, `?` help, pager (`--More--`), history |
-| **Apparaatvenster** | Enkel console | **Multi-Tab**: *Physical* (chassis & powerswitch), *Config* (GUI), *CLI* (IOS), *Desktop* (Command Prompt, IP Config, Wireless) |
-| **Examen Builder** | Hardcoded criteria in code | **Teacher Studio**: visuele rubric designer, punten per commando instellen, live activatie |
-| **Packet Tracer Import** | Niet aanwezig | **Twofish .PKA / .PKT Decoder**: importeert bestaande Cisco NetAcad labs direct naar Web NetSim |
-| **Anti-Cheat & Inlevering**| Ruwe tekst export | **Cryptografisch ondertekende `.pxlexam` bundel** met volledige commandologs, tijdsstempels en hash |
+| Module | Eigenschappen |
+| :--- | :--- |
+| **Topologie & Canvas** | Dynamische canvas met zoom, pan, selectie, grid snap, officiële Cisco SVG iconen, real-time link LED's (groen/oranje/rood). |
+| **Bekabeling** | Koper straight-through, crossover, console kabel, serial kabel met automatische interfacekeuze en link negotiation. |
+| **Cisco IOS CLI** | CLI met `--More--` pager (Spatiebalk voor volgende pagina, Enter voor regel, `q` om af te breken), tab-completion, `?` inline syntaxhulp, command history (pijltjes), syntax foutmeldingen. |
+| **Factory Reset** | Wis switch/router configuratie via `write erase` / `erase startup-config` / `reload` én via de fysieke "Wis Config" knop in de GUI. |
+| **Server Services** | Server-PT ondersteunt **HTTP Webserver** (met bewerkbare `index.html`), **DNS Service** (A-records met dynamische domeinnaamresolutie) en **FTP Service** (gebruikersbeheer en bestandsopslag). |
+| **PC & Laptop Desktop** | Command Prompt (`ping`, `traceroute`, `ipconfig`, `nslookup`, `ftp`), IP Configuration, PC Wireless WPA2 utility en **Web Browser** app met HTTP URL browsing. |
+| **Opdracht Dropdown** | Altijd toegankelijk via de header: toont opgave, netwerkschema, adresseringstabel en live rubric checklist. |
+| **Database & Accounts** | SQLite database (`data/netsim.db`) met gehashte wachtwoorden, studentensessies, en **automatische auto-save elke 60 seconden**. |
+| **Teacher Studio** | Beveiligd met docentenlogin (`teacher` / `SinterklaasOp6December`), rubric score editor, live studentenmonitor en **CSV bulk student import** (`username;password;full_name;class`). |
+| **Cloud Deployment** | Kant-en-klaar voor **Google Cloud Run** met Dockerfile en één-klik PowerShell script (`deploy_gcloud.ps1`). |
 
 ---
 
@@ -44,111 +47,96 @@ Wanneer studenten de native desktopversie van Cisco Packet Tracer draaien, moet 
 
 ```
 pxl-web-netsim/
-├── server.py                          # Flask backend API & static webserver
-├── requirements.txt                   # python afhankelijkheden (flask, pycryptodome)
+├── server.py                          # Flask backend API, authenticatie & auto-save
+├── Dockerfile                         # Productie container voor Google Cloud Run (Gunicorn)
+├── deploy_gcloud.ps1                  # 1-klik Google Cloud deployment script
+├── requirements.txt                   # flask, pycryptodome, gunicorn
 ├── README.md                          # Deze documentatie
+├── data/
+│   └── netsim.db                      # SQLite database met gebruikers en studentensaves
 ├── backend/
-│   ├── ptcrypto.py                    # Cisco Packet Tracer Twofish-128 crypto decoder (PT 7/8/9.0.1+)
+│   ├── database.py                    # SQLite persistentie engine & wachtwoord hashing
+│   ├── ptcrypto.py                    # Cisco Twofish-128 crypto decoder (PT 7/8/9.0.1+)
 │   ├── pka_parser.py                  # XML converter van .pka/.pkt naar WebNetSim JSON
 │   └── __init__.py
 ├── exams/                             # Kant-en-klare examenpresets (JSON)
-│   ├── 01_pxl_standard_lan_wan.json   # Volledig 6-toestellen routing & switching lab
+│   ├── 01_pxl_standard_lan_wan.json   # Volledig routing & switching lab
 │   ├── 02_cabling_and_basic_config.json # Zelfstandig bekabelen proef
 │   └── 03_wireless_lan_wpa2.json      # Wireless LAN & WPA2-PSK lab
 └── static/
     ├── index.html                     # Hoofdapplicatie (Schoolyear single-URL ready)
+    ├── img/pxl_logo.png               # Officieel PXL logo
     ├── css/
-    │   ├── packet_tracer.css          # Packet Tracer interface, knoppen, dock, rubric
-    │   ├── modal.css                  # Hardware faceplates, config GUI, desktop apps, studio
-    │   └── terminal.css               # Cisco IOS monospace terminal
-    ├── js/
-    │   ├── cisco_icons.js             # Officiële vector SVG iconen (Router, Switch, AP, PC, Laptop, Server)
-    │   ├── cisco_crypto.js            # Type 7 & Type 5 password engine, IP subnetting berekeningen
-    │   ├── cisco_device.js            # Datamodel voor apparaten, interfaces, NVRAM, running-config
-    │   ├── cisco_cli.js               # Cisco IOS CLI parser, tab-completion, ?, prompt state-machine
-    │   ├── pc_desktop.js              # PC desktop applicaties (ipconfig, ping, tracert, wireless)
-    │   ├── network_simulator.js       # Dynamische netwerkgraaf, L2 switching, ARP, L3 routing, ICMP
-    │   ├── cabling_engine.js          # Kabel trekken, poortselectie popover, link status evaluatie
-    │   ├── canvas_workspace.js        # Packet Tracer canvas, zoom & pan, drag-and-drop, link LED's
-    │   ├── grading_engine.js          # Dynamische rubric evaluator en realtime scoreberekening
-    │   ├── submission_exporter.js     # Bouwt en downloadt cryptografisch ondertekende .pxlexam
-    │   ├── teacher_studio.js          # Visuele Examen & Rubric Builder en .PKA upload
-    │   └── app.js                     # Hoofd UI coördinator en event dispatcher
-    └── img/
-        └── pxl_logo.png               # Officieel Hogeschool PXL logo
+    │   ├── packet_tracer.css          # Packet Tracer interface styling & canvas
+    │   ├── modal.css                  # Toestel configurator, tabs, dropdowns & browser
+    │   └── terminal.css               # Cisco IOS terminal & console styling
+    └── js/
+        ├── app.js                     # Hoofdapplicatie controller & auto-save loop
+        ├── network_simulator.js       # Packet tracer routering, switching, DNS & HTTP
+        ├── cisco_device.js            # Cisco apparaat datamodel & services
+        ├── cisco_cli.js               # Authentieke Cisco IOS CLI parser & pager
+        ├── pc_desktop.js              # PC Desktop, Web Browser & terminal tools
+        ├── canvas_workspace.js        # HTML5 Canvas interactie & bekabeling
+        ├── grading_engine.js          # Real-time rubric & punten evaluatie
+        └── teacher_studio.js          # Docenten studio, rubric designer & CSV import
 ```
 
 ---
 
-## 💻 Hoe Te Draaien?
+## 🔑 Standaard Accounts & Toegang
 
-### Optie 1: Lokaal Draaien met Python (Aanbevolen voor docenten)
+### Docenten (Teacher Studio & Beheer)
+- **Gebruikersnaam:** `teacher` • **Wachtwoord:** `SinterklaasOp6December`
+- **Gebruikersnaam:** `david` • **Wachtwoord:** `PXL_Teacher2026!`
 
-1. Open PowerShell of een terminal in de projectmap:
-   ```bash
-   cd "pxl-web-netsim"
-   ```
+### Voorbeeld Studenten
+- **Gebruikersnaam:** `student1` • **Wachtwoord:** `PXL2026!`
+- **Gebruikersnaam:** `student2` • **Wachtwoord:** `PXL2026!`
 
-2. Installeer de vereisten (indien nog niet aanwezig):
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Start de server:
-   ```bash
-   python server.py
-   ```
-
-4. Open je browser op:
-   ```
-   http://localhost:8080
-   ```
-
-### Optie 2: Server / Docker / Proxmox CT Deployment (Voor Examens)
-Je kunt deze map op elke server draaien (zoals Gert's DuckDNS server, Proxmox LXC container 102, of een Docker container). De server luistert standaard op poort `8080` (of instelbaar via `PORT` omgevingsvariabele).
-
-### Optie 3: Zuiver Statisch (bv. GitHub Pages)
-Doordat de volledige netwerksimulatie, CLI-afhandeling, bekabeling en rubric-evaluatie in moderne JavaScript is geschreven, werkt de frontend ook **100% standalone zonder backend** door simpelweg `static/index.html` te serveren! *(De backend is enkel nodig voor de realtime `.pka` bestand upload-conversie).*
+*Docenten kunnen in Teacher Studio via het tabblad **"5. Studenten & CSV Import"** met één klik een volledige klaslijst importeren in het formaat:*
+```csv
+username;password;full_name;class
+jdesmet;Geheim123!;Jan De Smet;1TIN-A
+apeeters;Geheim123!;An Peeters;1TIN-A
+```
 
 ---
 
-## 🧑‍🏫 Docentenhandleiding: Nieuwe Examens Maken in de Teacher Studio
+## ☁️ Implementatie naar Google Cloud (cloud.google.com)
 
-1. Klik in de navigatiebalk bovenaan op **`🛠️ Teacher Studio`**.
-2. **Tab 1: Examen Instellingen:**
-   - Vul de Examentitel in (bv. *Netwerken 1 - Tweede Zittijd*).
-   - Stel de tijdslimiet in (bv. *80 minuten*).
-   - Kies of studenten tijdens het examen hun live score mogen zien (Oefenmodus) of pas bij inlevering (Strikte Examenmodus).
-   - Typ de opdrachtomschrijving en het adresseringsschema.
-3. **Tab 2: Topologie Snapshot:**
-   - Bouw op het werkveld de gewenste startsituatie en klik op **`📸 Sla Huidig Werkveld op als Startsituatie`**.
-   - Wil je dat studenten de bekabeling zelf trekken? Verwijder de kabels of klik op **`🗑️ Startsituatie Leegmaken`**.
-4. **Tab 3: Puntenverdeling & Rubric:**
-   - Klik op **`⚡ Genereer Rubric uit Werkveld`**. Het systeem detecteert automatisch alle geconfigureerde hostnames, interfaces, IP's, statische routes, wachtwoorden en bekabelingen.
-   - Vink gewenste criteria aan of uit met de checkboxes.
-   - Pas de punten per criterium aan (bv. 10 pt op statische routering, 4 pt op hostname).
-   - Voeg optioneel extra Ping Connectiviteitstesten toe via **`+ Voeg Ping Controle Toe`**.
-5. **Tab 4: Packet Tracer (.PKA) Import:**
-   - Sleep een bestaand `.pka` bestand in het venster. De Twofish crypto pipeline decodeert de XML en vult automatisch de topologie en rubric in!
-6. Klik onderaan op **`✅ Activeer dit Examen in NetSim`** of download het als **`💾 Examen (.json)`** om te delen met collega's.
+Het platform kan met één klik live worden gebracht op **Google Cloud Run** via de meegeleverde scripts.
 
----
+### Vereisten:
+1. Google Cloud SDK (`gcloud`) geïnstalleerd.
+2. Een Google Cloud Project met facturering gekoppeld.
 
-## 🔒 Schoolyear Integratie in Blackboard
-
-1. Maak in Blackboard een nieuwe Schoolyear toets aan.
-2. Geef als **Toegestane URL** de URL van deze applicatie op (bv. `https://vwgert.duckdns.org/netsim/` of jullie PXL server URL).
-3. Schakel in Schoolyear alle andere URL's en lokale applicaties uit.
-4. De student logt in Blackboard in, Schoolyear start in fullscreen kioskmodus en vergrendelt de student op PXL Web NetSim.
-5. Aan het einde van de toets klikt de student op **`🚀 Examen Inleveren`**. De browser genereert een cryptografisch ondertekend `.pxlexam` bestand dat de student inlevert via de Blackboard opdracht.
+### Uitvoeren:
+Open PowerShell in de projectmap en voer uit:
+```powershell
+.\deploy_gcloud.ps1
+```
+Of handmatig via de CLI:
+```bash
+gcloud auth login
+gcloud config set project UW_PROJECT_ID
+gcloud run deploy pxl-web-netsim --source . --region europe-west1 --allow-unauthenticated
+```
+Google Cloud Run bouwt de Docker container automatisch via Cloud Build en levert een beveiligde, wereldwijd bereikbare HTTPS URL op (bijv. `https://pxl-web-netsim-xyz-ew.a.run.app`). Deze URL kan direct in **Schoolyear** worden ingegeven.
 
 ---
 
-## 👥 Bijdragen & GitHub Repository
+## 💻 Lokaal Starten voor Testen
 
-Dit project is open-source en vrij herbruikbaar voor collega-docenten van Hogeschool PXL en andere onderwijsinstellingen.
+```powershell
+pip install -r requirements.txt
+python server.py
+```
+Open vervolgens in uw browser: `http://localhost:8080` (of via het LAN-IP van de host, bijv. `http://192.168.1.163:8080`).
 
-- **GitHub Repository:** [davidparren/pxl-web-netsim](https://github.com/davidparren/pxl-web-netsim)
-- **Licentie:** MIT License
-- **Vragen of suggesties?** Neem contact op met David Parren of Gert Van Waeyenberg.
+---
 
+## 👥 Auteurs & Licentie
+Ontwikkeld voor intern onderwijs- en examenbeheer aan **Hogeschool PXL**:  
+© David Parren, Gert Van Waeyenberg, Lode Frissaer, Jean, Hombroeks  
+Departement Toegepaste Informatica / System & Network Engineering (SNE)  
+Campus Elfde-Linie, Hasselt, België.

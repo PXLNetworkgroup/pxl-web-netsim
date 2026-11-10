@@ -22,11 +22,15 @@
     </div>
 
     <div class="pt-header-center">
-      <select id="examSelector" class="pt-input" style="font-weight: 600; max-width: 260px;">
+      <select id="examSelector" class="pt-input" style="font-weight: 600; max-width: 240px;">
         <option value="01_pxl_standard">Lab 1: PXL LAN/WAN Routing (Standaard)</option>
         <option value="02_cabling_scratch">Lab 2: Zelfstandig Bekabelen & Setup</option>
         <option value="03_wireless_lan">Lab 3: Wireless LAN & WPA2-PSK</option>
       </select>
+
+      <button class="pt-btn" id="btnOpdrachtDropdown" onclick="window.PXLApp.toggleOpdrachtDropdown()" style="font-weight: 700; background: #0284c7; color: white; border: none; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer;">
+        📋 Opdracht & Rubric ▾
+      </button>
 
       <div class="pt-timer-badge">
         ⏱️ <span id="examTimer">80:00</span>
@@ -41,17 +45,35 @@
     </div>
 
     <div class="pt-header-actions">
+      <!-- User Profile / Login status -->
+      <div id="userAuthContainer" style="display: flex; align-items: center; gap: 8px;">
+        <button class="pt-btn pt-btn-secondary" id="btnLoginModal" onclick="window.PXLApp.openLoginModal()">
+          🔑 Inloggen
+        </button>
+      </div>
+
       <button class="pt-btn pt-btn-secondary" id="btnShowRubric">
-        📋 Beoordelingsrubric
+        📊 Rubric
       </button>
       <button class="pt-btn pt-btn-accent" id="btnToggleStudio">
         🛠️ Teacher Studio
       </button>
       <button class="pt-btn pt-btn-primary" id="btnSubmitExam">
-        🚀 Examen Inleveren
+        🚀 Inleveren
       </button>
     </div>
   </header>
+
+  <!-- FLOATING OPDRACHT DROPDOWN PANEL -->
+  <div class="pt-opdracht-dropdown" id="opdrachtDropdownPanel">
+    <div class="pt-opdracht-header">
+      <h4>📋 <span id="opdrachtDropdownTitle">Lab Opdracht & Netwerkschema</span></h4>
+      <button class="pt-btn-close" onclick="window.PXLApp.closeOpdrachtDropdown()">✕</button>
+    </div>
+    <div class="pt-opdracht-body" id="opdrachtDropdownBody">
+      <!-- Dynamically filled with instructions, addressing table, and rubric -->
+    </div>
+  </div>
 
   <!-- WORKSPACE TOOLBAR -->
   <div class="pt-toolbar">
@@ -112,6 +134,7 @@
         <button class="pt-tab-btn" id="tabBtnConfig" onclick="window.PXLApp.switchDeviceModalTab('config')">Config (GUI)</button>
         <button class="pt-tab-btn active" id="tabBtnCli" onclick="window.PXLApp.switchDeviceModalTab('cli')">CLI (Cisco IOS)</button>
         <button class="pt-tab-btn" id="tabBtnDesktop" onclick="window.PXLApp.switchDeviceModalTab('desktop')" style="display:none;">Desktop (Apps)</button>
+        <button class="pt-tab-btn" id="tabBtnServices" onclick="window.PXLApp.switchDeviceModalTab('services')" style="display:none;">Services (HTTP/DNS/FTP)</button>
       </div>
 
       <div class="pt-device-body">
@@ -119,6 +142,7 @@
         <div class="pt-modal-pane" id="modalPaneConfig"></div>
         <div class="pt-modal-pane active" id="modalPaneCli"></div>
         <div class="pt-modal-pane" id="modalPaneDesktop"></div>
+        <div class="pt-modal-pane" id="modalPaneServices"></div>
       </div>
     </div>
   </div>
@@ -149,6 +173,40 @@
         <button class="pt-btn pt-btn-primary" style="margin-top: 10px; width: 100%; justify-content: center;" onclick="window.PXLApp.submitExamPackage()">
           📥 Download Inzending (.pxlexam)
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGIN MODAL (STUDENT & TEACHER) -->
+  <div class="pt-modal-overlay" id="loginModal">
+    <div class="pt-device-dialog pt-login-dialog">
+      <div class="pt-device-header">
+        <h3 id="loginModalTitle">🔑 Inloggen • PXL NetSim</h3>
+        <button class="pt-btn-close" onclick="window.PXLApp.closeLoginModal()">✕</button>
+      </div>
+      <div class="pt-device-tabs">
+        <button class="pt-tab-btn active" id="tabBtnLoginStudent" onclick="window.PXLApp.switchLoginTab('student')">👨‍🎓 Student Inloggen</button>
+        <button class="pt-tab-btn" id="tabBtnLoginTeacher" onclick="window.PXLApp.switchLoginTab('teacher')">🎓 Docent Inloggen</button>
+      </div>
+      <div style="padding: 24px;">
+        <form onsubmit="event.preventDefault(); window.PXLApp.handleLoginSubmit();">
+          <div class="pt-form-group">
+            <label id="loginUserLabel">Gebruikersnaam / Studentennummer:</label>
+            <input type="text" id="loginUsername" class="pt-input" placeholder="bv. student1 of teacher" required autocomplete="username" autofocus>
+          </div>
+          <div class="pt-form-group">
+            <label>Wachtwoord:</label>
+            <input type="password" id="loginPassword" class="pt-input" placeholder="Wachtwoord invoeren..." required autocomplete="current-password">
+          </div>
+          <div id="loginErrorMsg" style="color: #ef4444; font-size: 12px; margin-bottom: 12px; display: none;"></div>
+          <button type="submit" class="pt-btn pt-btn-primary" style="width: 100%; justify-content: center; padding: 10px; font-weight: 700;">
+            Inloggen & Voortgang Synchroniseren
+          </button>
+        </form>
+        <div style="margin-top: 15px; font-size: 11px; color: #64748b; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+          Standaard docent: <code>teacher</code> / <code>SinterklaasOp6December</code> of <code>david</code><br>
+          Standaard student: <code>student1</code> / <code>PXL2026!</code>
+        </div>
       </div>
     </div>
   </div>
