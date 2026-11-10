@@ -1,84 +1,93 @@
 {
   "id": "h03_pt1_mac_switch",
   "code": "H03-PT1",
-  "chapter": "Hoofdstuk 03 - Switches, ARP & MAC-Adrestabel",
+  "chapter": "Hoofdstuk 03 - Layer 2 Switching & MAC-Adrestabellen",
   "title": "Les 03 PT: Switch, ARP, ICMP en MAC-Address-Table",
-  "timeLimitMinutes": 60,
+  "timeLimitMinutes": 45,
   "showLiveScore": true,
   "liveInternet": false,
-  "instructions": "## Les 03 PT: Switch, ARP, ICMP en MAC-Address-Table\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les03_PT_ARP_MAC_ADDR_TAB.html](https://vwgert.github.io/networksess/Les03_PT_ARP_MAC_ADDR_TAB.html)\n\n### Adreseringstabel:\n| Toestel | Switchpoort | MAC-adres | IP-adres |\n| :--- | :--- | :--- | :--- |\n| **Laptop0** | Fa0/10 | `10AA.AAAA.AAAA` | `192.168.1.10/24` |\n| **Laptop1** | Fa0/20 | `20BB.BBBB.BBBB` | `192.168.1.20/24` |\n| **Laptop2** | Fa0/5  | `30CC.CCCC.CCCC` | `192.168.1.30/24` |\n| **Switch0** | -      | -                | `192.168.1.2/24` (Vlan1 mgmt) |\n\n### Opdrachten:\n1. Sluit de 3 laptops aan op de aangegeven switchpoorten van `Switch0` (Cisco 2960).\n2. Configureer op alle laptops het juiste statische IP-adres en subnetmasker.\n3. Ga naar de CLI van `Switch0` en bekijk de initiële MAC-adrestabel met `show mac address-table`.\n4. Voer een ping uit van `Laptop0` naar `Laptop1` (`192.168.1.20`).\n5. Controleer hoe de switch dynamisch de MAC-adressen leert op poorten `Fa0/10` en `Fa0/20`.\n6. Bekijk op de laptop de geleerde ARP-tabel in PowerShell via `Get-NetNeighbor` of `arp -a`.\n",
+  "instructions": "## Les 03 PT: Switch, ARP, ICMP en MAC-Address-Table\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les03_PT_ARP_MAC_ADDR_TAB.html](https://vwgert.github.io/networksess/Les03_PT_ARP_MAC_ADDR_TAB.html)\n\n### Doel van het labo:\nOnderzoek hoe een switch Layer 2 frames doorschakelt en hoe de **MAC-address-table** dynamisch wordt opgebouwd. Je bestudeert ARP-verzoeken en ICMP echo-pakketten.\n\n### Opdrachten:\n1. Bekijk de initiële MAC-adrestabel van `Switch0` via de CLI: `show mac-address-table`.\n2. Configureer het IP-adres op `PC1`: `192.168.1.20` met masker `255.255.255.0`.\n3. Ping vanuit `PC0` (192.168.1.10) naar `PC1` (192.168.1.20).\n4. Controleer de MAC-adrestabel opnieuw en verifieer dat beide poorten geregistreerd zijn.\n",
   "initialTopology": {
     "devices": [
+      {
+        "id": "PC0",
+        "name": "PC0",
+        "type": "pc",
+        "x": 150,
+        "y": 280,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.10",
+        "mask": "255.255.255.0",
+        "gateway": "",
+        "dns": ""
+      },
       {
         "id": "Switch0",
         "name": "Switch0",
         "type": "switch",
-        "model": "2960-24TT",
-        "x": 380,
-        "y": 240
+        "x": 350,
+        "y": 180
       },
       {
-        "id": "Laptop0",
-        "name": "Laptop0",
-        "type": "laptop",
-        "x": 160,
-        "y": 100,
-        "ip": "192.168.1.10",
-        "mask": "255.255.255.0"
-      },
-      {
-        "id": "Laptop1",
-        "name": "Laptop1",
-        "type": "laptop",
-        "x": 600,
-        "y": 100,
-        "ip": "192.168.1.20",
-        "mask": "255.255.255.0"
-      },
-      {
-        "id": "Laptop2",
-        "name": "Laptop2",
-        "type": "laptop",
-        "x": 380,
-        "y": 380,
-        "ip": "192.168.1.30",
-        "mask": "255.255.255.0"
+        "id": "PC1",
+        "name": "PC1",
+        "type": "pc",
+        "x": 550,
+        "y": 280,
+        "dhcpEnabled": false,
+        "ip": "",
+        "mask": "",
+        "gateway": "",
+        "dns": ""
       }
     ],
-    "cables": []
+    "cables": [
+      {
+        "fromDevice": "PC0",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch0",
+        "toPort": "FastEthernet0/1",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "PC1",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch0",
+        "toPort": "FastEthernet0/2",
+        "type": "copper_straight"
+      }
+    ]
   },
   "rubric": [
     {
-      "id": "cables_switch",
-      "description": "Alle 3 laptops bekabeld naar de switch",
-      "type": "cable_count",
-      "minCables": 3,
-      "points": 30
+      "id": "pc1_ip_config",
+      "category": "interface_ip",
+      "title": "PC1 IP Configuratie",
+      "desc": "PC1 heeft IP 192.168.1.20 met masker 255.255.255.0",
+      "type": "interface_ip",
+      "checkType": "interface_ip",
+      "points": 50,
+      "enabled": true,
+      "condition": {
+        "deviceId": "PC1",
+        "portName": "FastEthernet0",
+        "expectedIp": "192.168.1.20",
+        "expectedMask": "255.255.255.0"
+      }
     },
     {
-      "id": "ip_all_laptops",
-      "description": "Alle laptops voorzien van correct IP in 192.168.1.0/24",
-      "type": "ip_subnet",
-      "device": "Laptop0",
-      "network": "192.168.1.0",
-      "prefix": 24,
-      "points": 30
-    },
-    {
-      "id": "ping_l0_to_l1",
-      "description": "Succesvolle ping tussen Laptop0 en Laptop1",
+      "id": "ping_pc0_pc1",
+      "category": "connectivity",
+      "title": "ICMP Ping",
+      "desc": "Succesvolle ping tussen PC0 en PC1",
       "type": "ping_test",
-      "from": "Laptop0",
-      "to": "192.168.1.20",
-      "points": 20
-    },
-    {
-      "id": "ping_l0_to_l2",
-      "description": "Succesvolle ping tussen Laptop0 en Laptop2",
-      "type": "ping_test",
-      "from": "Laptop0",
-      "to": "192.168.1.30",
-      "points": 20
+      "checkType": "ping_test",
+      "points": 50,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "PC0",
+        "targetIp": "192.168.1.20"
+      }
     }
   ]
 }

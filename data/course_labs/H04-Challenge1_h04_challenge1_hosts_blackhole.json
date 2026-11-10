@@ -1,0 +1,137 @@
+{
+  "id": "h04_challenge1_hosts_blackhole",
+  "code": "H04-Challenge1",
+  "chapter": "Hoofdstuk 04 - DNS, DHCP & Toepassingslaag",
+  "title": "Les 04 Challenge: De hosts-file manipuleren & DNS Blackholing",
+  "timeLimitMinutes": 45,
+  "showLiveScore": true,
+  "liveInternet": false,
+  "instructions": "## Les 04 Challenge: De hosts-file manipuleren\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les04_Challenge.html](https://vwgert.github.io/networksess/Les04_Challenge.html)\n\n### Overzicht Challenge:\nIn deze individuele opdracht ontdek je hoe Windows URL-namen naar IP-adressen omzet, en hoe je dat proces zelf kan beïnvloeden via de `hosts`-file (`C:\\Windows\\System32\\drivers\\etc\\hosts`).\nDe entries in deze file worden geraadpleegd vóór een DNS-server wordt gecontacteerd.\n\n### Opdrachten:\n1. Inspecteer de DNS instellingen op `Client-PC` via PowerShell: `Get-DnsClientServerAddress`.\n2. Verifieer dat `www.pxl.be` resolvet naar de PXL Webserver `192.168.1.20` via `Resolve-DnsName www.pxl.be`.\n3. Bekijk de lokale hosts entry via PowerShell `Get-Content C:\\Windows\\System32\\drivers\\etc\\hosts`.\n4. Pas de configuratie aan zodat `Client-PC` direct verbinding kan maken met de PXL Webserver.\n",
+  "initialTopology": {
+    "devices": [
+      {
+        "id": "Client-PC",
+        "name": "Client-PC",
+        "type": "pc",
+        "x": 150,
+        "y": 200,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.50",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.1.1",
+        "dns": "192.168.1.10"
+      },
+      {
+        "id": "Switch0",
+        "name": "Switch0",
+        "type": "switch",
+        "x": 350,
+        "y": 200
+      },
+      {
+        "id": "DNS-Server",
+        "name": "DNS-Server",
+        "type": "server",
+        "x": 550,
+        "y": 120,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.10",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.1.1",
+        "dns": "",
+        "services": {
+          "dns": true
+        },
+        "dnsRecords": [
+          {
+            "name": "www.pxl.be",
+            "type": "A",
+            "ip": "192.168.1.20"
+          }
+        ]
+      },
+      {
+        "id": "PXL-Webserver",
+        "name": "PXL-Webserver",
+        "type": "server",
+        "x": 550,
+        "y": 280,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.20",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.1.1",
+        "dns": "",
+        "services": {
+          "http": true
+        }
+      }
+    ],
+    "cables": [
+      {
+        "fromDevice": "Client-PC",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch0",
+        "toPort": "FastEthernet0/1",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "DNS-Server",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch0",
+        "toPort": "FastEthernet0/2",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "PXL-Webserver",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch0",
+        "toPort": "FastEthernet0/3",
+        "type": "copper_straight"
+      }
+    ]
+  },
+  "rubric": [
+    {
+      "id": "dns_server_record",
+      "category": "services",
+      "title": "DNS Record www.pxl.be",
+      "desc": "A-record voor www.pxl.be wijst naar 192.168.1.20",
+      "type": "dns_record",
+      "checkType": "dns_record",
+      "points": 40,
+      "enabled": true,
+      "condition": {
+        "name": "www.pxl.be",
+        "ip": "192.168.1.20"
+      }
+    },
+    {
+      "id": "client_ping_dns",
+      "category": "connectivity",
+      "title": "Ping DNS Server",
+      "desc": "Client-PC kan DNS-server pingen",
+      "type": "ping_test",
+      "checkType": "ping_test",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "Client-PC",
+        "targetIp": "192.168.1.10"
+      }
+    },
+    {
+      "id": "client_ping_web",
+      "category": "connectivity",
+      "title": "Ping Webserver",
+      "desc": "Client-PC kan PXL Webserver pingen",
+      "type": "ping_test",
+      "checkType": "ping_test",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "Client-PC",
+        "targetIp": "192.168.1.20"
+      }
+    }
+  ]
+}

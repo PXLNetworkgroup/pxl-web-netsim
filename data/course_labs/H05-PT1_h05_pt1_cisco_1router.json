@@ -1,114 +1,147 @@
 {
   "id": "h05_pt1_cisco_1router",
   "code": "H05-PT1",
-  "chapter": "Hoofdstuk 05 - Routering & Cisco IOS",
-  "title": "Les 05 PT: Twee LANs via Eén Cisco Router (Subnets & Routing)",
-  "timeLimitMinutes": 60,
+  "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
+  "title": "Les 05 PT: Twee LANs via Eén Cisco Router",
+  "timeLimitMinutes": 50,
   "showLiveScore": true,
   "liveInternet": false,
-  "instructions": "## Les 05 PT: 2 LAN's via 1 router\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_PT_1router.html](https://vwgert.github.io/networksess/Les05_PT_1router.html)\n\n### Adreseringstabel:\n| Toestel | Interface | IP-adres | Subnetmasker | Default Gateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **R1** | GigabitEthernet0/0/0 | `192.168.1.1` | `255.255.255.0` | - |\n| **R1** | GigabitEthernet0/0/1 | `10.0.1.1`    | `255.255.255.0` | - |\n| **Laptop0** | FastEthernet0 | `192.168.1.10` | `255.255.255.0` | `192.168.1.1` |\n| **PC0**     | FastEthernet0 | `10.0.1.100`   | `255.255.255.0` | `10.0.1.1` |\n\n### Opdrachten:\n1. Configureer `R1` (Cisco 4331):\n   ```cisco\n   enable\n   configure terminal\n   hostname R1\n   interface GigabitEthernet0/0/0\n    ip address 192.168.1.1 255.255.255.0\n    no shutdown\n   interface GigabitEthernet0/0/1\n    ip address 10.0.1.1 255.255.255.0\n    no shutdown\n   exit\n   ```\n2. Test inter-LAN routering met ping van `Laptop0` naar `PC0` (`10.0.1.100`).\n",
+  "instructions": "## Les 05 PT: Twee netwerken gekoppeld met 1 Cisco router\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_PT_1router.html](https://vwgert.github.io/networksess/Les05_PT_1router.html)\n\n### Doel van het labo:\nIn dit labo koppel je twee afzonderlijke LAN's via één Cisco router:\n- **LAN 1:** `192.168.1.0/24` via `GigabitEthernet0/0/0` (`192.168.1.1`)\n- **LAN 2:** `192.168.2.0/24` via `GigabitEthernet0/0/1` (`192.168.2.1`)\n",
   "initialTopology": {
     "devices": [
-      {
-        "id": "R1",
-        "name": "R1",
-        "type": "router",
-        "model": "4331",
-        "x": 380,
-        "y": 200
-      },
-      {
-        "id": "SW-Left",
-        "name": "SW-Left",
-        "type": "switch",
-        "model": "2960-24TT",
-        "x": 200,
-        "y": 200
-      },
-      {
-        "id": "SW-Right",
-        "name": "SW-Right",
-        "type": "switch",
-        "model": "2960-24TT",
-        "x": 560,
-        "y": 200
-      },
-      {
-        "id": "Laptop0",
-        "name": "Laptop0",
-        "type": "laptop",
-        "x": 100,
-        "y": 200,
-        "ip": "192.168.1.10",
-        "mask": "255.255.255.0",
-        "gateway": "192.168.1.1"
-      },
       {
         "id": "PC0",
         "name": "PC0",
         "type": "pc",
-        "x": 660,
-        "y": 200,
-        "ip": "10.0.1.100",
+        "x": 140,
+        "y": 280,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.10",
         "mask": "255.255.255.0",
-        "gateway": "10.0.1.1"
+        "gateway": "192.168.1.1",
+        "dns": ""
+      },
+      {
+        "id": "Switch0",
+        "name": "Switch0",
+        "type": "switch",
+        "x": 240,
+        "y": 180
+      },
+      {
+        "id": "Router0",
+        "name": "Router0",
+        "type": "router",
+        "x": 400,
+        "y": 140,
+        "interfaces": {
+          "GigabitEthernet0/0/0": {
+            "ip": "192.168.1.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          },
+          "GigabitEthernet0/0/1": {
+            "ip": "192.168.2.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          }
+        }
+      },
+      {
+        "id": "Switch1",
+        "name": "Switch1",
+        "type": "switch",
+        "x": 560,
+        "y": 180
+      },
+      {
+        "id": "PC1",
+        "name": "PC1",
+        "type": "pc",
+        "x": 660,
+        "y": 280,
+        "dhcpEnabled": false,
+        "ip": "",
+        "mask": "",
+        "gateway": "",
+        "dns": ""
       }
     ],
     "cables": [
       {
-        "fromDevice": "Laptop0",
+        "fromDevice": "PC0",
         "fromPort": "FastEthernet0",
-        "toDevice": "SW-Left",
-        "toPort": "FastEthernet0/1"
+        "toDevice": "Switch0",
+        "toPort": "FastEthernet0/1",
+        "type": "copper_straight"
       },
       {
-        "fromDevice": "SW-Left",
+        "fromDevice": "Switch0",
         "fromPort": "GigabitEthernet0/1",
-        "toDevice": "R1",
-        "toPort": "GigabitEthernet0/0/0"
+        "toDevice": "Router0",
+        "toPort": "GigabitEthernet0/0/0",
+        "type": "copper_straight"
       },
       {
-        "fromDevice": "R1",
+        "fromDevice": "Router0",
         "fromPort": "GigabitEthernet0/0/1",
-        "toDevice": "SW-Right",
-        "toPort": "GigabitEthernet0/1"
+        "toDevice": "Switch1",
+        "toPort": "GigabitEthernet0/1",
+        "type": "copper_straight"
       },
       {
-        "fromDevice": "SW-Right",
+        "fromDevice": "Switch1",
         "fromPort": "FastEthernet0/1",
-        "toDevice": "PC0",
-        "toPort": "FastEthernet0"
+        "toDevice": "PC1",
+        "toPort": "FastEthernet0",
+        "type": "copper_straight"
       }
     ]
   },
   "rubric": [
     {
-      "id": "r1_g0",
-      "description": "R1 interface G0/0/0 geconfigureerd met 192.168.1.1/24 (no shutdown)",
+      "id": "pc1_ip_config",
+      "category": "interface_ip",
+      "title": "PC1 IP Configuratie",
+      "desc": "PC1 heeft IP 192.168.2.10 en masker 255.255.255.0",
       "type": "interface_ip",
-      "device": "R1",
-      "interface": "GigabitEthernet0/0/0",
-      "ip": "192.168.1.1",
-      "mask": "255.255.255.0",
-      "points": 35
+      "checkType": "interface_ip",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "deviceId": "PC1",
+        "portName": "FastEthernet0",
+        "expectedIp": "192.168.2.10",
+        "expectedMask": "255.255.255.0"
+      }
     },
     {
-      "id": "r1_g1",
-      "description": "R1 interface G0/0/1 geconfigureerd met 10.0.1.1/24 (no shutdown)",
-      "type": "interface_ip",
-      "device": "R1",
-      "interface": "GigabitEthernet0/0/1",
-      "ip": "10.0.1.1",
-      "mask": "255.255.255.0",
-      "points": 35
+      "id": "pc1_gw_config",
+      "category": "routing",
+      "title": "PC1 Gateway",
+      "desc": "Default gateway van PC1 is 192.168.2.1",
+      "type": "default_gateway",
+      "checkType": "default_gateway",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "deviceId": "PC1",
+        "expected": "192.168.2.1"
+      }
     },
     {
-      "id": "ping_routed",
-      "description": "Succesvol gerouteerde ICMP ping van Laptop0 naar PC0",
+      "id": "ping_routed_pc0_pc1",
+      "category": "connectivity",
+      "title": "Inter-VLAN / Routing Ping",
+      "desc": "Succesvolle ping tussen PC0 en PC1 over de router",
       "type": "ping_test",
-      "from": "Laptop0",
-      "to": "10.0.1.100",
-      "points": 30
+      "checkType": "ping_test",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "PC0",
+        "targetIp": "192.168.2.10"
+      }
     }
   ]
 }

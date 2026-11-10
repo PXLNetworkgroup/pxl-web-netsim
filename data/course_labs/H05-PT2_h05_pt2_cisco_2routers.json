@@ -1,21 +1,32 @@
 {
   "id": "h05_pt2_cisco_2routers",
   "code": "H05-PT2",
-  "chapter": "Hoofdstuk 05 - Static Routing & Multi-Router Netwerken",
+  "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
   "title": "Les 05 PT: Twee LANs via Twee Cisco Routers (Static Routing)",
-  "timeLimitMinutes": 75,
+  "timeLimitMinutes": 55,
   "showLiveScore": true,
   "liveInternet": false,
-  "instructions": "## Les 05 PT: 2 netwerken via 2 routers (Static Routing)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_PT_2routers.html](https://vwgert.github.io/networksess/Les05_PT_2routers.html)\n\n### Adreseringstabel:\n| Toestel | Interface | IP-adres | Subnetmasker |\n| :--- | :--- | :--- | :--- |\n| **R1** | GigabitEthernet0/0/0 (LAN) | `192.168.1.1` | `255.255.255.0` |\n| **R1** | GigabitEthernet0/0/1 (WAN) | `10.0.0.1`    | `255.255.255.252` |\n| **R2** | GigabitEthernet0/0/1 (WAN) | `10.0.0.2`    | `255.255.255.252` |\n| **R2** | GigabitEthernet0/0/0 (LAN) | `172.16.1.1`   | `255.255.255.0` |\n\n### Static Route Opdrachten:\n1. Configureer op `R1` een static route naar het LAN van R2:\n   `ip route 172.16.1.0 255.255.255.0 10.0.0.2`\n2. Configureer op `R2` een static route naar het LAN van R1:\n   `ip route 192.168.1.0 255.255.255.0 10.0.0.1`\n3. Test end-to-end connectiviteit tussen `Laptop0` (`192.168.1.10`) en `PC0` (`172.16.1.100`).\n",
+  "instructions": "## Les 05 PT: Twee netwerken via twee Cisco routers (Static Routing)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_PT_2routers.html](https://vwgert.github.io/networksess/Les05_PT_2routers.html)\n\n### Doel van het labo:\nIn dit labo verbind je twee routers met een point-to-point link en configureer je static routes op beide routers:\n- **Router0:** `GigabitEthernet0/0/0` = `192.168.1.1/24`, `GigabitEthernet0/0/1` = `10.0.0.1/30`\n- **Router1:** `GigabitEthernet0/0/0` = `10.0.0.2/30`, `GigabitEthernet0/0/1` = `192.168.2.1/24`\n- Static route op Router0: `ip route 192.168.2.0 255.255.255.0 10.0.0.2`\n- Static route op Router1: `ip route 192.168.1.0 255.255.255.0 10.0.0.1`\n",
   "initialTopology": {
     "devices": [
       {
-        "id": "R1",
-        "name": "R1",
+        "id": "PC0",
+        "name": "PC0",
+        "type": "pc",
+        "x": 100,
+        "y": 240,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.10",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.1.1",
+        "dns": ""
+      },
+      {
+        "id": "Router0",
+        "name": "Router0",
         "type": "router",
-        "model": "4331",
         "x": 280,
-        "y": 200,
+        "y": 160,
         "interfaces": {
           "GigabitEthernet0/0/0": {
             "ip": "192.168.1.1",
@@ -27,98 +38,124 @@
             "mask": "255.255.255.252",
             "shutdown": false
           }
-        }
+        },
+        "staticRoutes": [
+          {
+            "network": "192.168.2.0",
+            "mask": "255.255.255.0",
+            "nextHop": "10.0.0.2"
+          }
+        ]
       },
       {
-        "id": "R2",
-        "name": "R2",
+        "id": "Router1",
+        "name": "Router1",
         "type": "router",
-        "model": "4331",
-        "x": 480,
-        "y": 200,
+        "x": 500,
+        "y": 160,
         "interfaces": {
-          "GigabitEthernet0/0/1": {
+          "GigabitEthernet0/0/0": {
             "ip": "10.0.0.2",
             "mask": "255.255.255.252",
             "shutdown": false
           },
-          "GigabitEthernet0/0/0": {
-            "ip": "172.16.1.1",
+          "GigabitEthernet0/0/1": {
+            "ip": "192.168.2.1",
             "mask": "255.255.255.0",
             "shutdown": false
           }
-        }
+        },
+        "staticRoutes": [
+          {
+            "network": "192.168.1.0",
+            "mask": "255.255.255.0",
+            "nextHop": "10.0.0.1"
+          }
+        ]
       },
       {
-        "id": "Laptop0",
-        "name": "Laptop0",
-        "type": "laptop",
-        "x": 100,
-        "y": 200,
-        "ip": "192.168.1.10",
-        "mask": "255.255.255.0",
-        "gateway": "192.168.1.1"
-      },
-      {
-        "id": "PC0",
-        "name": "PC0",
+        "id": "PC1",
+        "name": "PC1",
         "type": "pc",
-        "x": 660,
-        "y": 200,
-        "ip": "172.16.1.100",
+        "x": 680,
+        "y": 240,
+        "dhcpEnabled": false,
+        "ip": "192.168.2.10",
         "mask": "255.255.255.0",
-        "gateway": "172.16.1.1"
+        "gateway": "192.168.2.1",
+        "dns": ""
       }
     ],
     "cables": [
       {
-        "fromDevice": "Laptop0",
+        "fromDevice": "PC0",
         "fromPort": "FastEthernet0",
-        "toDevice": "R1",
-        "toPort": "GigabitEthernet0/0/0"
+        "toDevice": "Router0",
+        "toPort": "GigabitEthernet0/0/0",
+        "type": "copper_straight"
       },
       {
-        "fromDevice": "R1",
+        "fromDevice": "Router0",
         "fromPort": "GigabitEthernet0/0/1",
-        "toDevice": "R2",
-        "toPort": "GigabitEthernet0/0/1"
+        "toDevice": "Router1",
+        "toPort": "GigabitEthernet0/0/0",
+        "type": "copper_straight"
       },
       {
-        "fromDevice": "R2",
-        "fromPort": "GigabitEthernet0/0/0",
-        "toDevice": "PC0",
-        "toPort": "FastEthernet0"
+        "fromDevice": "Router1",
+        "fromPort": "GigabitEthernet0/0/1",
+        "toDevice": "PC1",
+        "toPort": "FastEthernet0",
+        "type": "copper_straight"
       }
     ]
   },
   "rubric": [
     {
-      "id": "r1_static_route",
-      "description": "R1 heeft static route naar 172.16.1.0/24 via 10.0.0.2",
+      "id": "router0_static_route",
+      "category": "routing",
+      "title": "Static Route Router0",
+      "desc": "Route op Router0 naar 192.168.2.0/24 via 10.0.0.2",
       "type": "static_route",
-      "device": "R1",
-      "network": "172.16.1.0",
-      "mask": "255.255.255.0",
-      "nextHop": "10.0.0.2",
-      "points": 35
+      "checkType": "static_route",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "routerId": "Router0",
+        "network": "192.168.2.0",
+        "mask": "255.255.255.0",
+        "nextHop": "10.0.0.2"
+      }
     },
     {
-      "id": "r2_static_route",
-      "description": "R2 heeft static route naar 192.168.1.0/24 via 10.0.0.1",
+      "id": "router1_static_route",
+      "category": "routing",
+      "title": "Static Route Router1",
+      "desc": "Route op Router1 naar 192.168.1.0/24 via 10.0.0.1",
       "type": "static_route",
-      "device": "R2",
-      "network": "192.168.1.0",
-      "mask": "255.255.255.0",
-      "nextHop": "10.0.0.1",
-      "points": 35
+      "checkType": "static_route",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "routerId": "Router1",
+        "network": "192.168.1.0",
+        "mask": "255.255.255.0",
+        "nextHop": "10.0.0.1"
+      }
     },
     {
-      "id": "ping_end_to_end",
-      "description": "Succesvolle end-to-end ICMP ping tussen Laptop0 en PC0",
+      "id": "end_to_end_ping",
+      "category": "connectivity",
+      "title": "End-to-End Ping",
+      "desc": "Succesvolle ping tussen PC0 en PC1",
       "type": "ping_test",
-      "from": "Laptop0",
-      "to": "172.16.1.100",
-      "points": 30
+      "checkType": "ping_test",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "PC0",
+        "targetIp": "192.168.2.10"
+      }
     }
   ]
 }

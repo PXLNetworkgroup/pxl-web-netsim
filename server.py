@@ -255,6 +255,39 @@ def submit_exam_endpoint():
         return jsonify({"error": f"Kon inzending niet opslaan: {str(e)}"}), 500
 
 
+@app.route("/api/course-labs", methods=["GET"])
+def get_course_labs():
+    """Returns all available PXL course labs from the curriculum repository."""
+    labs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "course_labs")
+    labs = []
+    if os.path.exists(labs_dir):
+        for fname in sorted(os.listdir(labs_dir)):
+            if fname.endswith(".json"):
+                try:
+                    with open(os.path.join(labs_dir, fname), "r", encoding="utf-8") as f:
+                        labs.append(json.load(f))
+                except Exception:
+                    pass
+    return jsonify({"status": "success", "count": len(labs), "labs": labs})
+
+
+@app.route("/api/course-labs/<lab_id>", methods=["GET"])
+def get_course_lab_by_id(lab_id):
+    """Returns a specific course lab by its ID or code."""
+    labs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "course_labs")
+    if os.path.exists(labs_dir):
+        for fname in os.listdir(labs_dir):
+            if fname.endswith(".json"):
+                try:
+                    with open(os.path.join(labs_dir, fname), "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        if data.get("id") == lab_id or data.get("code") == lab_id:
+                            return jsonify({"status": "success", "lab": data})
+                except Exception:
+                    pass
+    return jsonify({"error": "Lab niet gevonden"}), 404
+
+
 # --- REAL-WORLD LIVE INTERNET NAT GATEWAY ---
 @app.route("/api/settings/live-internet", methods=["GET", "POST"])
 def live_internet_settings():

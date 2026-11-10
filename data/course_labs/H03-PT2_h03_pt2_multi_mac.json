@@ -1,0 +1,163 @@
+{
+  "id": "h03_pt2_multi_mac",
+  "code": "H03-PT2",
+  "chapter": "Hoofdstuk 03 - Layer 2 Switching & MAC-Adrestabellen",
+  "title": "Les 03 PT: Meerdere MAC-adressen per switchpoort",
+  "timeLimitMinutes": 50,
+  "showLiveScore": true,
+  "liveInternet": false,
+  "instructions": "## Les 03 PT: Meerdere MAC-adressen per switchpoort\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les03_PT_MAC_ADDR_TAB_Multi.html](https://vwgert.github.io/networksess/Les03_PT_MAC_ADDR_TAB_Multi.html)\n\n### Doel van het labo:\nOnderzoek hoe een switch MAC-adressen leert wanneer er achter een poort een tweede switch staat gekoppeld. Een switch leert het bron-MAC-adres van frames op de poort waar ze binnenkomen. Staan er meerdere toestellen achter die poort (zoals via een uplink-kabel), dan krijgen meerdere dynamische MAC-adressen dezelfde poort toegewezen.\n\n### Opdrachten:\n1. Verbind `Switch-Links` (GigabitEthernet0/1) met `Switch-Rechts` (GigabitEthernet0/1).\n2. Configureer IP `192.168.1.10` op `Laptop0` en `192.168.1.50` op `Laptop4`.\n3. Ping tussen `Laptop0` en `Laptop4`.\n4. Voer op `Switch-Links` het commando `show mac-address-table` uit en merk op dat de MAC-adressen van de rechterzijde allemaal op `GigabitEthernet0/1` verschijnen.\n",
+  "initialTopology": {
+    "devices": [
+      {
+        "id": "Laptop0",
+        "name": "Laptop0",
+        "type": "laptop",
+        "x": 120,
+        "y": 140,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.10",
+        "mask": "255.255.255.0",
+        "gateway": "",
+        "dns": ""
+      },
+      {
+        "id": "Laptop1",
+        "name": "Laptop1",
+        "type": "laptop",
+        "x": 120,
+        "y": 280,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.20",
+        "mask": "255.255.255.0",
+        "gateway": "",
+        "dns": ""
+      },
+      {
+        "id": "Switch-Links",
+        "name": "Switch-Links",
+        "type": "switch",
+        "x": 280,
+        "y": 210
+      },
+      {
+        "id": "Switch-Rechts",
+        "name": "Switch-Rechts",
+        "type": "switch",
+        "x": 480,
+        "y": 210
+      },
+      {
+        "id": "Laptop4",
+        "name": "Laptop4",
+        "type": "laptop",
+        "x": 640,
+        "y": 140,
+        "dhcpEnabled": false,
+        "ip": "",
+        "mask": "",
+        "gateway": "",
+        "dns": ""
+      },
+      {
+        "id": "Laptop5",
+        "name": "Laptop5",
+        "type": "laptop",
+        "x": 640,
+        "y": 280,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.60",
+        "mask": "255.255.255.0",
+        "gateway": "",
+        "dns": ""
+      }
+    ],
+    "cables": [
+      {
+        "fromDevice": "Laptop0",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch-Links",
+        "toPort": "FastEthernet0/1",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "Laptop1",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch-Links",
+        "toPort": "FastEthernet0/2",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "Laptop5",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch-Rechts",
+        "toPort": "FastEthernet0/2",
+        "type": "copper_straight"
+      }
+    ]
+  },
+  "rubric": [
+    {
+      "id": "uplink_cable",
+      "category": "cabling",
+      "title": "Uplink Switch-naar-Switch",
+      "desc": "Gigabit-kabel tussen Switch-Links en Switch-Rechts",
+      "type": "cabling",
+      "checkType": "cabling",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "Switch-Links",
+        "fromPort": "GigabitEthernet0/1",
+        "toDevice": "Switch-Rechts",
+        "toPort": "GigabitEthernet0/1"
+      }
+    },
+    {
+      "id": "laptop4_cable",
+      "category": "cabling",
+      "title": "Kabel Laptop4",
+      "desc": "Laptop4 aangesloten op Switch-Rechts FastEthernet0/1",
+      "type": "cabling",
+      "checkType": "cabling",
+      "points": 25,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "Laptop4",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch-Rechts",
+        "toPort": "FastEthernet0/1"
+      }
+    },
+    {
+      "id": "laptop4_ip",
+      "category": "interface_ip",
+      "title": "IP Laptop4",
+      "desc": "Laptop4 geconfigureerd met IP 192.168.1.50 / 255.255.255.0",
+      "type": "interface_ip",
+      "checkType": "interface_ip",
+      "points": 20,
+      "enabled": true,
+      "condition": {
+        "deviceId": "Laptop4",
+        "portName": "FastEthernet0",
+        "expectedIp": "192.168.1.50",
+        "expectedMask": "255.255.255.0"
+      }
+    },
+    {
+      "id": "ping_across_switches",
+      "category": "connectivity",
+      "title": "End-to-End Ping",
+      "desc": "Succesvolle ping tussen Laptop0 en Laptop4 over beide switches",
+      "type": "ping_test",
+      "checkType": "ping_test",
+      "points": 20,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "Laptop0",
+        "targetIp": "192.168.1.50"
+      }
+    }
+  ]
+}

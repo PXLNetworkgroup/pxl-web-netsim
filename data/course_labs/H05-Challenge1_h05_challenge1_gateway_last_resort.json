@@ -1,0 +1,161 @@
+{
+  "id": "h05_challenge1_gateway_last_resort",
+  "code": "H05-Challenge1",
+  "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
+  "title": "Les 05 Challenge 1: Routerketen & Gateway of Last Resort (0.0.0.0/0)",
+  "timeLimitMinutes": 55,
+  "showLiveScore": true,
+  "liveInternet": false,
+  "instructions": "## Les 05 Challenge 1: Routerketen en Gateway of Last Resort\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Challenge1.html](https://vwgert.github.io/networksess/Les05_Challenge1.html)\n\n### Overzicht Challenge:\nIn deze challenge tonen we aan dat een **default route** (`0.0.0.0/0` of Gateway of Last Resort) werkt als \"fallback\" naar de volgende router richting de lector/internet.\nZo hoef je niet op elke router alle individuele netwerken in te geven voor uitgaand verkeer.\n",
+  "initialTopology": {
+    "devices": [
+      {
+        "id": "Student-PC",
+        "name": "Student-PC",
+        "type": "pc",
+        "x": 120,
+        "y": 200,
+        "dhcpEnabled": false,
+        "ip": "192.168.100.10",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.100.1",
+        "dns": ""
+      },
+      {
+        "id": "Team-Router",
+        "name": "Team-Router",
+        "type": "mikrotik",
+        "x": 320,
+        "y": 200,
+        "interfaces": {
+          "ether1": {
+            "ip": "10.10.10.2",
+            "mask": "255.255.255.252",
+            "shutdown": false
+          },
+          "ether2": {
+            "ip": "192.168.100.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          }
+        },
+        "staticRoutes": [
+          {
+            "network": "0.0.0.0",
+            "mask": "0.0.0.0",
+            "nextHop": "10.10.10.1"
+          }
+        ]
+      },
+      {
+        "id": "Lector-Router",
+        "name": "Lector-Router",
+        "type": "mikrotik",
+        "x": 520,
+        "y": 200,
+        "interfaces": {
+          "ether1": {
+            "ip": "10.10.10.1",
+            "mask": "255.255.255.252",
+            "shutdown": false
+          },
+          "ether2": {
+            "ip": "172.16.0.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          }
+        },
+        "staticRoutes": [
+          {
+            "network": "192.168.100.0",
+            "mask": "255.255.255.0",
+            "nextHop": "10.10.10.2"
+          }
+        ]
+      },
+      {
+        "id": "Lector-Webserver",
+        "name": "Lector-Webserver",
+        "type": "server",
+        "x": 700,
+        "y": 200,
+        "dhcpEnabled": false,
+        "ip": "172.16.0.50",
+        "mask": "255.255.255.0",
+        "gateway": "172.16.0.1",
+        "dns": "",
+        "services": {
+          "http": true
+        }
+      }
+    ],
+    "cables": [
+      {
+        "fromDevice": "Student-PC",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Team-Router",
+        "toPort": "ether2",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "Team-Router",
+        "fromPort": "ether1",
+        "toDevice": "Lector-Router",
+        "toPort": "ether1",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "Lector-Router",
+        "fromPort": "ether2",
+        "toDevice": "Lector-Webserver",
+        "toPort": "FastEthernet0",
+        "type": "copper_straight"
+      }
+    ]
+  },
+  "rubric": [
+    {
+      "id": "team_default_route",
+      "category": "routing",
+      "title": "Default Route (0.0.0.0/0)",
+      "desc": "Team-Router heeft default route 0.0.0.0/0 via 10.10.10.1",
+      "type": "static_route",
+      "checkType": "static_route",
+      "points": 40,
+      "enabled": true,
+      "condition": {
+        "routerId": "Team-Router",
+        "network": "0.0.0.0",
+        "mask": "0.0.0.0",
+        "nextHop": "10.10.10.1"
+      }
+    },
+    {
+      "id": "ping_lector_server",
+      "category": "connectivity",
+      "title": "Ping Lector Webserver",
+      "desc": "Succesvolle ping van Student-PC naar Lector-Webserver (172.16.0.50)",
+      "type": "ping_test",
+      "checkType": "ping_test",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "Student-PC",
+        "targetIp": "172.16.0.50"
+      }
+    },
+    {
+      "id": "lector_http",
+      "category": "services",
+      "title": "Lector HTTP Bereikbaar",
+      "desc": "Webserver actief op Lector-Webserver",
+      "type": "http_get",
+      "checkType": "http_get",
+      "points": 25,
+      "enabled": true,
+      "condition": {
+        "serverId": "Lector-Webserver"
+      }
+    }
+  ]
+}

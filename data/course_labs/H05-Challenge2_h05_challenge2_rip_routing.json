@@ -1,0 +1,161 @@
+{
+  "id": "h05_challenge2_rip_routing",
+  "code": "H05-Challenge2",
+  "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
+  "title": "Les 05 Challenge 2: Routerketen & Dynamische Routering met RIP",
+  "timeLimitMinutes": 55,
+  "showLiveScore": true,
+  "liveInternet": false,
+  "instructions": "## Les 05 Challenge 2: Routerketen en RIP Dynamische Routering\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Challenge2.html](https://vwgert.github.io/networksess/Les05_Challenge2.html)\n\n### Overzicht Challenge:\nIn deze challenge bouwen routers een dynamische keten via het protocol **RIP** (Routing Information Protocol).\nAlle routers wisselen automatisch routes uit zodat elk team verbinding kan maken zonder handmatige static routes.\n",
+  "initialTopology": {
+    "devices": [
+      {
+        "id": "PC-LAN1",
+        "name": "PC-LAN1",
+        "type": "pc",
+        "x": 120,
+        "y": 200,
+        "dhcpEnabled": false,
+        "ip": "192.168.10.10",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.10.1",
+        "dns": ""
+      },
+      {
+        "id": "Router1",
+        "name": "Router1",
+        "type": "router",
+        "x": 300,
+        "y": 200,
+        "interfaces": {
+          "GigabitEthernet0/0/0": {
+            "ip": "192.168.10.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          },
+          "GigabitEthernet0/0/1": {
+            "ip": "10.0.12.1",
+            "mask": "255.255.255.252",
+            "shutdown": false
+          }
+        },
+        "staticRoutes": [
+          {
+            "network": "192.168.30.0",
+            "mask": "255.255.255.0",
+            "nextHop": "10.0.12.2"
+          }
+        ]
+      },
+      {
+        "id": "Router2",
+        "name": "Router2",
+        "type": "router",
+        "x": 500,
+        "y": 200,
+        "interfaces": {
+          "GigabitEthernet0/0/0": {
+            "ip": "10.0.12.2",
+            "mask": "255.255.255.252",
+            "shutdown": false
+          },
+          "GigabitEthernet0/0/1": {
+            "ip": "192.168.30.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          }
+        },
+        "staticRoutes": [
+          {
+            "network": "192.168.10.0",
+            "mask": "255.255.255.0",
+            "nextHop": "10.0.12.1"
+          }
+        ]
+      },
+      {
+        "id": "PC-LAN3",
+        "name": "PC-LAN3",
+        "type": "pc",
+        "x": 680,
+        "y": 200,
+        "dhcpEnabled": false,
+        "ip": "192.168.30.10",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.30.1",
+        "dns": ""
+      }
+    ],
+    "cables": [
+      {
+        "fromDevice": "PC-LAN1",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Router1",
+        "toPort": "GigabitEthernet0/0/0",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "Router1",
+        "fromPort": "GigabitEthernet0/0/1",
+        "toDevice": "Router2",
+        "toPort": "GigabitEthernet0/0/0",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "Router2",
+        "fromPort": "GigabitEthernet0/0/1",
+        "toDevice": "PC-LAN3",
+        "toPort": "FastEthernet0",
+        "type": "copper_straight"
+      }
+    ]
+  },
+  "rubric": [
+    {
+      "id": "r1_int_ip",
+      "category": "interface_ip",
+      "title": "Router1 IP Configuratie",
+      "desc": "Gig0/0/0 geconfigureerd met 192.168.10.1",
+      "type": "interface_ip",
+      "checkType": "interface_ip",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "deviceId": "Router1",
+        "portName": "GigabitEthernet0/0/0",
+        "expectedIp": "192.168.10.1",
+        "expectedMask": "255.255.255.0"
+      }
+    },
+    {
+      "id": "r2_int_ip",
+      "category": "interface_ip",
+      "title": "Router2 IP Configuratie",
+      "desc": "Gig0/0/1 geconfigureerd met 192.168.30.1",
+      "type": "interface_ip",
+      "checkType": "interface_ip",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "deviceId": "Router2",
+        "portName": "GigabitEthernet0/0/1",
+        "expectedIp": "192.168.30.1",
+        "expectedMask": "255.255.255.0"
+      }
+    },
+    {
+      "id": "ping_dynamic_converged",
+      "category": "connectivity",
+      "title": "End-to-End Ping",
+      "desc": "Succesvolle communicatie tussen PC-LAN1 en PC-LAN3",
+      "type": "ping_test",
+      "checkType": "ping_test",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "PC-LAN1",
+        "targetIp": "192.168.30.10"
+      }
+    }
+  ]
+}

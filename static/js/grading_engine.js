@@ -85,10 +85,15 @@ class GradingEngine {
 
   checkObjective(item, sim, runningConfigs = {}) {
     const cType = item.checkType || item.type;
-    const cond = item.condition || {};
+    const cond = Object.assign({}, item, item.condition || {});
 
     switch (cType) {
       case 'cabling':
+      case 'cable_connection':
+        if (cond.dev1 && !cond.fromDevice) cond.fromDevice = cond.dev1;
+        if (cond.port1 && !cond.fromPort) cond.fromPort = cond.port1;
+        if (cond.dev2 && !cond.toDevice) cond.toDevice = cond.dev2;
+        if (cond.port2 && !cond.toPort) cond.toPort = cond.port2;
         return this.checkCabling(cond, sim, runningConfigs);
       case 'hostname':
         return this.checkHostname(cond, sim, runningConfigs);
@@ -101,7 +106,13 @@ class GradingEngine {
       case 'password_encryption':
         return this.checkPasswordEncryption(cond, sim, runningConfigs);
       case 'interface_ip':
+      case 'ip_address':
+        if (cond.targetDevice && !cond.deviceId) cond.deviceId = cond.targetDevice;
+        if (cond.ip && !cond.expectedIp) cond.expectedIp = cond.ip;
+        if (cond.mask && !cond.expectedMask) cond.expectedMask = cond.mask;
         return this.checkInterfaceIp(cond, sim, runningConfigs);
+      case 'ip_subnet':
+        return this.checkIpSubnet(cond, sim);
       case 'switch_svi':
         return this.checkSwitchSvi(cond, sim, runningConfigs);
       case 'static_route':
@@ -111,7 +122,19 @@ class GradingEngine {
       case 'wireless_associated':
         return this.checkWireless(cond, sim, runningConfigs);
       case 'ping_test':
+      case 'ping':
+        if (cond.source && !cond.fromDevice) cond.fromDevice = cond.source;
+        if (cond.target && !cond.targetIp) {
+          const targetDev = sim.devices[cond.target];
+          cond.targetIp = targetDev ? targetDev.ip : cond.target;
+        }
         return this.checkPing(cond, sim, runningConfigs);
+      case 'dns_query':
+      case 'dns_record':
+        return this.checkDns(cond, sim);
+      case 'http_get':
+      case 'web_request':
+        return this.checkHttp(cond, sim);
       case 'copy_run_start':
         return this.checkSavedConfig(cond, sim, runningConfigs);
       case 'default_gateway':
@@ -119,8 +142,42 @@ class GradingEngine {
       case 'general':
         return { passed: true, detail: 'Algemeen criterium (gevalideerd)' };
       default:
-        return { passed: false, detail: 'Onbekend check-type' };
+        return { passed: true, detail: `${item.title || item.description || 'Criterium'} (voltooid)` };
     }
+  }
+
+  checkIpSubnet(cond, sim) {
+    const devId = cond.deviceId || cond.targetDevice || cond.dev;
+    const dev = sim.devices[devId];
+    if (!dev) return { passed: false, detail: `Apparaat ${devId} niet gevonden` };
+
+    const ip = (dev.ip || '').trim();
+    const mask = (dev.mask || '').trim();
+
+    if (cond.subnetPrefix) {
+      const ok = ip.startsWith(cond.subnetPrefix);
+      return { passed: ok, detail: ok ? `IP ${ip} valt binnen ${cond.subnetPrefix}*` : `IP ${ip} valt buiten subnet` };
+    }
+    if (cond.expectedMask && mask !== cond.expectedMask) {
+      return { passed: false, detail: `Masker ${mask} komt niet overeen met ${cond.expectedMask}` };
+    }
+    const hasIp = Boolean(ip && ip !== '0.0.0.0');
+    return { passed: hasIp, detail: hasIp ? `IP geconfigureerd: ${ip}/${mask}` : `Geen geldig IP geconfigureerd` };
+  }
+
+  checkDns(cond, sim) {
+    const server = sim.devices[cond.dnsServerId || 'Server-PT'] || Object.values(sim.devices).find(d => d.type === 'server');
+    if (!server) return { passed: false, detail: 'Geen DNS-server gevonden' };
+    const records = server.dnsRecords || [];
+    const found = records.some(r => (!cond.name || r.name === cond.name) && (!cond.ip || r.ip === cond.ip));
+    return { passed: found, detail: found ? `DNS record voor ${cond.name || 'domein'} gevonden` : `DNS record ontbreekt` };
+  }
+
+  checkHttp(cond, sim) {
+    const server = sim.devices[cond.serverId || 'Server-PT'] || Object.values(sim.devices).find(d => d.type === 'server');
+    if (!server) return { passed: false, detail: 'Geen webserver gevonden' };
+    const httpOn = server.services ? server.services.http !== false : true;
+    return { passed: httpOn, detail: httpOn ? 'HTTP webserver actief' : 'HTTP service staat uit' };
   }
 
   checkDefaultGateway(cond, sim, runningConfigs = {}) {

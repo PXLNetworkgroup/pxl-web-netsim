@@ -6,7 +6,7 @@
   "timeLimitMinutes": 45,
   "showLiveScore": true,
   "liveInternet": false,
-  "instructions": "## Les 01 Labo: Rechtstreekse verbinding tussen 2 Laptops - APIPA\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les01_Labo.html](https://vwgert.github.io/networksess/Les01_Labo.html)\n\n### Doel van het labo:\nIn dit labo onderzoek je hoe twee laptops (Laptop0 en Laptop1) rechtstreeks met elkaar communiceren zonder tussenkomst van een router of DHCP-server. Je bestudeert het automatisch toekennen van een **APIPA-adres** (169.254.0.0/16) en test de connectiviteit via zowel **Command Prompt** als **PowerShell**.\n\n### Opdrachten:\n1. **Fysieke verbinding:** Sluit een netwerkkabel aan tussen `Laptop0` (FastEthernet0) en `Laptop1` (FastEthernet0).\n2. **DHCP controle:** Beide laptops staan standaard ingesteld op DHCP. Doordat er geen DHCP-server actief is, genereert Windows automatisch een APIPA-adres in het bereik `169.254.x.x` met subnetmasker `255.255.0.0`.\n3. **PowerShell onderzoek:**\n   - Open op `Laptop0` de applicatie **PowerShell**.\n   - Voer het cmdlet `Get-NetIPAddress` of `gip` uit om het toegekende IP-adres en PrefixLength (16) te inspecteren.\n   - Voer `Get-NetIPConfiguration` of `gipconfig` uit om de volledige interface-configuratie te bekijken.\n4. **Connectiviteitstest:**\n   - Ping vanuit PowerShell naar het APIPA-adres van `Laptop1` via:\n     `Test-NetConnection 169.254.1.20` of `tnc 169.254.1.20` (of `ping 169.254.1.20`).\n",
+  "instructions": "## Les 01 Labo: Rechtstreekse verbinding tussen 2 Laptops - APIPA\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les01_Labo.html](https://vwgert.github.io/networksess/Les01_Labo.html)\n\n### Doel van het labo:\nIn dit labo onderzoek je hoe twee laptops rechtstreeks met elkaar communiceren zonder tussenkomst van een router of DHCP-server. Je bestudeert het automatisch toekennen van een **APIPA-adres** (169.254.0.0/16) en test de connectiviteit via zowel **Command Prompt** als **PowerShell**.\n\n### Opdrachten:\n1. **Fysieke verbinding:** Sluit een netwerkkabel aan tussen `Laptop0` (FastEthernet0) en `Laptop1` (FastEthernet0).\n2. **DHCP controle:** Beide laptops staan ingesteld op DHCP. Windows kent automatisch een APIPA-adres toe (169.254.x.x / 255.255.0.0).\n3. **PowerShell onderzoek:**\n   - Open op `Laptop0` de **PowerShell** terminal.\n   - Voer `Get-NetIPAddress` (`gip`) en `Get-NetIPConfiguration` (`gipconfig`) uit.\n4. **Connectiviteitstest:** Ping vanuit PowerShell naar `Laptop1` via `Test-NetConnection 169.254.1.20` of `ping 169.254.1.20`.\n",
   "initialTopology": {
     "devices": [
       {
@@ -39,30 +39,48 @@
   "rubric": [
     {
       "id": "cable_connected",
-      "description": "Rechtstreekse kabelverbinding tussen Laptop0 en Laptop1",
-      "type": "cable_connection",
-      "dev1": "Laptop0",
-      "port1": "FastEthernet0",
-      "dev2": "Laptop1",
-      "port2": "FastEthernet0",
-      "points": 40
+      "category": "cabling",
+      "title": "Bekabeling",
+      "desc": "Rechtstreekse kabelverbinding tussen Laptop0 en Laptop1",
+      "type": "cabling",
+      "checkType": "cabling",
+      "points": 40,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "Laptop0",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Laptop1",
+        "toPort": "FastEthernet0"
+      }
     },
     {
       "id": "apipa_subnet_laptop0",
-      "description": "Laptop0 heeft een geldig APIPA 169.254.x.x adres met /16 subnetmasker",
+      "category": "interface_ip",
+      "title": "APIPA Laptop0",
+      "desc": "Laptop0 heeft een geldig APIPA 169.254.x.x adres met /16 subnetmasker",
       "type": "ip_subnet",
-      "device": "Laptop0",
-      "network": "169.254.0.0",
-      "prefix": 16,
-      "points": 30
+      "checkType": "ip_subnet",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "deviceId": "Laptop0",
+        "subnetPrefix": "169.254.",
+        "expectedMask": "255.255.0.0"
+      }
     },
     {
-      "id": "ping_apipa",
-      "description": "Succesvolle ICMP connectiviteit (ping/Test-NetConnection) tussen beide laptops",
+      "id": "ping_laptop0_laptop1",
+      "category": "connectivity",
+      "title": "ICMP Connectiviteit",
+      "desc": "Succesvolle ping / Test-NetConnection tussen Laptop0 en Laptop1",
       "type": "ping_test",
-      "from": "Laptop0",
-      "to": "169.254.1.20",
-      "points": 30
+      "checkType": "ping_test",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "Laptop0",
+        "targetIp": "169.254.1.20"
+      }
     }
   ]
 }

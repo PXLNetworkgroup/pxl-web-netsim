@@ -1,112 +1,115 @@
 {
   "id": "h06_pt1_thuisrouter_nat",
   "code": "H06-PT1",
-  "chapter": "Hoofdstuk 06 - Thuisrouter, NAT, DHCP, WiFi & Internet",
-  "title": "Les 06 PT: Thuisrouter, NAT, DHCP, DNS, WiFi en Port Forwarding",
-  "timeLimitMinutes": 90,
+  "chapter": "Hoofdstuk 06 - Thuisnetwerken, WiFi & NAT",
+  "title": "Les 06 PT: Thuisrouter, NAT, DHCP, DNS, WiFi en WAN Internet",
+  "timeLimitMinutes": 50,
   "showLiveScore": true,
   "liveInternet": true,
-  "instructions": "## Les 06 PT: Thuisrouter, NAT, DHCP, DNS, WIFI en port forwarding\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les06_PT_Thuisrouter.html](https://vwgert.github.io/networksess/Les06_PT_Thuisrouter.html)\n\n### Topologie Overzicht:\n- **LAN-zijde (172.30.0.0/24):** Laptops & PC's krijgen automatisch IP via DHCP van de router (`172.30.0.100+`).\n- **Thuisrouter (OpenWrt / MikroTik):** Verzorgt NAT Masquerade (PAT), DHCP-server en Wireless AP.\n- **WAN-zijde:** Verbonden met **Internet (Public)** of **Het Internet** (ingesteld op WAN IP `45.117.136.17/24`).\n\n### Opdrachten:\n1. Sluit de WAN-poort van de router aan op `InternetPublic` of `Het Internet`.\n2. Controleer dat NAT-translatie actief is zodat interne clients (`172.30.0.x`) naar het internet kunnen surfen en pingen.\n3. Open in `PC0` de **Web Browser** en surf naar `http://www.pxl.be` of `https://icanhazip.com`.\n4. Controleer via PowerShell: `Test-NetConnection 8.8.8.8` en `tnc 8.8.8.8 -Port 53`.\n",
+  "instructions": "## Les 06 PT: Thuisrouter, NAT, DHCP, DNS, WiFi en Port Forwarding\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les06_PT_Thuisrouter.html](https://vwgert.github.io/networksess/Les06_PT_Thuisrouter.html)\n\n### Doel van het labo:\nIn dit labo onderzoek je een complete thuisnetwerktopologie met een geïntegreerde thuisrouter (zoals OpenWrt of Cisco SOHO):\n- WAN-zijde met publieke IP-translatie (NAT Masquerade)\n- LAN-zijde met DHCP server en switchpoorten\n- WiFi Access Point\n- Echte internettoegang via `internet_public` of veilige simulatie via `internet_simulated`.\n",
   "initialTopology": {
     "devices": [
       {
         "id": "HomeRouter",
         "name": "HomeRouter",
         "type": "openwrt",
-        "model": "OpenWrt 23.05",
-        "x": 380,
-        "y": 200,
+        "x": 360,
+        "y": 180,
         "interfaces": {
           "eth0": {
-            "ip": "45.117.136.17",
+            "ip": "203.0.113.2",
             "mask": "255.255.255.0",
             "shutdown": false
           },
-          "eth1": {
-            "ip": "172.30.0.1",
+          "br-lan": {
+            "ip": "192.168.1.1",
             "mask": "255.255.255.0",
             "shutdown": false
           }
         }
       },
       {
-        "id": "InternetPublic",
-        "name": "InternetPublic",
-        "type": "internet_public",
-        "model": "PXL Internet (Public NAT)",
-        "x": 620,
-        "y": 200
-      },
-      {
-        "id": "PC0",
-        "name": "PC0",
+        "id": "PC-Thuis",
+        "name": "PC-Thuis",
         "type": "pc",
         "x": 160,
-        "y": 140,
-        "ip": "172.30.0.10",
+        "y": 280,
+        "dhcpEnabled": true,
+        "ip": "192.168.1.15",
         "mask": "255.255.255.0",
-        "gateway": "172.30.0.1",
-        "dns": "8.8.8.8"
+        "gateway": "192.168.1.1",
+        "dns": "192.168.1.1"
       },
       {
-        "id": "Laptop0",
-        "name": "Laptop0",
-        "type": "laptop",
-        "x": 160,
-        "y": 280,
-        "ip": "172.30.0.20",
-        "mask": "255.255.255.0",
-        "gateway": "172.30.0.1",
-        "dns": "8.8.8.8"
+        "id": "Internet-Cloud",
+        "name": "Internet (Public)",
+        "type": "internet_public",
+        "x": 580,
+        "y": 180,
+        "ip": "203.0.113.1",
+        "mask": "255.255.255.0"
       }
     ],
     "cables": [
       {
+        "fromDevice": "PC-Thuis",
+        "fromPort": "FastEthernet0",
+        "toDevice": "HomeRouter",
+        "toPort": "br-lan",
+        "type": "copper_straight"
+      },
+      {
         "fromDevice": "HomeRouter",
         "fromPort": "eth0",
-        "toDevice": "InternetPublic",
-        "toPort": "WAN"
-      },
-      {
-        "fromDevice": "PC0",
-        "fromPort": "FastEthernet0",
-        "toDevice": "HomeRouter",
-        "toPort": "eth1"
-      },
-      {
-        "fromDevice": "Laptop0",
-        "fromPort": "FastEthernet0",
-        "toDevice": "HomeRouter",
-        "toPort": "eth2"
+        "toDevice": "Internet-Cloud",
+        "toPort": "Internet",
+        "type": "copper_straight"
       }
     ]
   },
   "rubric": [
     {
-      "id": "wan_connected",
-      "description": "Home Router WAN-poort correct verbonden met Internet Gateway",
-      "type": "cable_connection",
-      "dev1": "HomeRouter",
-      "port1": "eth0",
-      "dev2": "InternetPublic",
-      "port2": "WAN",
-      "points": 30
+      "id": "home_pc_dhcp",
+      "category": "interface_ip",
+      "title": "DHCP Lease Thuis PC",
+      "desc": "PC-Thuis heeft geldig IP in subnet 192.168.1.0/24",
+      "type": "ip_subnet",
+      "checkType": "ip_subnet",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "deviceId": "PC-Thuis",
+        "subnetPrefix": "192.168.1.",
+        "expectedMask": "255.255.255.0"
+      }
     },
     {
-      "id": "pc_default_gw",
-      "description": "PC0 heeft default gateway 172.30.0.1 geconfigureerd",
-      "type": "gateway_config",
-      "device": "PC0",
-      "gateway": "172.30.0.1",
-      "points": 35
-    },
-    {
-      "id": "internet_ping",
-      "description": "PC0 heeft internetverbinding via NAT (ping naar 8.8.8.8 succesvol)",
+      "id": "nat_gateway_reach",
+      "category": "connectivity",
+      "title": "Gateway Bereikbaar",
+      "desc": "PC-Thuis kan default gateway 192.168.1.1 pingen",
       "type": "ping_test",
-      "from": "PC0",
-      "to": "8.8.8.8",
-      "points": 35
+      "checkType": "ping_test",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "PC-Thuis",
+        "targetIp": "192.168.1.1"
+      }
+    },
+    {
+      "id": "internet_public_reach",
+      "category": "connectivity",
+      "title": "Internet Toegang via NAT",
+      "desc": "Succesvolle verbinding via NAT naar Internet-Cloud",
+      "type": "ping_test",
+      "checkType": "ping_test",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "PC-Thuis",
+        "targetIp": "203.0.113.1"
+      }
     }
   ]
 }

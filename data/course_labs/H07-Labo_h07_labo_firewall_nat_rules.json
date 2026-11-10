@@ -1,0 +1,149 @@
+{
+  "id": "h07_labo_firewall_nat_rules",
+  "code": "H07-Labo",
+  "chapter": "Hoofdstuk 07 - Beveiliging, Firewalls & NAT",
+  "title": "Les 07 Labo: Firewall, NAT Masquerade, Port Forwarding & Filter Rules",
+  "timeLimitMinutes": 55,
+  "showLiveScore": true,
+  "liveInternet": false,
+  "instructions": "## Les 07 - Labo: Firewall, NAT, publishing en rules\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les07_Labo.html](https://vwgert.github.io/networksess/Les07_Labo.html)\n\n### Opzet van het labo:\nIn dit labo configureer je een **MikroTik Firewall** met WAN- en LAN-zijde:\n- WAN switch met WAN-laptops (`172.20.40.10/24`)\n- MikroTik ether1 (WAN): `172.20.40.1/24`\n- MikroTik ether2 (LAN): `192.168.123.1/24`\n- LAN-zijde met interne webserver (`192.168.123.80`)\n- NAT Masquerade rule voor uitgaand LAN-verkeer\n- Port Forwarding (dstnat) poort 80 WAN -> 192.168.123.80 (Web publishing)\n",
+  "initialTopology": {
+    "devices": [
+      {
+        "id": "WAN-Laptop",
+        "name": "WAN-Laptop",
+        "type": "laptop",
+        "x": 120,
+        "y": 200,
+        "dhcpEnabled": false,
+        "ip": "172.20.40.10",
+        "mask": "255.255.255.0",
+        "gateway": "172.20.40.1",
+        "dns": ""
+      },
+      {
+        "id": "WAN-Switch",
+        "name": "WAN-Switch",
+        "type": "switch",
+        "x": 260,
+        "y": 200
+      },
+      {
+        "id": "MikroTik-Firewall",
+        "name": "MikroTik-Firewall",
+        "type": "mikrotik",
+        "x": 420,
+        "y": 200,
+        "interfaces": {
+          "ether1": {
+            "ip": "172.20.40.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          },
+          "ether2": {
+            "ip": "192.168.123.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          }
+        }
+      },
+      {
+        "id": "LAN-Switch",
+        "name": "LAN-Switch",
+        "type": "switch",
+        "x": 580,
+        "y": 200
+      },
+      {
+        "id": "LAN-Webserver",
+        "name": "LAN-Webserver",
+        "type": "server",
+        "x": 720,
+        "y": 200,
+        "dhcpEnabled": false,
+        "ip": "192.168.123.80",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.123.1",
+        "dns": "",
+        "services": {
+          "http": true
+        }
+      }
+    ],
+    "cables": [
+      {
+        "fromDevice": "WAN-Laptop",
+        "fromPort": "FastEthernet0",
+        "toDevice": "WAN-Switch",
+        "toPort": "FastEthernet0/1",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "WAN-Switch",
+        "fromPort": "FastEthernet0/2",
+        "toDevice": "MikroTik-Firewall",
+        "toPort": "ether1",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "MikroTik-Firewall",
+        "fromPort": "ether2",
+        "toDevice": "LAN-Switch",
+        "toPort": "FastEthernet0/1",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "LAN-Switch",
+        "fromPort": "FastEthernet0/2",
+        "toDevice": "LAN-Webserver",
+        "toPort": "FastEthernet0",
+        "type": "copper_straight"
+      }
+    ]
+  },
+  "rubric": [
+    {
+      "id": "wan_ping_gateway",
+      "category": "connectivity",
+      "title": "WAN Gateway Bereikbaar",
+      "desc": "WAN-Laptop kan MikroTik ether1 (172.20.40.1) pingen",
+      "type": "ping_test",
+      "checkType": "ping_test",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "WAN-Laptop",
+        "targetIp": "172.20.40.1"
+      }
+    },
+    {
+      "id": "lan_webserver_http",
+      "category": "services",
+      "title": "HTTP Service Webserver",
+      "desc": "HTTP service actief op LAN-Webserver",
+      "type": "http_get",
+      "checkType": "http_get",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "serverId": "LAN-Webserver"
+      }
+    },
+    {
+      "id": "firewall_interfaces_up",
+      "category": "interface_ip",
+      "title": "Firewall Interfaces UP",
+      "desc": "MikroTik ether1 en ether2 correct geconfigureerd",
+      "type": "interface_ip",
+      "checkType": "interface_ip",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "deviceId": "MikroTik-Firewall",
+        "portName": "ether2",
+        "expectedIp": "192.168.123.1",
+        "expectedMask": "255.255.255.0"
+      }
+    }
+  ]
+}

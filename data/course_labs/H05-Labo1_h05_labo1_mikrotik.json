@@ -1,86 +1,119 @@
 {
   "id": "h05_labo1_mikrotik",
   "code": "H05-Labo1",
-  "chapter": "Hoofdstuk 05 - Routering & MikroTik RouterOS",
+  "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
   "title": "Les 05 Labo 1: MikroTik hEX lite als Router (4 Netwerken)",
-  "timeLimitMinutes": 80,
+  "timeLimitMinutes": 50,
   "showLiveScore": true,
   "liveInternet": false,
-  "instructions": "## Les 05: Labo 1 MikroTik hEX lite als router: 4 afzonderlijke netwerken\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Labo1.html](https://vwgert.github.io/networksess/Les05_Labo1.html)\n\n### Netwerktopologie:\nDe **MikroTik hEX lite** verbindt 4 afzonderlijke netwerken op interfaces `ether2`, `ether3`, `ether4` en `ether5`.\n\n| Interface | Subnet | Router IP | Host IP Bereik |\n| :--- | :--- | :--- | :--- |\n| **ether2** | `192.168.10.0/24` | `192.168.10.1` | `192.168.10.10 - .50` |\n| **ether3** | `192.168.20.0/24` | `192.168.20.1` | `192.168.20.10 - .50` |\n| **ether4** | `192.168.30.0/24` | `192.168.30.1` | `192.168.30.10 - .50` |\n| **ether5** | `192.168.40.0/24` | `192.168.40.1` | `192.168.40.10 - .50` |\n\n### Opdrachten:\n1. Open de CLI van de MikroTik (`MikroTik1`).\n2. Verwijder eventuele bridges of standaard IPs en stel de IP-adressen in:\n   ```routeros\n   /ip address add address=192.168.10.1/24 interface=ether2\n   /ip address add address=192.168.20.1/24 interface=ether3\n   /ip address add address=192.168.30.1/24 interface=ether4\n   /ip address add address=192.168.40.1/24 interface=ether5\n   ```\n3. Verbind `PC1` met `ether2` (`192.168.10.10`, gateway `192.168.10.1`).\n4. Verbind `PC2` met `ether3` (`192.168.20.10`, gateway `192.168.20.1`).\n5. Test connectiviteit: ping vanuit `PC1` naar `PC2` (`192.168.20.10`).\n",
+  "instructions": "## Les 05 Labo 1: MikroTik hEX lite als Router\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Labo1.html](https://vwgert.github.io/networksess/Les05_Labo1.html)\n\n### Doel van het labo:\nIn dit labo configureer je een **MikroTik hEX lite** router via RouterOS CLI. Je kent IP-adressen toe aan interfaces en routeert verkeer tussen clients in afzonderlijke subnetten.\n",
   "initialTopology": {
     "devices": [
       {
-        "id": "MikroTik1",
-        "name": "MikroTik1",
+        "id": "MikroTik-R1",
+        "name": "MikroTik-R1",
         "type": "mikrotik",
-        "model": "hEX lite (RB750r2)",
-        "x": 380,
-        "y": 200
+        "x": 360,
+        "y": 180,
+        "interfaces": {
+          "ether1": {
+            "ip": "192.168.1.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          },
+          "ether2": {
+            "ip": "192.168.2.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          }
+        }
       },
       {
-        "id": "PC1",
-        "name": "PC1",
+        "id": "PC-LAN1",
+        "name": "PC-LAN1",
         "type": "pc",
         "x": 160,
-        "y": 140,
-        "ip": "192.168.10.10",
+        "y": 280,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.10",
         "mask": "255.255.255.0",
-        "gateway": "192.168.10.1"
+        "gateway": "192.168.1.1",
+        "dns": ""
       },
       {
-        "id": "PC2",
-        "name": "PC2",
+        "id": "PC-LAN2",
+        "name": "PC-LAN2",
         "type": "pc",
-        "x": 600,
-        "y": 140,
-        "ip": "192.168.20.10",
-        "mask": "255.255.255.0",
-        "gateway": "192.168.20.1"
+        "x": 560,
+        "y": 280,
+        "dhcpEnabled": false,
+        "ip": "",
+        "mask": "",
+        "gateway": "",
+        "dns": ""
       }
     ],
     "cables": [
       {
-        "fromDevice": "PC1",
+        "fromDevice": "PC-LAN1",
         "fromPort": "FastEthernet0",
-        "toDevice": "MikroTik1",
-        "toPort": "ether2"
+        "toDevice": "MikroTik-R1",
+        "toPort": "ether1",
+        "type": "copper_straight"
       },
       {
-        "fromDevice": "PC2",
+        "fromDevice": "PC-LAN2",
         "fromPort": "FastEthernet0",
-        "toDevice": "MikroTik1",
-        "toPort": "ether3"
+        "toDevice": "MikroTik-R1",
+        "toPort": "ether2",
+        "type": "copper_straight"
       }
     ]
   },
   "rubric": [
     {
-      "id": "mt_ether2",
-      "description": "MikroTik ether2 geconfigureerd met 192.168.10.1/24",
-      "type": "mikrotik_interface_ip",
-      "device": "MikroTik1",
-      "interface": "ether2",
-      "ip": "192.168.10.1",
-      "prefix": 24,
-      "points": 35
+      "id": "pc_lan2_ip",
+      "category": "interface_ip",
+      "title": "PC-LAN2 IP & Gateway",
+      "desc": "PC-LAN2 heeft IP 192.168.2.10 en gateway 192.168.2.1",
+      "type": "interface_ip",
+      "checkType": "interface_ip",
+      "points": 40,
+      "enabled": true,
+      "condition": {
+        "deviceId": "PC-LAN2",
+        "portName": "FastEthernet0",
+        "expectedIp": "192.168.2.10",
+        "expectedMask": "255.255.255.0"
+      }
     },
     {
-      "id": "mt_ether3",
-      "description": "MikroTik ether3 geconfigureerd met 192.168.20.1/24",
-      "type": "mikrotik_interface_ip",
-      "device": "MikroTik1",
-      "interface": "ether3",
-      "ip": "192.168.20.1",
-      "prefix": 24,
-      "points": 35
+      "id": "pc_lan2_gw",
+      "category": "routing",
+      "title": "Default Gateway",
+      "desc": "Default gateway van PC-LAN2 is 192.168.2.1",
+      "type": "default_gateway",
+      "checkType": "default_gateway",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "deviceId": "PC-LAN2",
+        "expected": "192.168.2.1"
+      }
     },
     {
-      "id": "ping_routed",
-      "description": "Succesvol gerouteerde ping van PC1 naar PC2 door de MikroTik",
+      "id": "ping_inter_lan",
+      "category": "connectivity",
+      "title": "Inter-LAN Routing Ping",
+      "desc": "Succesvolle ping van PC-LAN1 naar PC-LAN2 (192.168.2.10)",
       "type": "ping_test",
-      "from": "PC1",
-      "to": "192.168.20.10",
-      "points": 30
+      "checkType": "ping_test",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "PC-LAN1",
+        "targetIp": "192.168.2.10"
+      }
     }
   ]
 }

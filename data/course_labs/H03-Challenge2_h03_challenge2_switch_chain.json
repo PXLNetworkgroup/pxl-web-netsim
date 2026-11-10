@@ -1,0 +1,137 @@
+{
+  "id": "h03_challenge2_switch_chain",
+  "code": "H03-Challenge2",
+  "chapter": "Hoofdstuk 03 - Layer 2 Switching & MAC-Adrestabellen",
+  "title": "Les 03 Challenge 2: Ketting van Switches & Lector Webserver",
+  "timeLimitMinutes": 50,
+  "showLiveScore": true,
+  "liveInternet": false,
+  "instructions": "## Les 03 Challenge 2: Ketting van Switches tot aan de Lector Webserver\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les03_Challenge2.html](https://vwgert.github.io/networksess/Les03_Challenge2.html)\n\n### Overzicht Challenge:\nIn deze challenge koppelen studenten hun switches aan elkaar in een ketting tot aan de laptop/server van de lector:\n1. De lector draait een webserver op `192.168.100.42` in het /24-netwerk `192.168.100.0/24`.\n2. Verbind de switches met elkaar via Gigabit trunk-uplinks.\n3. Configureer handmatig een IP-adres op je studenten-laptop (bijv. `192.168.100.10` t/m `192.168.100.50`).\n4. Test de connectiviteit via ping en bezoek de webpagina van de lector via de browser of PowerShell `Invoke-WebRequest`.\n",
+  "initialTopology": {
+    "devices": [
+      {
+        "id": "Lector-Server",
+        "name": "Lector-Server",
+        "type": "server",
+        "x": 620,
+        "y": 140,
+        "dhcpEnabled": false,
+        "ip": "192.168.100.42",
+        "mask": "255.255.255.0",
+        "gateway": "",
+        "dns": "",
+        "services": {
+          "http": true
+        }
+      },
+      {
+        "id": "Switch-Lector",
+        "name": "Switch-Lector",
+        "type": "switch",
+        "x": 450,
+        "y": 140
+      },
+      {
+        "id": "Switch-Studenten",
+        "name": "Switch-Studenten",
+        "type": "switch",
+        "x": 270,
+        "y": 240
+      },
+      {
+        "id": "Laptop-Student1",
+        "name": "Laptop-Student1",
+        "type": "laptop",
+        "x": 100,
+        "y": 320,
+        "dhcpEnabled": false,
+        "ip": "",
+        "mask": "",
+        "gateway": "",
+        "dns": ""
+      },
+      {
+        "id": "Laptop-Student2",
+        "name": "Laptop-Student2",
+        "type": "laptop",
+        "x": 260,
+        "y": 360,
+        "dhcpEnabled": false,
+        "ip": "192.168.100.12",
+        "mask": "255.255.255.0",
+        "gateway": "",
+        "dns": ""
+      }
+    ],
+    "cables": [
+      {
+        "fromDevice": "Lector-Server",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch-Lector",
+        "toPort": "FastEthernet0/1",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "Switch-Lector",
+        "fromPort": "GigabitEthernet0/1",
+        "toDevice": "Switch-Studenten",
+        "toPort": "GigabitEthernet0/1",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "Laptop-Student2",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch-Studenten",
+        "toPort": "FastEthernet0/2",
+        "type": "copper_straight"
+      }
+    ]
+  },
+  "rubric": [
+    {
+      "id": "cable_student1",
+      "category": "cabling",
+      "title": "Kabel Student 1",
+      "desc": "Laptop-Student1 verbonden met Switch-Studenten",
+      "type": "cabling",
+      "checkType": "cabling",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "Laptop-Student1",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch-Studenten",
+        "toPort": "FastEthernet0/1"
+      }
+    },
+    {
+      "id": "ip_student1",
+      "category": "interface_ip",
+      "title": "IP Student 1",
+      "desc": "Laptop-Student1 geconfigureerd in netwerk 192.168.100.0/24",
+      "type": "ip_subnet",
+      "checkType": "ip_subnet",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "deviceId": "Laptop-Student1",
+        "subnetPrefix": "192.168.100.",
+        "expectedMask": "255.255.255.0"
+      }
+    },
+    {
+      "id": "ping_lector",
+      "category": "connectivity",
+      "title": "Ping Lector Webserver",
+      "desc": "Succesvolle ping van Laptop-Student1 naar Lector-Server (192.168.100.42)",
+      "type": "ping_test",
+      "checkType": "ping_test",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "Laptop-Student1",
+        "targetIp": "192.168.100.42"
+      }
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "id": "h04_challenge2_team_dns",
+  "code": "H04-Challenge2",
+  "chapter": "Hoofdstuk 04 - DNS, DHCP & Toepassingslaag",
+  "title": "Les 04 Challenge 2: Eigen DNS-server (labo.local) & Wireshark",
+  "timeLimitMinutes": 50,
+  "showLiveScore": true,
+  "liveInternet": false,
+  "instructions": "## Les 04 Challenge 2: Eigen DNS-server (labo.local) & Wireshark\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les04_Challenge2.html](https://vwgert.github.io/networksess/Les04_Challenge2.html)\n\n### Overzicht Challenge:\nIn deze challenge richt één van de apparaten een DNS-zone `labo.local` in:\n1. Server configureert een forward lookup zone voor domein `labo.local` met A-records voor `ns1.labo.local` en `www.labo.local`.\n2. De client-laptop stelt het IP van deze DNS-server in (`192.168.1.10`).\n3. De client gebruikt PowerShell `Resolve-DnsName www.labo.local` en surft naar `http://www.labo.local` via `Invoke-WebRequest` of de browser.\n",
+  "initialTopology": {
+    "devices": [
+      {
+        "id": "Student-Laptop",
+        "name": "Student-Laptop",
+        "type": "laptop",
+        "x": 160,
+        "y": 200,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.50",
+        "mask": "255.255.255.0",
+        "gateway": "",
+        "dns": ""
+      },
+      {
+        "id": "Switch-Lab",
+        "name": "Switch-Lab",
+        "type": "switch",
+        "x": 360,
+        "y": 200
+      },
+      {
+        "id": "Labo-Server",
+        "name": "Labo-Server",
+        "type": "server",
+        "x": 560,
+        "y": 200,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.10",
+        "mask": "255.255.255.0",
+        "gateway": "",
+        "dns": "192.168.1.10",
+        "services": {
+          "http": true,
+          "dns": true
+        },
+        "dnsRecords": [
+          {
+            "name": "www.labo.local",
+            "type": "A",
+            "ip": "192.168.1.10"
+          },
+          {
+            "name": "ns1.labo.local",
+            "type": "A",
+            "ip": "192.168.1.10"
+          }
+        ]
+      }
+    ],
+    "cables": [
+      {
+        "fromDevice": "Student-Laptop",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch-Lab",
+        "toPort": "FastEthernet0/1",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "Labo-Server",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch-Lab",
+        "toPort": "FastEthernet0/2",
+        "type": "copper_straight"
+      }
+    ]
+  },
+  "rubric": [
+    {
+      "id": "client_dns_config",
+      "category": "interface_ip",
+      "title": "Client DNS Server Ingesteld",
+      "desc": "Student-Laptop heeft DNS server 192.168.1.10 geconfigureerd",
+      "type": "interface_ip",
+      "checkType": "interface_ip",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "deviceId": "Student-Laptop",
+        "dns": "192.168.1.10"
+      }
+    },
+    {
+      "id": "dns_record_labo",
+      "category": "services",
+      "title": "DNS Record www.labo.local",
+      "desc": "A-record www.labo.local aanwezig op Labo-Server",
+      "type": "dns_record",
+      "checkType": "dns_record",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "name": "www.labo.local",
+        "ip": "192.168.1.10"
+      }
+    },
+    {
+      "id": "ping_server",
+      "category": "connectivity",
+      "title": "Ping Labo-Server",
+      "desc": "Succesvolle ping tussen Student-Laptop en Labo-Server",
+      "type": "ping_test",
+      "checkType": "ping_test",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "Student-Laptop",
+        "targetIp": "192.168.1.10"
+      }
+    }
+  ]
+}

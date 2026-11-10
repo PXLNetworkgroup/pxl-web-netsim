@@ -1,138 +1,161 @@
 {
   "id": "h08_cisco_ios_basis",
   "code": "H08-Cisco",
-  "chapter": "Hoofdstuk 08 - Cisco IOS CLI & Beveiliging",
-  "title": "Zelfstudie: Cisco IOS Netwerk (PC-SW-R-SW-PC) met SSH & Beveiliging",
-  "timeLimitMinutes": 90,
+  "chapter": "Zelfstudie - Cisco IOS CLI & Beveiliging",
+  "title": "Zelfstudie: Cisco IOS Netwerk (PC-SW-R-SW-PC) met SSH",
+  "timeLimitMinutes": 60,
   "showLiveScore": true,
   "liveInternet": false,
-  "instructions": "## Zelfstudie: Cisco IOS Packet Tracer (PC-SW-R-SW-PC)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Cisco_IOS_PT.html](https://vwgert.github.io/networksess/Cisco_IOS_PT.html)\n\n### Adreseringstabel:\n| Toestel | Interface | IP-adres | Subnetmasker | Default Gateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **PC-L** | NIC | `192.168.1.100` | `255.255.255.0` | `192.168.1.1` |\n| **SW-L** | VLAN 1 (mgmt) | `192.168.1.2` | `255.255.255.0` | `192.168.1.1` |\n| **R1**   | G0/0/0 | `192.168.1.1` | `255.255.255.0` | - |\n| **R1**   | G0/0/1 | `192.168.2.1` | `255.255.255.0` | - |\n| **SW-R** | VLAN 1 (mgmt) | `192.168.2.2` | `255.255.255.0` | `192.168.2.1` |\n| **PC-R** | NIC | `192.168.2.100` | `255.255.255.0` | `192.168.2.1` |\n\n### Cisco IOS Beveiligingsvereisten:\n- Hostname: `R1`\n- Secret: `enable secret class`\n- Console wachtwoord: `password cisco`, `login`\n- Banner: `banner motd #Geautoriseerde toegang alleen!#`\n- SSH: `ip domain-name pxl.be`, `crypto key generate rsa`, `username admin secret cisco123`, `transport input ssh`\n",
+  "instructions": "## Zelfstudie: Cisco IOS Packet Tracer (PC-SW-R-SW-PC)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Cisco_IOS_PT.html](https://vwgert.github.io/networksess/Cisco_IOS_PT.html)\n\n### Doel van de zelfstudie:\nIn deze oefening configureer je een volledig Cisco netwerk met twee switches en één router:\n- Hostnames instellen (`hostname R1`, `hostname S1`)\n- Beveiliging: `enable secret class`, `line console 0` met `password cisco`\n- Encryptie: `service password-encryption`\n- Banner: `banner motd #Geautoriseerde toegang alleen!#`\n- Interface IP's en `no shutdown`\n- SSH beheer configureren\n- Startup-configuratie opslaan in NVRAM (`copy run start`).\n",
   "initialTopology": {
     "devices": [
+      {
+        "id": "PC0",
+        "name": "PC0",
+        "type": "pc",
+        "x": 100,
+        "y": 260,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.10",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.1.1",
+        "dns": ""
+      },
+      {
+        "id": "S1",
+        "name": "S1",
+        "type": "switch",
+        "x": 240,
+        "y": 180,
+        "hostname": "Switch"
+      },
       {
         "id": "R1",
         "name": "R1",
         "type": "router",
-        "model": "4331",
-        "x": 380,
-        "y": 200
+        "x": 420,
+        "y": 140,
+        "hostname": "Router",
+        "interfaces": {
+          "GigabitEthernet0/0/0": {
+            "ip": "192.168.1.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          },
+          "GigabitEthernet0/0/1": {
+            "ip": "192.168.2.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          }
+        }
       },
       {
-        "id": "SW-L",
-        "name": "SW-L",
+        "id": "S2",
+        "name": "S2",
         "type": "switch",
-        "model": "2960-24TT",
-        "x": 200,
-        "y": 200
+        "x": 600,
+        "y": 180,
+        "hostname": "Switch"
       },
       {
-        "id": "SW-R",
-        "name": "SW-R",
-        "type": "switch",
-        "model": "2960-24TT",
-        "x": 560,
-        "y": 200
-      },
-      {
-        "id": "PC-L",
-        "name": "PC-L",
+        "id": "PC1",
+        "name": "PC1",
         "type": "pc",
-        "x": 80,
-        "y": 200,
-        "ip": "192.168.1.100",
+        "x": 740,
+        "y": 260,
+        "dhcpEnabled": false,
+        "ip": "192.168.2.10",
         "mask": "255.255.255.0",
-        "gateway": "192.168.1.1"
-      },
-      {
-        "id": "PC-R",
-        "name": "PC-R",
-        "type": "pc",
-        "x": 680,
-        "y": 200,
-        "ip": "192.168.2.100",
-        "mask": "255.255.255.0",
-        "gateway": "192.168.2.1"
+        "gateway": "192.168.2.1",
+        "dns": ""
       }
     ],
     "cables": [
       {
-        "fromDevice": "PC-L",
+        "fromDevice": "PC0",
         "fromPort": "FastEthernet0",
-        "toDevice": "SW-L",
-        "toPort": "FastEthernet0/1"
+        "toDevice": "S1",
+        "toPort": "FastEthernet0/1",
+        "type": "copper_straight"
       },
       {
-        "fromDevice": "SW-L",
+        "fromDevice": "S1",
         "fromPort": "GigabitEthernet0/1",
         "toDevice": "R1",
-        "toPort": "GigabitEthernet0/0/0"
+        "toPort": "GigabitEthernet0/0/0",
+        "type": "copper_straight"
       },
       {
         "fromDevice": "R1",
         "fromPort": "GigabitEthernet0/0/1",
-        "toDevice": "SW-R",
-        "toPort": "GigabitEthernet0/1"
+        "toDevice": "S2",
+        "toPort": "GigabitEthernet0/1",
+        "type": "copper_straight"
       },
       {
-        "fromDevice": "SW-R",
+        "fromDevice": "S2",
         "fromPort": "FastEthernet0/1",
-        "toDevice": "PC-R",
-        "toPort": "FastEthernet0"
+        "toDevice": "PC1",
+        "toPort": "FastEthernet0",
+        "type": "copper_straight"
       }
     ]
   },
   "rubric": [
     {
       "id": "r1_hostname",
-      "description": "R1 hostname ingesteld",
-      "type": "cisco_command",
-      "device": "R1",
-      "command": "hostname R1",
-      "points": 15
+      "category": "security",
+      "title": "R1 Hostname",
+      "desc": "Router heeft hostname R1",
+      "type": "hostname",
+      "checkType": "hostname",
+      "points": 25,
+      "enabled": true,
+      "condition": {
+        "targetDevice": "R1",
+        "expected": "R1"
+      }
     },
     {
-      "id": "r1_secret",
-      "description": "R1 enable secret beveiligd",
-      "type": "cisco_command",
-      "device": "R1",
-      "command": "enable secret class",
-      "points": 15
+      "id": "s1_hostname",
+      "category": "security",
+      "title": "S1 Hostname",
+      "desc": "Switch 1 heeft hostname S1",
+      "type": "hostname",
+      "checkType": "hostname",
+      "points": 25,
+      "enabled": true,
+      "condition": {
+        "targetDevice": "S1",
+        "expected": "S1"
+      }
     },
     {
-      "id": "r1_g0",
-      "description": "R1 interface G0/0/0 ingesteld op 192.168.1.1/24",
-      "type": "interface_ip",
-      "device": "R1",
-      "interface": "GigabitEthernet0/0/0",
-      "ip": "192.168.1.1",
-      "mask": "255.255.255.0",
-      "points": 20
+      "id": "r1_password_enc",
+      "category": "security",
+      "title": "Wachtwoordversleuteling",
+      "desc": "service password-encryption actief op R1",
+      "type": "password_encryption",
+      "checkType": "password_encryption",
+      "points": 25,
+      "enabled": true,
+      "condition": {
+        "targetDevice": "R1"
+      }
     },
     {
-      "id": "r1_g1",
-      "description": "R1 interface G0/0/1 ingesteld op 192.168.2.1/24",
-      "type": "interface_ip",
-      "device": "R1",
-      "interface": "GigabitEthernet0/0/1",
-      "ip": "192.168.2.1",
-      "mask": "255.255.255.0",
-      "points": 20
-    },
-    {
-      "id": "r1_banner",
-      "description": "R1 banner motd ingesteld",
-      "type": "cisco_command",
-      "device": "R1",
-      "command": "banner motd",
-      "points": 15
-    },
-    {
-      "id": "ping_routed",
-      "description": "Succesvolle ping tussen PC-L en PC-R",
+      "id": "ping_end_to_end",
+      "category": "connectivity",
+      "title": "End-to-End Ping",
+      "desc": "Succesvolle ping tussen PC0 en PC1",
       "type": "ping_test",
-      "from": "PC-L",
-      "to": "192.168.2.100",
-      "points": 15
+      "checkType": "ping_test",
+      "points": 25,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "PC0",
+        "targetIp": "192.168.2.10"
+      }
     }
   ]
 }

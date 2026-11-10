@@ -1,0 +1,161 @@
+{
+  "id": "h05_labo3_mikrotik_static_routes",
+  "code": "H05-Labo3",
+  "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
+  "title": "Les 05 Labo 3: Static routes tussen twee MikroTik routers",
+  "timeLimitMinutes": 55,
+  "showLiveScore": true,
+  "liveInternet": false,
+  "instructions": "## Les 05 - Labo 3: Static routes tussen twee routers en twee LAN-netwerken\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Labo3.html](https://vwgert.github.io/networksess/Les05_Labo3.html)\n\n### Overzicht en netwerktopologie:\nTwee teams zijn verbonden via twee routers met een inter-router link (`10.0.0.0/30`):\n- **Router 1:** `ether2` = `192.168.100.1/24`, `ether1` = `10.0.0.1/30`\n- **Router 2:** `ether2` = `192.168.200.1/24`, `ether1` = `10.0.0.2/30`\nOmdat routers elkaars LAN niet automatisch kennen, moeten **static routes** toegevoegd worden:\n- Op Router 1: route naar `192.168.200.0/24` via gateway `10.0.0.2`\n- Op Router 2: route naar `192.168.100.0/24` via gateway `10.0.0.1`\n",
+  "initialTopology": {
+    "devices": [
+      {
+        "id": "MikroTik-R1",
+        "name": "MikroTik-R1",
+        "type": "mikrotik",
+        "x": 260,
+        "y": 160,
+        "interfaces": {
+          "ether1": {
+            "ip": "10.0.0.1",
+            "mask": "255.255.255.252",
+            "shutdown": false
+          },
+          "ether2": {
+            "ip": "192.168.100.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          }
+        },
+        "staticRoutes": [
+          {
+            "network": "192.168.200.0",
+            "mask": "255.255.255.0",
+            "nextHop": "10.0.0.2"
+          }
+        ]
+      },
+      {
+        "id": "MikroTik-R2",
+        "name": "MikroTik-R2",
+        "type": "mikrotik",
+        "x": 520,
+        "y": 160,
+        "interfaces": {
+          "ether1": {
+            "ip": "10.0.0.2",
+            "mask": "255.255.255.252",
+            "shutdown": false
+          },
+          "ether2": {
+            "ip": "192.168.200.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          }
+        },
+        "staticRoutes": [
+          {
+            "network": "192.168.100.0",
+            "mask": "255.255.255.0",
+            "nextHop": "10.0.0.1"
+          }
+        ]
+      },
+      {
+        "id": "PC-Team1",
+        "name": "PC-Team1",
+        "type": "pc",
+        "x": 120,
+        "y": 260,
+        "dhcpEnabled": false,
+        "ip": "192.168.100.10",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.100.1",
+        "dns": ""
+      },
+      {
+        "id": "PC-Team2",
+        "name": "PC-Team2",
+        "type": "pc",
+        "x": 660,
+        "y": 260,
+        "dhcpEnabled": false,
+        "ip": "192.168.200.10",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.200.1",
+        "dns": ""
+      }
+    ],
+    "cables": [
+      {
+        "fromDevice": "MikroTik-R1",
+        "fromPort": "ether1",
+        "toDevice": "MikroTik-R2",
+        "toPort": "ether1",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "PC-Team1",
+        "fromPort": "FastEthernet0",
+        "toDevice": "MikroTik-R1",
+        "toPort": "ether2",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "PC-Team2",
+        "fromPort": "FastEthernet0",
+        "toDevice": "MikroTik-R2",
+        "toPort": "ether2",
+        "type": "copper_straight"
+      }
+    ]
+  },
+  "rubric": [
+    {
+      "id": "r1_static_route",
+      "category": "routing",
+      "title": "Static Route R1",
+      "desc": "Router 1 heeft route naar 192.168.200.0/24 via 10.0.0.2",
+      "type": "static_route",
+      "checkType": "static_route",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "routerId": "MikroTik-R1",
+        "network": "192.168.200.0",
+        "mask": "255.255.255.0",
+        "nextHop": "10.0.0.2"
+      }
+    },
+    {
+      "id": "r2_static_route",
+      "category": "routing",
+      "title": "Static Route R2",
+      "desc": "Router 2 heeft route naar 192.168.100.0/24 via 10.0.0.1",
+      "type": "static_route",
+      "checkType": "static_route",
+      "points": 35,
+      "enabled": true,
+      "condition": {
+        "routerId": "MikroTik-R2",
+        "network": "192.168.100.0",
+        "mask": "255.255.255.0",
+        "nextHop": "10.0.0.1"
+      }
+    },
+    {
+      "id": "end_to_end_ping",
+      "category": "connectivity",
+      "title": "End-to-End Ping",
+      "desc": "Succesvolle ping tussen PC-Team1 en PC-Team2 over beide routers",
+      "type": "ping_test",
+      "checkType": "ping_test",
+      "points": 30,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "PC-Team1",
+        "targetIp": "192.168.200.10"
+      }
+    }
+  ]
+}

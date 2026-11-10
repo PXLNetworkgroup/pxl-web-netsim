@@ -1,0 +1,155 @@
+{
+  "id": "h05_labo2_mikrotik_2lans",
+  "code": "H05-Labo2",
+  "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
+  "title": "Les 05 Labo 2: MikroTik routeert tussen twee LAN-netwerken",
+  "timeLimitMinutes": 50,
+  "showLiveScore": true,
+  "liveInternet": false,
+  "instructions": "## Les 05 - Labo 2: MikroTik routeert tussen twee LAN-netwerken\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Labo2.html](https://vwgert.github.io/networksess/Les05_Labo2.html)\n\n### Overzicht en netwerktopologie:\nIn dit labo werken 2 teams (Team 1 en Team 2). Elk team hangt via een switch aan een poort van de MikroTik-router:\n- **Team 1:** `192.168.100.0/24` via switch op `ether2` (`192.168.100.1`)\n- **Team 2:** `192.168.200.0/24` via switch op `ether3` (`192.168.200.1`)\nDe MikroTik verzorgt de routering tussen beide netwerken zodat alle studenten met elkaar kunnen communiceren.\n",
+  "initialTopology": {
+    "devices": [
+      {
+        "id": "MikroTik-Router",
+        "name": "MikroTik-Router",
+        "type": "mikrotik",
+        "x": 370,
+        "y": 140,
+        "interfaces": {
+          "ether2": {
+            "ip": "192.168.100.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          },
+          "ether3": {
+            "ip": "192.168.200.1",
+            "mask": "255.255.255.0",
+            "shutdown": false
+          }
+        }
+      },
+      {
+        "id": "Switch-Team1",
+        "name": "Switch-Team1",
+        "type": "switch",
+        "x": 200,
+        "y": 240
+      },
+      {
+        "id": "Switch-Team2",
+        "name": "Switch-Team2",
+        "type": "switch",
+        "x": 540,
+        "y": 240
+      },
+      {
+        "id": "PC-Team1",
+        "name": "PC-Team1",
+        "type": "pc",
+        "x": 120,
+        "y": 340,
+        "dhcpEnabled": false,
+        "ip": "192.168.100.10",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.100.1",
+        "dns": ""
+      },
+      {
+        "id": "PC-Team2",
+        "name": "PC-Team2",
+        "type": "pc",
+        "x": 620,
+        "y": 340,
+        "dhcpEnabled": false,
+        "ip": "",
+        "mask": "",
+        "gateway": "",
+        "dns": ""
+      }
+    ],
+    "cables": [
+      {
+        "fromDevice": "MikroTik-Router",
+        "fromPort": "ether2",
+        "toDevice": "Switch-Team1",
+        "toPort": "FastEthernet0/1",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "MikroTik-Router",
+        "fromPort": "ether3",
+        "toDevice": "Switch-Team2",
+        "toPort": "FastEthernet0/1",
+        "type": "copper_straight"
+      },
+      {
+        "fromDevice": "PC-Team1",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch-Team1",
+        "toPort": "FastEthernet0/2",
+        "type": "copper_straight"
+      }
+    ]
+  },
+  "rubric": [
+    {
+      "id": "cable_team2",
+      "category": "cabling",
+      "title": "Bekabeling Team 2",
+      "desc": "PC-Team2 verbonden met Switch-Team2",
+      "type": "cabling",
+      "checkType": "cabling",
+      "points": 25,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "PC-Team2",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch-Team2",
+        "toPort": "FastEthernet0/2"
+      }
+    },
+    {
+      "id": "ip_team2",
+      "category": "interface_ip",
+      "title": "IP PC-Team2",
+      "desc": "PC-Team2 heeft IP in 192.168.200.0/24",
+      "type": "ip_subnet",
+      "checkType": "ip_subnet",
+      "points": 25,
+      "enabled": true,
+      "condition": {
+        "deviceId": "PC-Team2",
+        "subnetPrefix": "192.168.200.",
+        "expectedMask": "255.255.255.0"
+      }
+    },
+    {
+      "id": "gw_team2",
+      "category": "routing",
+      "title": "Gateway Team 2",
+      "desc": "PC-Team2 heeft default gateway 192.168.200.1",
+      "type": "default_gateway",
+      "checkType": "default_gateway",
+      "points": 25,
+      "enabled": true,
+      "condition": {
+        "deviceId": "PC-Team2",
+        "expected": "192.168.200.1"
+      }
+    },
+    {
+      "id": "ping_teams",
+      "category": "connectivity",
+      "title": "Inter-Team Ping",
+      "desc": "Succesvolle ping tussen Team 1 en Team 2",
+      "type": "ping_test",
+      "checkType": "ping_test",
+      "points": 25,
+      "enabled": true,
+      "condition": {
+        "fromDevice": "PC-Team1",
+        "target": "PC-Team2"
+      }
+    }
+  ]
+}

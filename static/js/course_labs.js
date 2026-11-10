@@ -13,7 +13,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 45,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 01 Labo: Rechtstreekse verbinding tussen 2 Laptops - APIPA\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les01_Labo.html](https://vwgert.github.io/networksess/Les01_Labo.html)\n\n### Doel van het labo:\nIn dit labo onderzoek je hoe twee laptops (Laptop0 en Laptop1) rechtstreeks met elkaar communiceren zonder tussenkomst van een router of DHCP-server. Je bestudeert het automatisch toekennen van een **APIPA-adres** (169.254.0.0/16) en test de connectiviteit via zowel **Command Prompt** als **PowerShell**.\n\n### Opdrachten:\n1. **Fysieke verbinding:** Sluit een netwerkkabel aan tussen `Laptop0` (FastEthernet0) en `Laptop1` (FastEthernet0).\n2. **DHCP controle:** Beide laptops staan standaard ingesteld op DHCP. Doordat er geen DHCP-server actief is, genereert Windows automatisch een APIPA-adres in het bereik `169.254.x.x` met subnetmasker `255.255.0.0`.\n3. **PowerShell onderzoek:**\n   - Open op `Laptop0` de applicatie **PowerShell**.\n   - Voer het cmdlet `Get-NetIPAddress` of `gip` uit om het toegekende IP-adres en PrefixLength (16) te inspecteren.\n   - Voer `Get-NetIPConfiguration` of `gipconfig` uit om de volledige interface-configuratie te bekijken.\n4. **Connectiviteitstest:**\n   - Ping vanuit PowerShell naar het APIPA-adres van `Laptop1` via:\n     `Test-NetConnection 169.254.1.20` of `tnc 169.254.1.20` (of `ping 169.254.1.20`).\n",
+    "instructions": "## Les 01 Labo: Rechtstreekse verbinding tussen 2 Laptops - APIPA\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les01_Labo.html](https://vwgert.github.io/networksess/Les01_Labo.html)\n\n### Doel van het labo:\nIn dit labo onderzoek je hoe twee laptops rechtstreeks met elkaar communiceren zonder tussenkomst van een router of DHCP-server. Je bestudeert het automatisch toekennen van een **APIPA-adres** (169.254.0.0/16) en test de connectiviteit via zowel **Command Prompt** als **PowerShell**.\n\n### Opdrachten:\n1. **Fysieke verbinding:** Sluit een netwerkkabel aan tussen `Laptop0` (FastEthernet0) en `Laptop1` (FastEthernet0).\n2. **DHCP controle:** Beide laptops staan ingesteld op DHCP. Windows kent automatisch een APIPA-adres toe (169.254.x.x / 255.255.0.0).\n3. **PowerShell onderzoek:**\n   - Open op `Laptop0` de **PowerShell** terminal.\n   - Voer `Get-NetIPAddress` (`gip`) en `Get-NetIPConfiguration` (`gipconfig`) uit.\n4. **Connectiviteitstest:** Ping vanuit PowerShell naar `Laptop1` via `Test-NetConnection 169.254.1.20` of `ping 169.254.1.20`.\n",
     "initialTopology": {
       "devices": [
         {
@@ -46,42 +46,60 @@ window.PXL_COURSE_LABS = [
     "rubric": [
       {
         "id": "cable_connected",
-        "description": "Rechtstreekse kabelverbinding tussen Laptop0 en Laptop1",
-        "type": "cable_connection",
-        "dev1": "Laptop0",
-        "port1": "FastEthernet0",
-        "dev2": "Laptop1",
-        "port2": "FastEthernet0",
-        "points": 40
+        "category": "cabling",
+        "title": "Bekabeling",
+        "desc": "Rechtstreekse kabelverbinding tussen Laptop0 en Laptop1",
+        "type": "cabling",
+        "checkType": "cabling",
+        "points": 40,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "Laptop0",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Laptop1",
+          "toPort": "FastEthernet0"
+        }
       },
       {
         "id": "apipa_subnet_laptop0",
-        "description": "Laptop0 heeft een geldig APIPA 169.254.x.x adres met /16 subnetmasker",
+        "category": "interface_ip",
+        "title": "APIPA Laptop0",
+        "desc": "Laptop0 heeft een geldig APIPA 169.254.x.x adres met /16 subnetmasker",
         "type": "ip_subnet",
-        "device": "Laptop0",
-        "network": "169.254.0.0",
-        "prefix": 16,
-        "points": 30
+        "checkType": "ip_subnet",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "deviceId": "Laptop0",
+          "subnetPrefix": "169.254.",
+          "expectedMask": "255.255.0.0"
+        }
       },
       {
-        "id": "ping_apipa",
-        "description": "Succesvolle ICMP connectiviteit (ping/Test-NetConnection) tussen beide laptops",
+        "id": "ping_laptop0_laptop1",
+        "category": "connectivity",
+        "title": "ICMP Connectiviteit",
+        "desc": "Succesvolle ping / Test-NetConnection tussen Laptop0 en Laptop1",
         "type": "ping_test",
-        "from": "Laptop0",
-        "to": "169.254.1.20",
-        "points": 30
+        "checkType": "ping_test",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "Laptop0",
+          "targetIp": "169.254.1.20"
+        }
       }
     ]
   },
   {
     "id": "h02_labo1_statisch_ip",
     "code": "H02-Labo1",
-    "chapter": "Hoofdstuk 02 - Statische IP-Adresering & Webserver",
+    "chapter": "Hoofdstuk 02 - IPv4 Adressering & Webserver",
     "title": "Les 02 Labo: Statische IP-configuratie (PC ↔ Webserver)",
-    "timeLimitMinutes": 50,
+    "timeLimitMinutes": 45,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 02 Labo: Statische IP-configuratie (PC ↔ Server)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les02_PT_Statisch_IP.html](https://vwgert.github.io/networksess/Les02_PT_Statisch_IP.html)\n\n### Adreseringstabel:\n| Toestel | Interface | IP-adres | Subnetmasker | Rol |\n| :--- | :--- | :--- | :--- | :--- |\n| **PC0** | FastEthernet0 | `192.168.1.10` | `255.255.255.0` | Client host |\n| **Server0** | FastEthernet0 | `192.168.1.2` | `255.255.255.0` | HTTP Webserver |\n\n### Opdrachten:\n1. Verbind `PC0` rechtstreeks met `Server0` met een straight-through of cross-over netwerkkabel.\n2. Stel op `PC0` het IP-adres in op `192.168.1.10` met subnetmasker `255.255.255.0`.\n   *(Tip: Dit kan via Desktop -> IP Configuration OF via PowerShell met: `Set-NetIPAddress -IPAddress 192.168.1.10 -PrefixLength 24`)*\n3. Stel op `Server0` het IP-adres in op `192.168.1.2` met subnetmasker `255.255.255.0`.\n4. Controleer op `Server0` bij **Services -> HTTP** dat de webserver ingeschakeld (On) is.\n5. Test connectiviteit:\n   - Voer op `PC0` in PowerShell uit: `Test-NetConnection 192.168.1.2 -Port 80`\n   - Open de **Web Browser** op `PC0` en surf naar `http://192.168.1.2` of voer in PowerShell uit: `Invoke-WebRequest http://192.168.1.2`\n",
+    "instructions": "## Les 02 Labo: Statische IP-configuratie (PC ↔ Webserver)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les02_Labo.html](https://vwgert.github.io/networksess/Les02_Labo.html)\n\n### Doel van het labo:\nIn dit labo configureer je handmatig statische IP-adressen op een PC en een Server. Je test de connectiviteit via `Test-Connection` (of `ping`) en bezoekt de webpagina van de server via de webbrowser en PowerShell (`Invoke-WebRequest`).\n\n### Netwerktabel:\n| Apparaat | Interface | IP-Adres | Subnetmasker |\n| :--- | :--- | :--- | :--- |\n| PC0 | FastEthernet0 | 192.168.1.10 | 255.255.255.0 |\n| Server0 | FastEthernet0 | 192.168.1.100 | 255.255.255.0 |\n",
     "initialTopology": {
       "devices": [
         {
@@ -92,7 +110,9 @@ window.PXL_COURSE_LABS = [
           "y": 200,
           "dhcpEnabled": false,
           "ip": "",
-          "mask": ""
+          "mask": "",
+          "gateway": "",
+          "dns": ""
         },
         {
           "id": "Server0",
@@ -101,499 +121,1798 @@ window.PXL_COURSE_LABS = [
           "x": 520,
           "y": 200,
           "dhcpEnabled": false,
-          "ip": "192.168.1.2",
+          "ip": "192.168.1.100",
           "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": "",
           "services": {
-            "http": {
-              "enabled": true,
-              "content": "<h1>PXL Web Server</h1><p>Welkom op het statisch IP labo!</p>"
-            }
+            "http": true,
+            "dns": false,
+            "dhcp": false
           }
         }
       ],
-      "cables": []
+      "cables": [
+        {
+          "fromDevice": "PC0",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Server0",
+          "toPort": "FastEthernet0",
+          "type": "copper_straight"
+        }
+      ]
     },
     "rubric": [
       {
-        "id": "cable_connected",
-        "description": "Kabelverbinding aanwezig tussen PC0 en Server0",
-        "type": "cable_connection",
-        "dev1": "PC0",
-        "port1": "FastEthernet0",
-        "dev2": "Server0",
-        "port2": "FastEthernet0",
-        "points": 25
+        "id": "pc0_ip_configured",
+        "category": "interface_ip",
+        "title": "PC0 IP Configuratie",
+        "desc": "PC0 heeft statisch IP 192.168.1.10 en masker 255.255.255.0",
+        "type": "interface_ip",
+        "checkType": "interface_ip",
+        "points": 40,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC0",
+          "portName": "FastEthernet0",
+          "expectedIp": "192.168.1.10",
+          "expectedMask": "255.255.255.0"
+        }
       },
       {
-        "id": "pc0_ip",
-        "description": "PC0 correct geconfigureerd met IP 192.168.1.10 en masker 255.255.255.0",
-        "type": "ip_config",
-        "device": "PC0",
-        "ip": "192.168.1.10",
-        "mask": "255.255.255.0",
-        "points": 25
-      },
-      {
-        "id": "server0_ip",
-        "description": "Server0 correct geconfigureerd met IP 192.168.1.2 en masker 255.255.255.0",
-        "type": "ip_config",
-        "device": "Server0",
-        "ip": "192.168.1.2",
-        "mask": "255.255.255.0",
-        "points": 20
-      },
-      {
-        "id": "ping_test",
-        "description": "Succesvolle ping tussen PC0 en Server0",
+        "id": "ping_pc_server",
+        "category": "connectivity",
+        "title": "ICMP Ping Test",
+        "desc": "Succesvolle ping tussen PC0 en Server0 (192.168.1.100)",
         "type": "ping_test",
-        "from": "PC0",
-        "to": "192.168.1.2",
-        "points": 15
+        "checkType": "ping_test",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC0",
+          "targetIp": "192.168.1.100"
+        }
       },
       {
-        "id": "http_test",
-        "description": "Webserver bereikbaar via HTTP op 192.168.1.2",
-        "type": "http_web_test",
-        "from": "PC0",
-        "target": "192.168.1.2",
-        "points": 15
+        "id": "server_http_active",
+        "category": "services",
+        "title": "HTTP Service",
+        "desc": "HTTP webserver service actief op Server0",
+        "type": "http_get",
+        "checkType": "http_get",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "serverId": "Server0"
+        }
+      }
+    ]
+  },
+  {
+    "id": "h03_challenge2_switch_chain",
+    "code": "H03-Challenge2",
+    "chapter": "Hoofdstuk 03 - Layer 2 Switching & MAC-Adrestabellen",
+    "title": "Les 03 Challenge 2: Ketting van Switches & Lector Webserver",
+    "timeLimitMinutes": 50,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## Les 03 Challenge 2: Ketting van Switches tot aan de Lector Webserver\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les03_Challenge2.html](https://vwgert.github.io/networksess/Les03_Challenge2.html)\n\n### Overzicht Challenge:\nIn deze challenge koppelen studenten hun switches aan elkaar in een ketting tot aan de laptop/server van de lector:\n1. De lector draait een webserver op `192.168.100.42` in het /24-netwerk `192.168.100.0/24`.\n2. Verbind de switches met elkaar via Gigabit trunk-uplinks.\n3. Configureer handmatig een IP-adres op je studenten-laptop (bijv. `192.168.100.10` t/m `192.168.100.50`).\n4. Test de connectiviteit via ping en bezoek de webpagina van de lector via de browser of PowerShell `Invoke-WebRequest`.\n",
+    "initialTopology": {
+      "devices": [
+        {
+          "id": "Lector-Server",
+          "name": "Lector-Server",
+          "type": "server",
+          "x": 620,
+          "y": 140,
+          "dhcpEnabled": false,
+          "ip": "192.168.100.42",
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": "",
+          "services": {
+            "http": true
+          }
+        },
+        {
+          "id": "Switch-Lector",
+          "name": "Switch-Lector",
+          "type": "switch",
+          "x": 450,
+          "y": 140
+        },
+        {
+          "id": "Switch-Studenten",
+          "name": "Switch-Studenten",
+          "type": "switch",
+          "x": 270,
+          "y": 240
+        },
+        {
+          "id": "Laptop-Student1",
+          "name": "Laptop-Student1",
+          "type": "laptop",
+          "x": 100,
+          "y": 320,
+          "dhcpEnabled": false,
+          "ip": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
+        },
+        {
+          "id": "Laptop-Student2",
+          "name": "Laptop-Student2",
+          "type": "laptop",
+          "x": 260,
+          "y": 360,
+          "dhcpEnabled": false,
+          "ip": "192.168.100.12",
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": ""
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "Lector-Server",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch-Lector",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "Switch-Lector",
+          "fromPort": "GigabitEthernet0/1",
+          "toDevice": "Switch-Studenten",
+          "toPort": "GigabitEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "Laptop-Student2",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch-Studenten",
+          "toPort": "FastEthernet0/2",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "cable_student1",
+        "category": "cabling",
+        "title": "Kabel Student 1",
+        "desc": "Laptop-Student1 verbonden met Switch-Studenten",
+        "type": "cabling",
+        "checkType": "cabling",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "Laptop-Student1",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch-Studenten",
+          "toPort": "FastEthernet0/1"
+        }
+      },
+      {
+        "id": "ip_student1",
+        "category": "interface_ip",
+        "title": "IP Student 1",
+        "desc": "Laptop-Student1 geconfigureerd in netwerk 192.168.100.0/24",
+        "type": "ip_subnet",
+        "checkType": "ip_subnet",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "deviceId": "Laptop-Student1",
+          "subnetPrefix": "192.168.100.",
+          "expectedMask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "ping_lector",
+        "category": "connectivity",
+        "title": "Ping Lector Webserver",
+        "desc": "Succesvolle ping van Laptop-Student1 naar Lector-Server (192.168.100.42)",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "Laptop-Student1",
+          "targetIp": "192.168.100.42"
+        }
       }
     ]
   },
   {
     "id": "h03_pt1_mac_switch",
     "code": "H03-PT1",
-    "chapter": "Hoofdstuk 03 - Switches, ARP & MAC-Adrestabel",
+    "chapter": "Hoofdstuk 03 - Layer 2 Switching & MAC-Adrestabellen",
     "title": "Les 03 PT: Switch, ARP, ICMP en MAC-Address-Table",
-    "timeLimitMinutes": 60,
+    "timeLimitMinutes": 45,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 03 PT: Switch, ARP, ICMP en MAC-Address-Table\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les03_PT_ARP_MAC_ADDR_TAB.html](https://vwgert.github.io/networksess/Les03_PT_ARP_MAC_ADDR_TAB.html)\n\n### Adreseringstabel:\n| Toestel | Switchpoort | MAC-adres | IP-adres |\n| :--- | :--- | :--- | :--- |\n| **Laptop0** | Fa0/10 | `10AA.AAAA.AAAA` | `192.168.1.10/24` |\n| **Laptop1** | Fa0/20 | `20BB.BBBB.BBBB` | `192.168.1.20/24` |\n| **Laptop2** | Fa0/5  | `30CC.CCCC.CCCC` | `192.168.1.30/24` |\n| **Switch0** | -      | -                | `192.168.1.2/24` (Vlan1 mgmt) |\n\n### Opdrachten:\n1. Sluit de 3 laptops aan op de aangegeven switchpoorten van `Switch0` (Cisco 2960).\n2. Configureer op alle laptops het juiste statische IP-adres en subnetmasker.\n3. Ga naar de CLI van `Switch0` en bekijk de initiële MAC-adrestabel met `show mac address-table`.\n4. Voer een ping uit van `Laptop0` naar `Laptop1` (`192.168.1.20`).\n5. Controleer hoe de switch dynamisch de MAC-adressen leert op poorten `Fa0/10` en `Fa0/20`.\n6. Bekijk op de laptop de geleerde ARP-tabel in PowerShell via `Get-NetNeighbor` of `arp -a`.\n",
+    "instructions": "## Les 03 PT: Switch, ARP, ICMP en MAC-Address-Table\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les03_PT_ARP_MAC_ADDR_TAB.html](https://vwgert.github.io/networksess/Les03_PT_ARP_MAC_ADDR_TAB.html)\n\n### Doel van het labo:\nOnderzoek hoe een switch Layer 2 frames doorschakelt en hoe de **MAC-address-table** dynamisch wordt opgebouwd. Je bestudeert ARP-verzoeken en ICMP echo-pakketten.\n\n### Opdrachten:\n1. Bekijk de initiële MAC-adrestabel van `Switch0` via de CLI: `show mac-address-table`.\n2. Configureer het IP-adres op `PC1`: `192.168.1.20` met masker `255.255.255.0`.\n3. Ping vanuit `PC0` (192.168.1.10) naar `PC1` (192.168.1.20).\n4. Controleer de MAC-adrestabel opnieuw en verifieer dat beide poorten geregistreerd zijn.\n",
     "initialTopology": {
       "devices": [
+        {
+          "id": "PC0",
+          "name": "PC0",
+          "type": "pc",
+          "x": 150,
+          "y": 280,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.10",
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": ""
+        },
         {
           "id": "Switch0",
           "name": "Switch0",
           "type": "switch",
-          "model": "2960-24TT",
-          "x": 380,
-          "y": 240
+          "x": 350,
+          "y": 180
         },
+        {
+          "id": "PC1",
+          "name": "PC1",
+          "type": "pc",
+          "x": 550,
+          "y": 280,
+          "dhcpEnabled": false,
+          "ip": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "PC0",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch0",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "PC1",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch0",
+          "toPort": "FastEthernet0/2",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "pc1_ip_config",
+        "category": "interface_ip",
+        "title": "PC1 IP Configuratie",
+        "desc": "PC1 heeft IP 192.168.1.20 met masker 255.255.255.0",
+        "type": "interface_ip",
+        "checkType": "interface_ip",
+        "points": 50,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC1",
+          "portName": "FastEthernet0",
+          "expectedIp": "192.168.1.20",
+          "expectedMask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "ping_pc0_pc1",
+        "category": "connectivity",
+        "title": "ICMP Ping",
+        "desc": "Succesvolle ping tussen PC0 en PC1",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 50,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC0",
+          "targetIp": "192.168.1.20"
+        }
+      }
+    ]
+  },
+  {
+    "id": "h03_pt2_multi_mac",
+    "code": "H03-PT2",
+    "chapter": "Hoofdstuk 03 - Layer 2 Switching & MAC-Adrestabellen",
+    "title": "Les 03 PT: Meerdere MAC-adressen per switchpoort",
+    "timeLimitMinutes": 50,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## Les 03 PT: Meerdere MAC-adressen per switchpoort\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les03_PT_MAC_ADDR_TAB_Multi.html](https://vwgert.github.io/networksess/Les03_PT_MAC_ADDR_TAB_Multi.html)\n\n### Doel van het labo:\nOnderzoek hoe een switch MAC-adressen leert wanneer er achter een poort een tweede switch staat gekoppeld. Een switch leert het bron-MAC-adres van frames op de poort waar ze binnenkomen. Staan er meerdere toestellen achter die poort (zoals via een uplink-kabel), dan krijgen meerdere dynamische MAC-adressen dezelfde poort toegewezen.\n\n### Opdrachten:\n1. Verbind `Switch-Links` (GigabitEthernet0/1) met `Switch-Rechts` (GigabitEthernet0/1).\n2. Configureer IP `192.168.1.10` op `Laptop0` en `192.168.1.50` op `Laptop4`.\n3. Ping tussen `Laptop0` en `Laptop4`.\n4. Voer op `Switch-Links` het commando `show mac-address-table` uit en merk op dat de MAC-adressen van de rechterzijde allemaal op `GigabitEthernet0/1` verschijnen.\n",
+    "initialTopology": {
+      "devices": [
         {
           "id": "Laptop0",
           "name": "Laptop0",
           "type": "laptop",
-          "x": 160,
-          "y": 100,
+          "x": 120,
+          "y": 140,
+          "dhcpEnabled": false,
           "ip": "192.168.1.10",
-          "mask": "255.255.255.0"
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": ""
         },
         {
           "id": "Laptop1",
           "name": "Laptop1",
           "type": "laptop",
-          "x": 600,
-          "y": 100,
+          "x": 120,
+          "y": 280,
+          "dhcpEnabled": false,
           "ip": "192.168.1.20",
-          "mask": "255.255.255.0"
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": ""
         },
         {
-          "id": "Laptop2",
-          "name": "Laptop2",
+          "id": "Switch-Links",
+          "name": "Switch-Links",
+          "type": "switch",
+          "x": 280,
+          "y": 210
+        },
+        {
+          "id": "Switch-Rechts",
+          "name": "Switch-Rechts",
+          "type": "switch",
+          "x": 480,
+          "y": 210
+        },
+        {
+          "id": "Laptop4",
+          "name": "Laptop4",
           "type": "laptop",
-          "x": 380,
-          "y": 380,
-          "ip": "192.168.1.30",
-          "mask": "255.255.255.0"
+          "x": 640,
+          "y": 140,
+          "dhcpEnabled": false,
+          "ip": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
+        },
+        {
+          "id": "Laptop5",
+          "name": "Laptop5",
+          "type": "laptop",
+          "x": 640,
+          "y": 280,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.60",
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": ""
         }
       ],
-      "cables": []
+      "cables": [
+        {
+          "fromDevice": "Laptop0",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch-Links",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "Laptop1",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch-Links",
+          "toPort": "FastEthernet0/2",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "Laptop5",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch-Rechts",
+          "toPort": "FastEthernet0/2",
+          "type": "copper_straight"
+        }
+      ]
     },
     "rubric": [
       {
-        "id": "cables_switch",
-        "description": "Alle 3 laptops bekabeld naar de switch",
-        "type": "cable_count",
-        "minCables": 3,
-        "points": 30
+        "id": "uplink_cable",
+        "category": "cabling",
+        "title": "Uplink Switch-naar-Switch",
+        "desc": "Gigabit-kabel tussen Switch-Links en Switch-Rechts",
+        "type": "cabling",
+        "checkType": "cabling",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "Switch-Links",
+          "fromPort": "GigabitEthernet0/1",
+          "toDevice": "Switch-Rechts",
+          "toPort": "GigabitEthernet0/1"
+        }
       },
       {
-        "id": "ip_all_laptops",
-        "description": "Alle laptops voorzien van correct IP in 192.168.1.0/24",
-        "type": "ip_subnet",
-        "device": "Laptop0",
-        "network": "192.168.1.0",
-        "prefix": 24,
-        "points": 30
+        "id": "laptop4_cable",
+        "category": "cabling",
+        "title": "Kabel Laptop4",
+        "desc": "Laptop4 aangesloten op Switch-Rechts FastEthernet0/1",
+        "type": "cabling",
+        "checkType": "cabling",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "Laptop4",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch-Rechts",
+          "toPort": "FastEthernet0/1"
+        }
       },
       {
-        "id": "ping_l0_to_l1",
-        "description": "Succesvolle ping tussen Laptop0 en Laptop1",
+        "id": "laptop4_ip",
+        "category": "interface_ip",
+        "title": "IP Laptop4",
+        "desc": "Laptop4 geconfigureerd met IP 192.168.1.50 / 255.255.255.0",
+        "type": "interface_ip",
+        "checkType": "interface_ip",
+        "points": 20,
+        "enabled": true,
+        "condition": {
+          "deviceId": "Laptop4",
+          "portName": "FastEthernet0",
+          "expectedIp": "192.168.1.50",
+          "expectedMask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "ping_across_switches",
+        "category": "connectivity",
+        "title": "End-to-End Ping",
+        "desc": "Succesvolle ping tussen Laptop0 en Laptop4 over beide switches",
         "type": "ping_test",
-        "from": "Laptop0",
-        "to": "192.168.1.20",
-        "points": 20
+        "checkType": "ping_test",
+        "points": 20,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "Laptop0",
+          "targetIp": "192.168.1.50"
+        }
+      }
+    ]
+  },
+  {
+    "id": "h04_challenge1_hosts_blackhole",
+    "code": "H04-Challenge1",
+    "chapter": "Hoofdstuk 04 - DNS, DHCP & Toepassingslaag",
+    "title": "Les 04 Challenge: De hosts-file manipuleren & DNS Blackholing",
+    "timeLimitMinutes": 45,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## Les 04 Challenge: De hosts-file manipuleren\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les04_Challenge.html](https://vwgert.github.io/networksess/Les04_Challenge.html)\n\n### Overzicht Challenge:\nIn deze individuele opdracht ontdek je hoe Windows URL-namen naar IP-adressen omzet, en hoe je dat proces zelf kan beïnvloeden via de `hosts`-file (`C:\\Windows\\System32\\drivers\\etc\\hosts`).\nDe entries in deze file worden geraadpleegd vóór een DNS-server wordt gecontacteerd.\n\n### Opdrachten:\n1. Inspecteer de DNS instellingen op `Client-PC` via PowerShell: `Get-DnsClientServerAddress`.\n2. Verifieer dat `www.pxl.be` resolvet naar de PXL Webserver `192.168.1.20` via `Resolve-DnsName www.pxl.be`.\n3. Bekijk de lokale hosts entry via PowerShell `Get-Content C:\\Windows\\System32\\drivers\\etc\\hosts`.\n4. Pas de configuratie aan zodat `Client-PC` direct verbinding kan maken met de PXL Webserver.\n",
+    "initialTopology": {
+      "devices": [
+        {
+          "id": "Client-PC",
+          "name": "Client-PC",
+          "type": "pc",
+          "x": 150,
+          "y": 200,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.50",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.1",
+          "dns": "192.168.1.10"
+        },
+        {
+          "id": "Switch0",
+          "name": "Switch0",
+          "type": "switch",
+          "x": 350,
+          "y": 200
+        },
+        {
+          "id": "DNS-Server",
+          "name": "DNS-Server",
+          "type": "server",
+          "x": 550,
+          "y": 120,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.1",
+          "dns": "",
+          "services": {
+            "dns": true
+          },
+          "dnsRecords": [
+            {
+              "name": "www.pxl.be",
+              "type": "A",
+              "ip": "192.168.1.20"
+            }
+          ]
+        },
+        {
+          "id": "PXL-Webserver",
+          "name": "PXL-Webserver",
+          "type": "server",
+          "x": 550,
+          "y": 280,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.20",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.1",
+          "dns": "",
+          "services": {
+            "http": true
+          }
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "Client-PC",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch0",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "DNS-Server",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch0",
+          "toPort": "FastEthernet0/2",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "PXL-Webserver",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch0",
+          "toPort": "FastEthernet0/3",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "dns_server_record",
+        "category": "services",
+        "title": "DNS Record www.pxl.be",
+        "desc": "A-record voor www.pxl.be wijst naar 192.168.1.20",
+        "type": "dns_record",
+        "checkType": "dns_record",
+        "points": 40,
+        "enabled": true,
+        "condition": {
+          "name": "www.pxl.be",
+          "ip": "192.168.1.20"
+        }
       },
       {
-        "id": "ping_l0_to_l2",
-        "description": "Succesvolle ping tussen Laptop0 en Laptop2",
+        "id": "client_ping_dns",
+        "category": "connectivity",
+        "title": "Ping DNS Server",
+        "desc": "Client-PC kan DNS-server pingen",
         "type": "ping_test",
-        "from": "Laptop0",
-        "to": "192.168.1.30",
-        "points": 20
+        "checkType": "ping_test",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "Client-PC",
+          "targetIp": "192.168.1.10"
+        }
+      },
+      {
+        "id": "client_ping_web",
+        "category": "connectivity",
+        "title": "Ping Webserver",
+        "desc": "Client-PC kan PXL Webserver pingen",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "Client-PC",
+          "targetIp": "192.168.1.20"
+        }
+      }
+    ]
+  },
+  {
+    "id": "h04_challenge2_team_dns",
+    "code": "H04-Challenge2",
+    "chapter": "Hoofdstuk 04 - DNS, DHCP & Toepassingslaag",
+    "title": "Les 04 Challenge 2: Eigen DNS-server (labo.local) & Wireshark",
+    "timeLimitMinutes": 50,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## Les 04 Challenge 2: Eigen DNS-server (labo.local) & Wireshark\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les04_Challenge2.html](https://vwgert.github.io/networksess/Les04_Challenge2.html)\n\n### Overzicht Challenge:\nIn deze challenge richt één van de apparaten een DNS-zone `labo.local` in:\n1. Server configureert een forward lookup zone voor domein `labo.local` met A-records voor `ns1.labo.local` en `www.labo.local`.\n2. De client-laptop stelt het IP van deze DNS-server in (`192.168.1.10`).\n3. De client gebruikt PowerShell `Resolve-DnsName www.labo.local` en surft naar `http://www.labo.local` via `Invoke-WebRequest` of de browser.\n",
+    "initialTopology": {
+      "devices": [
+        {
+          "id": "Student-Laptop",
+          "name": "Student-Laptop",
+          "type": "laptop",
+          "x": 160,
+          "y": 200,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.50",
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": ""
+        },
+        {
+          "id": "Switch-Lab",
+          "name": "Switch-Lab",
+          "type": "switch",
+          "x": 360,
+          "y": 200
+        },
+        {
+          "id": "Labo-Server",
+          "name": "Labo-Server",
+          "type": "server",
+          "x": 560,
+          "y": 200,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.10",
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": "192.168.1.10",
+          "services": {
+            "http": true,
+            "dns": true
+          },
+          "dnsRecords": [
+            {
+              "name": "www.labo.local",
+              "type": "A",
+              "ip": "192.168.1.10"
+            },
+            {
+              "name": "ns1.labo.local",
+              "type": "A",
+              "ip": "192.168.1.10"
+            }
+          ]
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "Student-Laptop",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch-Lab",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "Labo-Server",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch-Lab",
+          "toPort": "FastEthernet0/2",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "client_dns_config",
+        "category": "interface_ip",
+        "title": "Client DNS Server Ingesteld",
+        "desc": "Student-Laptop heeft DNS server 192.168.1.10 geconfigureerd",
+        "type": "interface_ip",
+        "checkType": "interface_ip",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "deviceId": "Student-Laptop",
+          "dns": "192.168.1.10"
+        }
+      },
+      {
+        "id": "dns_record_labo",
+        "category": "services",
+        "title": "DNS Record www.labo.local",
+        "desc": "A-record www.labo.local aanwezig op Labo-Server",
+        "type": "dns_record",
+        "checkType": "dns_record",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "name": "www.labo.local",
+          "ip": "192.168.1.10"
+        }
+      },
+      {
+        "id": "ping_server",
+        "category": "connectivity",
+        "title": "Ping Labo-Server",
+        "desc": "Succesvolle ping tussen Student-Laptop en Labo-Server",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "Student-Laptop",
+          "targetIp": "192.168.1.10"
+        }
       }
     ]
   },
   {
     "id": "h04_pt1_dns_http",
     "code": "H04-PT1",
-    "chapter": "Hoofdstuk 04 - DNS, DHCP & Web Services",
+    "chapter": "Hoofdstuk 04 - DNS, DHCP & Toepassingslaag",
     "title": "Les 04 PT: DHCP, DNS en HTTP Webserver in Simulation Mode",
-    "timeLimitMinutes": 75,
+    "timeLimitMinutes": 50,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 04 PT: DHCP + DNS + HTTP\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les04_PT_DNS.html](https://vwgert.github.io/networksess/Les04_PT_DNS.html)\n\n### Adresering & Server Rollen:\n| Server | IP-adres | Actieve Dienst | Details |\n| :--- | :--- | :--- | :--- |\n| **DHCP-Server** | `192.168.1.150` | DHCP Server | Pool: `192.168.1.10` - `.50`, DNS: `192.168.1.100` |\n| **DNS-Server**  | `192.168.1.100` | DNS Service | Record: `www.pxl.be` -> `192.168.1.200` |\n| **WEB-Server**  | `192.168.1.200` | HTTP Service | Bevat `index.html` en `style.css` |\n\n### Opdrachten:\n1. Sluit de servers en clients (PC0, Laptop0) aan op `Switch0`.\n2. Configureer op `DNS-Server` een DNS A-record voor `www.pxl.be` wijzend naar `192.168.1.200`.\n3. Stel op `PC0` en `Laptop0` de netwerkadapter in met DNS Server: `192.168.1.100`.\n4. Test DNS-resolutie vanuit PowerShell:\n   - `Resolve-DnsName www.pxl.be`\n   - `nslookup www.pxl.be`\n5. Surf in de Web Browser van PC0 naar `http://www.pxl.be` of voer uit: `Invoke-WebRequest http://www.pxl.be`.\n",
+    "instructions": "## Les 04 PT: DHCP + DNS + HTTP in Simulation Mode\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les04_PT_DNS.html](https://vwgert.github.io/networksess/Les04_PT_DNS.html)\n\n### Doel van het labo:\nIn dit labo zie je hoe DHCP automatisch IP-adressen toekent, hoe DNS domeinnamen vertaalt naar IP-adressen, en hoe HTTP webpagina's serveert. Je test dit zowel via de browser als via Windows PowerShell.\n",
     "initialTopology": {
       "devices": [
-        {
-          "id": "Switch0",
-          "name": "Switch0",
-          "type": "switch",
-          "model": "2960-24TT",
-          "x": 380,
-          "y": 240
-        },
-        {
-          "id": "DNS-Server",
-          "name": "DNS-Server",
-          "type": "server",
-          "x": 160,
-          "y": 80,
-          "ip": "192.168.1.100",
-          "mask": "255.255.255.0",
-          "services": {
-            "dns": {
-              "enabled": true,
-              "records": [
-                {
-                  "name": "www.pxl.be",
-                  "type": "A",
-                  "ip": "192.168.1.200"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "id": "WEB-Server",
-          "name": "WEB-Server",
-          "type": "server",
-          "x": 600,
-          "y": 80,
-          "ip": "192.168.1.200",
-          "mask": "255.255.255.0",
-          "services": {
-            "http": {
-              "enabled": true,
-              "content": "<h1>Hogeschool PXL</h1><p>Welkom op www.pxl.be via de lokale DNS-server!</p>"
-            }
-          }
-        },
         {
           "id": "PC0",
           "name": "PC0",
           "type": "pc",
-          "x": 180,
-          "y": 380,
-          "ip": "192.168.1.10",
-          "mask": "255.255.255.0",
-          "dns": "192.168.1.100"
+          "x": 140,
+          "y": 220,
+          "dhcpEnabled": true,
+          "ip": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
         },
         {
-          "id": "Laptop0",
-          "name": "Laptop0",
-          "type": "laptop",
-          "x": 580,
-          "y": 380,
-          "ip": "192.168.1.20",
+          "id": "Switch0",
+          "name": "Switch0",
+          "type": "switch",
+          "x": 320,
+          "y": 220
+        },
+        {
+          "id": "DHCP-DNS-Server",
+          "name": "DHCP-DNS-Server",
+          "type": "server",
+          "x": 520,
+          "y": 140,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.10",
           "mask": "255.255.255.0",
-          "dns": "192.168.1.100"
+          "gateway": "",
+          "dns": "192.168.1.10",
+          "services": {
+            "http": false,
+            "dns": true,
+            "dhcp": true
+          },
+          "dnsRecords": [
+            {
+              "name": "www.pxl.be",
+              "type": "A",
+              "ip": "192.168.1.100"
+            }
+          ]
+        },
+        {
+          "id": "Webserver",
+          "name": "Webserver",
+          "type": "server",
+          "x": 520,
+          "y": 300,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.100",
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": "",
+          "services": {
+            "http": true,
+            "dns": false,
+            "dhcp": false
+          }
         }
       ],
       "cables": [
         {
-          "fromDevice": "DNS-Server",
-          "fromPort": "FastEthernet0",
-          "toDevice": "Switch0",
-          "toPort": "FastEthernet0/1"
-        },
-        {
-          "fromDevice": "WEB-Server",
-          "fromPort": "FastEthernet0",
-          "toDevice": "Switch0",
-          "toPort": "FastEthernet0/2"
-        },
-        {
           "fromDevice": "PC0",
           "fromPort": "FastEthernet0",
           "toDevice": "Switch0",
-          "toPort": "FastEthernet0/3"
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
         },
         {
-          "fromDevice": "Laptop0",
+          "fromDevice": "DHCP-DNS-Server",
           "fromPort": "FastEthernet0",
           "toDevice": "Switch0",
-          "toPort": "FastEthernet0/4"
+          "toPort": "FastEthernet0/2",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "Webserver",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch0",
+          "toPort": "FastEthernet0/3",
+          "type": "copper_straight"
         }
       ]
     },
     "rubric": [
       {
-        "id": "dns_record",
-        "description": "DNS A-record www.pxl.be -> 192.168.1.200 aanwezig op DNS-Server",
+        "id": "pc0_dhcp_received",
+        "category": "interface_ip",
+        "title": "DHCP Lease PC0",
+        "desc": "PC0 ontvangt een geldig IP in subnet 192.168.1.0/24",
+        "type": "ip_subnet",
+        "checkType": "ip_subnet",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC0",
+          "subnetPrefix": "192.168.1.",
+          "expectedMask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "dns_resolution",
+        "category": "services",
+        "title": "DNS Resolutie www.pxl.be",
+        "desc": "DNS-server heeft record www.pxl.be -> 192.168.1.100",
         "type": "dns_record",
-        "device": "DNS-Server",
-        "recordName": "www.pxl.be",
-        "targetIp": "192.168.1.200",
-        "points": 35
+        "checkType": "dns_record",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "name": "www.pxl.be",
+          "ip": "192.168.1.100"
+        }
       },
       {
-        "id": "dns_resolv",
-        "description": "Succesvolle DNS resolutie van www.pxl.be vanaf PC0",
-        "type": "dns_resolution",
-        "from": "PC0",
-        "query": "www.pxl.be",
-        "expectedIp": "192.168.1.200",
-        "points": 35
-      },
-      {
-        "id": "web_access",
-        "description": "Succesvol surfen naar http://www.pxl.be vanaf PC0",
-        "type": "http_web_test",
-        "from": "PC0",
-        "target": "www.pxl.be",
-        "points": 30
+        "id": "http_web_active",
+        "category": "services",
+        "title": "HTTP Web Server",
+        "desc": "HTTP service actief op Webserver",
+        "type": "http_get",
+        "checkType": "http_get",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "serverId": "Webserver"
+        }
       }
     ]
   },
   {
     "id": "h05_labo1_mikrotik",
     "code": "H05-Labo1",
-    "chapter": "Hoofdstuk 05 - Routering & MikroTik RouterOS",
+    "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
     "title": "Les 05 Labo 1: MikroTik hEX lite als Router (4 Netwerken)",
-    "timeLimitMinutes": 80,
+    "timeLimitMinutes": 50,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 05: Labo 1 MikroTik hEX lite als router: 4 afzonderlijke netwerken\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Labo1.html](https://vwgert.github.io/networksess/Les05_Labo1.html)\n\n### Netwerktopologie:\nDe **MikroTik hEX lite** verbindt 4 afzonderlijke netwerken op interfaces `ether2`, `ether3`, `ether4` en `ether5`.\n\n| Interface | Subnet | Router IP | Host IP Bereik |\n| :--- | :--- | :--- | :--- |\n| **ether2** | `192.168.10.0/24` | `192.168.10.1` | `192.168.10.10 - .50` |\n| **ether3** | `192.168.20.0/24` | `192.168.20.1` | `192.168.20.10 - .50` |\n| **ether4** | `192.168.30.0/24` | `192.168.30.1` | `192.168.30.10 - .50` |\n| **ether5** | `192.168.40.0/24` | `192.168.40.1` | `192.168.40.10 - .50` |\n\n### Opdrachten:\n1. Open de CLI van de MikroTik (`MikroTik1`).\n2. Verwijder eventuele bridges of standaard IPs en stel de IP-adressen in:\n   ```routeros\n   /ip address add address=192.168.10.1/24 interface=ether2\n   /ip address add address=192.168.20.1/24 interface=ether3\n   /ip address add address=192.168.30.1/24 interface=ether4\n   /ip address add address=192.168.40.1/24 interface=ether5\n   ```\n3. Verbind `PC1` met `ether2` (`192.168.10.10`, gateway `192.168.10.1`).\n4. Verbind `PC2` met `ether3` (`192.168.20.10`, gateway `192.168.20.1`).\n5. Test connectiviteit: ping vanuit `PC1` naar `PC2` (`192.168.20.10`).\n",
+    "instructions": "## Les 05 Labo 1: MikroTik hEX lite als Router\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Labo1.html](https://vwgert.github.io/networksess/Les05_Labo1.html)\n\n### Doel van het labo:\nIn dit labo configureer je een **MikroTik hEX lite** router via RouterOS CLI. Je kent IP-adressen toe aan interfaces en routeert verkeer tussen clients in afzonderlijke subnetten.\n",
     "initialTopology": {
       "devices": [
         {
-          "id": "MikroTik1",
-          "name": "MikroTik1",
+          "id": "MikroTik-R1",
+          "name": "MikroTik-R1",
           "type": "mikrotik",
-          "model": "hEX lite (RB750r2)",
-          "x": 380,
-          "y": 200
+          "x": 360,
+          "y": 180,
+          "interfaces": {
+            "ether1": {
+              "ip": "192.168.1.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            },
+            "ether2": {
+              "ip": "192.168.2.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          }
         },
         {
-          "id": "PC1",
-          "name": "PC1",
+          "id": "PC-LAN1",
+          "name": "PC-LAN1",
           "type": "pc",
           "x": 160,
-          "y": 140,
-          "ip": "192.168.10.10",
+          "y": 280,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.10",
           "mask": "255.255.255.0",
-          "gateway": "192.168.10.1"
+          "gateway": "192.168.1.1",
+          "dns": ""
         },
         {
-          "id": "PC2",
-          "name": "PC2",
+          "id": "PC-LAN2",
+          "name": "PC-LAN2",
           "type": "pc",
-          "x": 600,
-          "y": 140,
-          "ip": "192.168.20.10",
-          "mask": "255.255.255.0",
-          "gateway": "192.168.20.1"
+          "x": 560,
+          "y": 280,
+          "dhcpEnabled": false,
+          "ip": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
         }
       ],
       "cables": [
         {
-          "fromDevice": "PC1",
+          "fromDevice": "PC-LAN1",
           "fromPort": "FastEthernet0",
-          "toDevice": "MikroTik1",
-          "toPort": "ether2"
+          "toDevice": "MikroTik-R1",
+          "toPort": "ether1",
+          "type": "copper_straight"
         },
         {
-          "fromDevice": "PC2",
+          "fromDevice": "PC-LAN2",
           "fromPort": "FastEthernet0",
-          "toDevice": "MikroTik1",
-          "toPort": "ether3"
+          "toDevice": "MikroTik-R1",
+          "toPort": "ether2",
+          "type": "copper_straight"
         }
       ]
     },
     "rubric": [
       {
-        "id": "mt_ether2",
-        "description": "MikroTik ether2 geconfigureerd met 192.168.10.1/24",
-        "type": "mikrotik_interface_ip",
-        "device": "MikroTik1",
-        "interface": "ether2",
-        "ip": "192.168.10.1",
-        "prefix": 24,
-        "points": 35
+        "id": "pc_lan2_ip",
+        "category": "interface_ip",
+        "title": "PC-LAN2 IP & Gateway",
+        "desc": "PC-LAN2 heeft IP 192.168.2.10 en gateway 192.168.2.1",
+        "type": "interface_ip",
+        "checkType": "interface_ip",
+        "points": 40,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC-LAN2",
+          "portName": "FastEthernet0",
+          "expectedIp": "192.168.2.10",
+          "expectedMask": "255.255.255.0"
+        }
       },
       {
-        "id": "mt_ether3",
-        "description": "MikroTik ether3 geconfigureerd met 192.168.20.1/24",
-        "type": "mikrotik_interface_ip",
-        "device": "MikroTik1",
-        "interface": "ether3",
-        "ip": "192.168.20.1",
-        "prefix": 24,
-        "points": 35
+        "id": "pc_lan2_gw",
+        "category": "routing",
+        "title": "Default Gateway",
+        "desc": "Default gateway van PC-LAN2 is 192.168.2.1",
+        "type": "default_gateway",
+        "checkType": "default_gateway",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC-LAN2",
+          "expected": "192.168.2.1"
+        }
       },
       {
-        "id": "ping_routed",
-        "description": "Succesvol gerouteerde ping van PC1 naar PC2 door de MikroTik",
+        "id": "ping_inter_lan",
+        "category": "connectivity",
+        "title": "Inter-LAN Routing Ping",
+        "desc": "Succesvolle ping van PC-LAN1 naar PC-LAN2 (192.168.2.10)",
         "type": "ping_test",
-        "from": "PC1",
-        "to": "192.168.20.10",
-        "points": 30
+        "checkType": "ping_test",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC-LAN1",
+          "targetIp": "192.168.2.10"
+        }
+      }
+    ]
+  },
+  {
+    "id": "h05_labo2_mikrotik_2lans",
+    "code": "H05-Labo2",
+    "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
+    "title": "Les 05 Labo 2: MikroTik routeert tussen twee LAN-netwerken",
+    "timeLimitMinutes": 50,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## Les 05 - Labo 2: MikroTik routeert tussen twee LAN-netwerken\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Labo2.html](https://vwgert.github.io/networksess/Les05_Labo2.html)\n\n### Overzicht en netwerktopologie:\nIn dit labo werken 2 teams (Team 1 en Team 2). Elk team hangt via een switch aan een poort van de MikroTik-router:\n- **Team 1:** `192.168.100.0/24` via switch op `ether2` (`192.168.100.1`)\n- **Team 2:** `192.168.200.0/24` via switch op `ether3` (`192.168.200.1`)\nDe MikroTik verzorgt de routering tussen beide netwerken zodat alle studenten met elkaar kunnen communiceren.\n",
+    "initialTopology": {
+      "devices": [
+        {
+          "id": "MikroTik-Router",
+          "name": "MikroTik-Router",
+          "type": "mikrotik",
+          "x": 370,
+          "y": 140,
+          "interfaces": {
+            "ether2": {
+              "ip": "192.168.100.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            },
+            "ether3": {
+              "ip": "192.168.200.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          }
+        },
+        {
+          "id": "Switch-Team1",
+          "name": "Switch-Team1",
+          "type": "switch",
+          "x": 200,
+          "y": 240
+        },
+        {
+          "id": "Switch-Team2",
+          "name": "Switch-Team2",
+          "type": "switch",
+          "x": 540,
+          "y": 240
+        },
+        {
+          "id": "PC-Team1",
+          "name": "PC-Team1",
+          "type": "pc",
+          "x": 120,
+          "y": 340,
+          "dhcpEnabled": false,
+          "ip": "192.168.100.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.100.1",
+          "dns": ""
+        },
+        {
+          "id": "PC-Team2",
+          "name": "PC-Team2",
+          "type": "pc",
+          "x": 620,
+          "y": 340,
+          "dhcpEnabled": false,
+          "ip": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "MikroTik-Router",
+          "fromPort": "ether2",
+          "toDevice": "Switch-Team1",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "MikroTik-Router",
+          "fromPort": "ether3",
+          "toDevice": "Switch-Team2",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "PC-Team1",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch-Team1",
+          "toPort": "FastEthernet0/2",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "cable_team2",
+        "category": "cabling",
+        "title": "Bekabeling Team 2",
+        "desc": "PC-Team2 verbonden met Switch-Team2",
+        "type": "cabling",
+        "checkType": "cabling",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC-Team2",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch-Team2",
+          "toPort": "FastEthernet0/2"
+        }
+      },
+      {
+        "id": "ip_team2",
+        "category": "interface_ip",
+        "title": "IP PC-Team2",
+        "desc": "PC-Team2 heeft IP in 192.168.200.0/24",
+        "type": "ip_subnet",
+        "checkType": "ip_subnet",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC-Team2",
+          "subnetPrefix": "192.168.200.",
+          "expectedMask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "gw_team2",
+        "category": "routing",
+        "title": "Gateway Team 2",
+        "desc": "PC-Team2 heeft default gateway 192.168.200.1",
+        "type": "default_gateway",
+        "checkType": "default_gateway",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC-Team2",
+          "expected": "192.168.200.1"
+        }
+      },
+      {
+        "id": "ping_teams",
+        "category": "connectivity",
+        "title": "Inter-Team Ping",
+        "desc": "Succesvolle ping tussen Team 1 en Team 2",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC-Team1",
+          "target": "PC-Team2"
+        }
+      }
+    ]
+  },
+  {
+    "id": "h05_labo3_mikrotik_static_routes",
+    "code": "H05-Labo3",
+    "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
+    "title": "Les 05 Labo 3: Static routes tussen twee MikroTik routers",
+    "timeLimitMinutes": 55,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## Les 05 - Labo 3: Static routes tussen twee routers en twee LAN-netwerken\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Labo3.html](https://vwgert.github.io/networksess/Les05_Labo3.html)\n\n### Overzicht en netwerktopologie:\nTwee teams zijn verbonden via twee routers met een inter-router link (`10.0.0.0/30`):\n- **Router 1:** `ether2` = `192.168.100.1/24`, `ether1` = `10.0.0.1/30`\n- **Router 2:** `ether2` = `192.168.200.1/24`, `ether1` = `10.0.0.2/30`\nOmdat routers elkaars LAN niet automatisch kennen, moeten **static routes** toegevoegd worden:\n- Op Router 1: route naar `192.168.200.0/24` via gateway `10.0.0.2`\n- Op Router 2: route naar `192.168.100.0/24` via gateway `10.0.0.1`\n",
+    "initialTopology": {
+      "devices": [
+        {
+          "id": "MikroTik-R1",
+          "name": "MikroTik-R1",
+          "type": "mikrotik",
+          "x": 260,
+          "y": 160,
+          "interfaces": {
+            "ether1": {
+              "ip": "10.0.0.1",
+              "mask": "255.255.255.252",
+              "shutdown": false
+            },
+            "ether2": {
+              "ip": "192.168.100.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          },
+          "staticRoutes": [
+            {
+              "network": "192.168.200.0",
+              "mask": "255.255.255.0",
+              "nextHop": "10.0.0.2"
+            }
+          ]
+        },
+        {
+          "id": "MikroTik-R2",
+          "name": "MikroTik-R2",
+          "type": "mikrotik",
+          "x": 520,
+          "y": 160,
+          "interfaces": {
+            "ether1": {
+              "ip": "10.0.0.2",
+              "mask": "255.255.255.252",
+              "shutdown": false
+            },
+            "ether2": {
+              "ip": "192.168.200.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          },
+          "staticRoutes": [
+            {
+              "network": "192.168.100.0",
+              "mask": "255.255.255.0",
+              "nextHop": "10.0.0.1"
+            }
+          ]
+        },
+        {
+          "id": "PC-Team1",
+          "name": "PC-Team1",
+          "type": "pc",
+          "x": 120,
+          "y": 260,
+          "dhcpEnabled": false,
+          "ip": "192.168.100.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.100.1",
+          "dns": ""
+        },
+        {
+          "id": "PC-Team2",
+          "name": "PC-Team2",
+          "type": "pc",
+          "x": 660,
+          "y": 260,
+          "dhcpEnabled": false,
+          "ip": "192.168.200.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.200.1",
+          "dns": ""
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "MikroTik-R1",
+          "fromPort": "ether1",
+          "toDevice": "MikroTik-R2",
+          "toPort": "ether1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "PC-Team1",
+          "fromPort": "FastEthernet0",
+          "toDevice": "MikroTik-R1",
+          "toPort": "ether2",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "PC-Team2",
+          "fromPort": "FastEthernet0",
+          "toDevice": "MikroTik-R2",
+          "toPort": "ether2",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "r1_static_route",
+        "category": "routing",
+        "title": "Static Route R1",
+        "desc": "Router 1 heeft route naar 192.168.200.0/24 via 10.0.0.2",
+        "type": "static_route",
+        "checkType": "static_route",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "routerId": "MikroTik-R1",
+          "network": "192.168.200.0",
+          "mask": "255.255.255.0",
+          "nextHop": "10.0.0.2"
+        }
+      },
+      {
+        "id": "r2_static_route",
+        "category": "routing",
+        "title": "Static Route R2",
+        "desc": "Router 2 heeft route naar 192.168.100.0/24 via 10.0.0.1",
+        "type": "static_route",
+        "checkType": "static_route",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "routerId": "MikroTik-R2",
+          "network": "192.168.100.0",
+          "mask": "255.255.255.0",
+          "nextHop": "10.0.0.1"
+        }
+      },
+      {
+        "id": "end_to_end_ping",
+        "category": "connectivity",
+        "title": "End-to-End Ping",
+        "desc": "Succesvolle ping tussen PC-Team1 en PC-Team2 over beide routers",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC-Team1",
+          "targetIp": "192.168.200.10"
+        }
+      }
+    ]
+  },
+  {
+    "id": "h05_challenge1_gateway_last_resort",
+    "code": "H05-Challenge1",
+    "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
+    "title": "Les 05 Challenge 1: Routerketen & Gateway of Last Resort (0.0.0.0/0)",
+    "timeLimitMinutes": 55,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## Les 05 Challenge 1: Routerketen en Gateway of Last Resort\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Challenge1.html](https://vwgert.github.io/networksess/Les05_Challenge1.html)\n\n### Overzicht Challenge:\nIn deze challenge tonen we aan dat een **default route** (`0.0.0.0/0` of Gateway of Last Resort) werkt als \"fallback\" naar de volgende router richting de lector/internet.\nZo hoef je niet op elke router alle individuele netwerken in te geven voor uitgaand verkeer.\n",
+    "initialTopology": {
+      "devices": [
+        {
+          "id": "Student-PC",
+          "name": "Student-PC",
+          "type": "pc",
+          "x": 120,
+          "y": 200,
+          "dhcpEnabled": false,
+          "ip": "192.168.100.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.100.1",
+          "dns": ""
+        },
+        {
+          "id": "Team-Router",
+          "name": "Team-Router",
+          "type": "mikrotik",
+          "x": 320,
+          "y": 200,
+          "interfaces": {
+            "ether1": {
+              "ip": "10.10.10.2",
+              "mask": "255.255.255.252",
+              "shutdown": false
+            },
+            "ether2": {
+              "ip": "192.168.100.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          },
+          "staticRoutes": [
+            {
+              "network": "0.0.0.0",
+              "mask": "0.0.0.0",
+              "nextHop": "10.10.10.1"
+            }
+          ]
+        },
+        {
+          "id": "Lector-Router",
+          "name": "Lector-Router",
+          "type": "mikrotik",
+          "x": 520,
+          "y": 200,
+          "interfaces": {
+            "ether1": {
+              "ip": "10.10.10.1",
+              "mask": "255.255.255.252",
+              "shutdown": false
+            },
+            "ether2": {
+              "ip": "172.16.0.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          },
+          "staticRoutes": [
+            {
+              "network": "192.168.100.0",
+              "mask": "255.255.255.0",
+              "nextHop": "10.10.10.2"
+            }
+          ]
+        },
+        {
+          "id": "Lector-Webserver",
+          "name": "Lector-Webserver",
+          "type": "server",
+          "x": 700,
+          "y": 200,
+          "dhcpEnabled": false,
+          "ip": "172.16.0.50",
+          "mask": "255.255.255.0",
+          "gateway": "172.16.0.1",
+          "dns": "",
+          "services": {
+            "http": true
+          }
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "Student-PC",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Team-Router",
+          "toPort": "ether2",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "Team-Router",
+          "fromPort": "ether1",
+          "toDevice": "Lector-Router",
+          "toPort": "ether1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "Lector-Router",
+          "fromPort": "ether2",
+          "toDevice": "Lector-Webserver",
+          "toPort": "FastEthernet0",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "team_default_route",
+        "category": "routing",
+        "title": "Default Route (0.0.0.0/0)",
+        "desc": "Team-Router heeft default route 0.0.0.0/0 via 10.10.10.1",
+        "type": "static_route",
+        "checkType": "static_route",
+        "points": 40,
+        "enabled": true,
+        "condition": {
+          "routerId": "Team-Router",
+          "network": "0.0.0.0",
+          "mask": "0.0.0.0",
+          "nextHop": "10.10.10.1"
+        }
+      },
+      {
+        "id": "ping_lector_server",
+        "category": "connectivity",
+        "title": "Ping Lector Webserver",
+        "desc": "Succesvolle ping van Student-PC naar Lector-Webserver (172.16.0.50)",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "Student-PC",
+          "targetIp": "172.16.0.50"
+        }
+      },
+      {
+        "id": "lector_http",
+        "category": "services",
+        "title": "Lector HTTP Bereikbaar",
+        "desc": "Webserver actief op Lector-Webserver",
+        "type": "http_get",
+        "checkType": "http_get",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "serverId": "Lector-Webserver"
+        }
+      }
+    ]
+  },
+  {
+    "id": "h05_challenge2_rip_routing",
+    "code": "H05-Challenge2",
+    "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
+    "title": "Les 05 Challenge 2: Routerketen & Dynamische Routering met RIP",
+    "timeLimitMinutes": 55,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## Les 05 Challenge 2: Routerketen en RIP Dynamische Routering\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Challenge2.html](https://vwgert.github.io/networksess/Les05_Challenge2.html)\n\n### Overzicht Challenge:\nIn deze challenge bouwen routers een dynamische keten via het protocol **RIP** (Routing Information Protocol).\nAlle routers wisselen automatisch routes uit zodat elk team verbinding kan maken zonder handmatige static routes.\n",
+    "initialTopology": {
+      "devices": [
+        {
+          "id": "PC-LAN1",
+          "name": "PC-LAN1",
+          "type": "pc",
+          "x": 120,
+          "y": 200,
+          "dhcpEnabled": false,
+          "ip": "192.168.10.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.10.1",
+          "dns": ""
+        },
+        {
+          "id": "Router1",
+          "name": "Router1",
+          "type": "router",
+          "x": 300,
+          "y": 200,
+          "interfaces": {
+            "GigabitEthernet0/0/0": {
+              "ip": "192.168.10.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            },
+            "GigabitEthernet0/0/1": {
+              "ip": "10.0.12.1",
+              "mask": "255.255.255.252",
+              "shutdown": false
+            }
+          },
+          "staticRoutes": [
+            {
+              "network": "192.168.30.0",
+              "mask": "255.255.255.0",
+              "nextHop": "10.0.12.2"
+            }
+          ]
+        },
+        {
+          "id": "Router2",
+          "name": "Router2",
+          "type": "router",
+          "x": 500,
+          "y": 200,
+          "interfaces": {
+            "GigabitEthernet0/0/0": {
+              "ip": "10.0.12.2",
+              "mask": "255.255.255.252",
+              "shutdown": false
+            },
+            "GigabitEthernet0/0/1": {
+              "ip": "192.168.30.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          },
+          "staticRoutes": [
+            {
+              "network": "192.168.10.0",
+              "mask": "255.255.255.0",
+              "nextHop": "10.0.12.1"
+            }
+          ]
+        },
+        {
+          "id": "PC-LAN3",
+          "name": "PC-LAN3",
+          "type": "pc",
+          "x": 680,
+          "y": 200,
+          "dhcpEnabled": false,
+          "ip": "192.168.30.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.30.1",
+          "dns": ""
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "PC-LAN1",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Router1",
+          "toPort": "GigabitEthernet0/0/0",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "Router1",
+          "fromPort": "GigabitEthernet0/0/1",
+          "toDevice": "Router2",
+          "toPort": "GigabitEthernet0/0/0",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "Router2",
+          "fromPort": "GigabitEthernet0/0/1",
+          "toDevice": "PC-LAN3",
+          "toPort": "FastEthernet0",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "r1_int_ip",
+        "category": "interface_ip",
+        "title": "Router1 IP Configuratie",
+        "desc": "Gig0/0/0 geconfigureerd met 192.168.10.1",
+        "type": "interface_ip",
+        "checkType": "interface_ip",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "deviceId": "Router1",
+          "portName": "GigabitEthernet0/0/0",
+          "expectedIp": "192.168.10.1",
+          "expectedMask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "r2_int_ip",
+        "category": "interface_ip",
+        "title": "Router2 IP Configuratie",
+        "desc": "Gig0/0/1 geconfigureerd met 192.168.30.1",
+        "type": "interface_ip",
+        "checkType": "interface_ip",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "deviceId": "Router2",
+          "portName": "GigabitEthernet0/0/1",
+          "expectedIp": "192.168.30.1",
+          "expectedMask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "ping_dynamic_converged",
+        "category": "connectivity",
+        "title": "End-to-End Ping",
+        "desc": "Succesvolle communicatie tussen PC-LAN1 en PC-LAN3",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC-LAN1",
+          "targetIp": "192.168.30.10"
+        }
       }
     ]
   },
   {
     "id": "h05_pt1_cisco_1router",
     "code": "H05-PT1",
-    "chapter": "Hoofdstuk 05 - Routering & Cisco IOS",
-    "title": "Les 05 PT: Twee LANs via Eén Cisco Router (Subnets & Routing)",
-    "timeLimitMinutes": 60,
+    "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
+    "title": "Les 05 PT: Twee LANs via Eén Cisco Router",
+    "timeLimitMinutes": 50,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 05 PT: 2 LAN's via 1 router\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_PT_1router.html](https://vwgert.github.io/networksess/Les05_PT_1router.html)\n\n### Adreseringstabel:\n| Toestel | Interface | IP-adres | Subnetmasker | Default Gateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **R1** | GigabitEthernet0/0/0 | `192.168.1.1` | `255.255.255.0` | - |\n| **R1** | GigabitEthernet0/0/1 | `10.0.1.1`    | `255.255.255.0` | - |\n| **Laptop0** | FastEthernet0 | `192.168.1.10` | `255.255.255.0` | `192.168.1.1` |\n| **PC0**     | FastEthernet0 | `10.0.1.100`   | `255.255.255.0` | `10.0.1.1` |\n\n### Opdrachten:\n1. Configureer `R1` (Cisco 4331):\n   ```cisco\n   enable\n   configure terminal\n   hostname R1\n   interface GigabitEthernet0/0/0\n    ip address 192.168.1.1 255.255.255.0\n    no shutdown\n   interface GigabitEthernet0/0/1\n    ip address 10.0.1.1 255.255.255.0\n    no shutdown\n   exit\n   ```\n2. Test inter-LAN routering met ping van `Laptop0` naar `PC0` (`10.0.1.100`).\n",
+    "instructions": "## Les 05 PT: Twee netwerken gekoppeld met 1 Cisco router\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_PT_1router.html](https://vwgert.github.io/networksess/Les05_PT_1router.html)\n\n### Doel van het labo:\nIn dit labo koppel je twee afzonderlijke LAN's via één Cisco router:\n- **LAN 1:** `192.168.1.0/24` via `GigabitEthernet0/0/0` (`192.168.1.1`)\n- **LAN 2:** `192.168.2.0/24` via `GigabitEthernet0/0/1` (`192.168.2.1`)\n",
     "initialTopology": {
       "devices": [
-        {
-          "id": "R1",
-          "name": "R1",
-          "type": "router",
-          "model": "4331",
-          "x": 380,
-          "y": 200
-        },
-        {
-          "id": "SW-Left",
-          "name": "SW-Left",
-          "type": "switch",
-          "model": "2960-24TT",
-          "x": 200,
-          "y": 200
-        },
-        {
-          "id": "SW-Right",
-          "name": "SW-Right",
-          "type": "switch",
-          "model": "2960-24TT",
-          "x": 560,
-          "y": 200
-        },
-        {
-          "id": "Laptop0",
-          "name": "Laptop0",
-          "type": "laptop",
-          "x": 100,
-          "y": 200,
-          "ip": "192.168.1.10",
-          "mask": "255.255.255.0",
-          "gateway": "192.168.1.1"
-        },
         {
           "id": "PC0",
           "name": "PC0",
           "type": "pc",
-          "x": 660,
-          "y": 200,
-          "ip": "10.0.1.100",
+          "x": 140,
+          "y": 280,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.10",
           "mask": "255.255.255.0",
-          "gateway": "10.0.1.1"
+          "gateway": "192.168.1.1",
+          "dns": ""
+        },
+        {
+          "id": "Switch0",
+          "name": "Switch0",
+          "type": "switch",
+          "x": 240,
+          "y": 180
+        },
+        {
+          "id": "Router0",
+          "name": "Router0",
+          "type": "router",
+          "x": 400,
+          "y": 140,
+          "interfaces": {
+            "GigabitEthernet0/0/0": {
+              "ip": "192.168.1.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            },
+            "GigabitEthernet0/0/1": {
+              "ip": "192.168.2.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          }
+        },
+        {
+          "id": "Switch1",
+          "name": "Switch1",
+          "type": "switch",
+          "x": 560,
+          "y": 180
+        },
+        {
+          "id": "PC1",
+          "name": "PC1",
+          "type": "pc",
+          "x": 660,
+          "y": 280,
+          "dhcpEnabled": false,
+          "ip": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
         }
       ],
       "cables": [
         {
-          "fromDevice": "Laptop0",
+          "fromDevice": "PC0",
           "fromPort": "FastEthernet0",
-          "toDevice": "SW-Left",
-          "toPort": "FastEthernet0/1"
+          "toDevice": "Switch0",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
         },
         {
-          "fromDevice": "SW-Left",
+          "fromDevice": "Switch0",
           "fromPort": "GigabitEthernet0/1",
-          "toDevice": "R1",
-          "toPort": "GigabitEthernet0/0/0"
+          "toDevice": "Router0",
+          "toPort": "GigabitEthernet0/0/0",
+          "type": "copper_straight"
         },
         {
-          "fromDevice": "R1",
+          "fromDevice": "Router0",
           "fromPort": "GigabitEthernet0/0/1",
-          "toDevice": "SW-Right",
-          "toPort": "GigabitEthernet0/1"
+          "toDevice": "Switch1",
+          "toPort": "GigabitEthernet0/1",
+          "type": "copper_straight"
         },
         {
-          "fromDevice": "SW-Right",
+          "fromDevice": "Switch1",
           "fromPort": "FastEthernet0/1",
-          "toDevice": "PC0",
-          "toPort": "FastEthernet0"
+          "toDevice": "PC1",
+          "toPort": "FastEthernet0",
+          "type": "copper_straight"
         }
       ]
     },
     "rubric": [
       {
-        "id": "r1_g0",
-        "description": "R1 interface G0/0/0 geconfigureerd met 192.168.1.1/24 (no shutdown)",
+        "id": "pc1_ip_config",
+        "category": "interface_ip",
+        "title": "PC1 IP Configuratie",
+        "desc": "PC1 heeft IP 192.168.2.10 en masker 255.255.255.0",
         "type": "interface_ip",
-        "device": "R1",
-        "interface": "GigabitEthernet0/0/0",
-        "ip": "192.168.1.1",
-        "mask": "255.255.255.0",
-        "points": 35
+        "checkType": "interface_ip",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC1",
+          "portName": "FastEthernet0",
+          "expectedIp": "192.168.2.10",
+          "expectedMask": "255.255.255.0"
+        }
       },
       {
-        "id": "r1_g1",
-        "description": "R1 interface G0/0/1 geconfigureerd met 10.0.1.1/24 (no shutdown)",
-        "type": "interface_ip",
-        "device": "R1",
-        "interface": "GigabitEthernet0/0/1",
-        "ip": "10.0.1.1",
-        "mask": "255.255.255.0",
-        "points": 35
+        "id": "pc1_gw_config",
+        "category": "routing",
+        "title": "PC1 Gateway",
+        "desc": "Default gateway van PC1 is 192.168.2.1",
+        "type": "default_gateway",
+        "checkType": "default_gateway",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC1",
+          "expected": "192.168.2.1"
+        }
       },
       {
-        "id": "ping_routed",
-        "description": "Succesvol gerouteerde ICMP ping van Laptop0 naar PC0",
+        "id": "ping_routed_pc0_pc1",
+        "category": "connectivity",
+        "title": "Inter-VLAN / Routing Ping",
+        "desc": "Succesvolle ping tussen PC0 en PC1 over de router",
         "type": "ping_test",
-        "from": "Laptop0",
-        "to": "10.0.1.100",
-        "points": 30
+        "checkType": "ping_test",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC0",
+          "targetIp": "192.168.2.10"
+        }
       }
     ]
   },
   {
     "id": "h05_pt2_cisco_2routers",
     "code": "H05-PT2",
-    "chapter": "Hoofdstuk 05 - Static Routing & Multi-Router Netwerken",
+    "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
     "title": "Les 05 PT: Twee LANs via Twee Cisco Routers (Static Routing)",
-    "timeLimitMinutes": 75,
+    "timeLimitMinutes": 55,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 05 PT: 2 netwerken via 2 routers (Static Routing)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_PT_2routers.html](https://vwgert.github.io/networksess/Les05_PT_2routers.html)\n\n### Adreseringstabel:\n| Toestel | Interface | IP-adres | Subnetmasker |\n| :--- | :--- | :--- | :--- |\n| **R1** | GigabitEthernet0/0/0 (LAN) | `192.168.1.1` | `255.255.255.0` |\n| **R1** | GigabitEthernet0/0/1 (WAN) | `10.0.0.1`    | `255.255.255.252` |\n| **R2** | GigabitEthernet0/0/1 (WAN) | `10.0.0.2`    | `255.255.255.252` |\n| **R2** | GigabitEthernet0/0/0 (LAN) | `172.16.1.1`   | `255.255.255.0` |\n\n### Static Route Opdrachten:\n1. Configureer op `R1` een static route naar het LAN van R2:\n   `ip route 172.16.1.0 255.255.255.0 10.0.0.2`\n2. Configureer op `R2` een static route naar het LAN van R1:\n   `ip route 192.168.1.0 255.255.255.0 10.0.0.1`\n3. Test end-to-end connectiviteit tussen `Laptop0` (`192.168.1.10`) en `PC0` (`172.16.1.100`).\n",
+    "instructions": "## Les 05 PT: Twee netwerken via twee Cisco routers (Static Routing)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_PT_2routers.html](https://vwgert.github.io/networksess/Les05_PT_2routers.html)\n\n### Doel van het labo:\nIn dit labo verbind je twee routers met een point-to-point link en configureer je static routes op beide routers:\n- **Router0:** `GigabitEthernet0/0/0` = `192.168.1.1/24`, `GigabitEthernet0/0/1` = `10.0.0.1/30`\n- **Router1:** `GigabitEthernet0/0/0` = `10.0.0.2/30`, `GigabitEthernet0/0/1` = `192.168.2.1/24`\n- Static route op Router0: `ip route 192.168.2.0 255.255.255.0 10.0.0.2`\n- Static route op Router1: `ip route 192.168.1.0 255.255.255.0 10.0.0.1`\n",
     "initialTopology": {
       "devices": [
         {
-          "id": "R1",
-          "name": "R1",
+          "id": "PC0",
+          "name": "PC0",
+          "type": "pc",
+          "x": 100,
+          "y": 240,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.1",
+          "dns": ""
+        },
+        {
+          "id": "Router0",
+          "name": "Router0",
           "type": "router",
-          "model": "4331",
           "x": 280,
-          "y": 200,
+          "y": 160,
           "interfaces": {
             "GigabitEthernet0/0/0": {
               "ip": "192.168.1.1",
@@ -605,349 +1924,554 @@ window.PXL_COURSE_LABS = [
               "mask": "255.255.255.252",
               "shutdown": false
             }
-          }
+          },
+          "staticRoutes": [
+            {
+              "network": "192.168.2.0",
+              "mask": "255.255.255.0",
+              "nextHop": "10.0.0.2"
+            }
+          ]
         },
         {
-          "id": "R2",
-          "name": "R2",
+          "id": "Router1",
+          "name": "Router1",
           "type": "router",
-          "model": "4331",
-          "x": 480,
-          "y": 200,
+          "x": 500,
+          "y": 160,
           "interfaces": {
-            "GigabitEthernet0/0/1": {
+            "GigabitEthernet0/0/0": {
               "ip": "10.0.0.2",
               "mask": "255.255.255.252",
               "shutdown": false
             },
-            "GigabitEthernet0/0/0": {
-              "ip": "172.16.1.1",
+            "GigabitEthernet0/0/1": {
+              "ip": "192.168.2.1",
               "mask": "255.255.255.0",
               "shutdown": false
             }
-          }
+          },
+          "staticRoutes": [
+            {
+              "network": "192.168.1.0",
+              "mask": "255.255.255.0",
+              "nextHop": "10.0.0.1"
+            }
+          ]
         },
         {
-          "id": "Laptop0",
-          "name": "Laptop0",
-          "type": "laptop",
-          "x": 100,
-          "y": 200,
-          "ip": "192.168.1.10",
-          "mask": "255.255.255.0",
-          "gateway": "192.168.1.1"
-        },
-        {
-          "id": "PC0",
-          "name": "PC0",
+          "id": "PC1",
+          "name": "PC1",
           "type": "pc",
-          "x": 660,
-          "y": 200,
-          "ip": "172.16.1.100",
+          "x": 680,
+          "y": 240,
+          "dhcpEnabled": false,
+          "ip": "192.168.2.10",
           "mask": "255.255.255.0",
-          "gateway": "172.16.1.1"
+          "gateway": "192.168.2.1",
+          "dns": ""
         }
       ],
       "cables": [
         {
-          "fromDevice": "Laptop0",
+          "fromDevice": "PC0",
           "fromPort": "FastEthernet0",
-          "toDevice": "R1",
-          "toPort": "GigabitEthernet0/0/0"
+          "toDevice": "Router0",
+          "toPort": "GigabitEthernet0/0/0",
+          "type": "copper_straight"
         },
         {
-          "fromDevice": "R1",
+          "fromDevice": "Router0",
           "fromPort": "GigabitEthernet0/0/1",
-          "toDevice": "R2",
-          "toPort": "GigabitEthernet0/0/1"
+          "toDevice": "Router1",
+          "toPort": "GigabitEthernet0/0/0",
+          "type": "copper_straight"
         },
         {
-          "fromDevice": "R2",
-          "fromPort": "GigabitEthernet0/0/0",
-          "toDevice": "PC0",
-          "toPort": "FastEthernet0"
+          "fromDevice": "Router1",
+          "fromPort": "GigabitEthernet0/0/1",
+          "toDevice": "PC1",
+          "toPort": "FastEthernet0",
+          "type": "copper_straight"
         }
       ]
     },
     "rubric": [
       {
-        "id": "r1_static_route",
-        "description": "R1 heeft static route naar 172.16.1.0/24 via 10.0.0.2",
+        "id": "router0_static_route",
+        "category": "routing",
+        "title": "Static Route Router0",
+        "desc": "Route op Router0 naar 192.168.2.0/24 via 10.0.0.2",
         "type": "static_route",
-        "device": "R1",
-        "network": "172.16.1.0",
-        "mask": "255.255.255.0",
-        "nextHop": "10.0.0.2",
-        "points": 35
+        "checkType": "static_route",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "routerId": "Router0",
+          "network": "192.168.2.0",
+          "mask": "255.255.255.0",
+          "nextHop": "10.0.0.2"
+        }
       },
       {
-        "id": "r2_static_route",
-        "description": "R2 heeft static route naar 192.168.1.0/24 via 10.0.0.1",
+        "id": "router1_static_route",
+        "category": "routing",
+        "title": "Static Route Router1",
+        "desc": "Route op Router1 naar 192.168.1.0/24 via 10.0.0.1",
         "type": "static_route",
-        "device": "R2",
-        "network": "192.168.1.0",
-        "mask": "255.255.255.0",
-        "nextHop": "10.0.0.1",
-        "points": 35
+        "checkType": "static_route",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "routerId": "Router1",
+          "network": "192.168.1.0",
+          "mask": "255.255.255.0",
+          "nextHop": "10.0.0.1"
+        }
       },
       {
-        "id": "ping_end_to_end",
-        "description": "Succesvolle end-to-end ICMP ping tussen Laptop0 en PC0",
+        "id": "end_to_end_ping",
+        "category": "connectivity",
+        "title": "End-to-End Ping",
+        "desc": "Succesvolle ping tussen PC0 en PC1",
         "type": "ping_test",
-        "from": "Laptop0",
-        "to": "172.16.1.100",
-        "points": 30
+        "checkType": "ping_test",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC0",
+          "targetIp": "192.168.2.10"
+        }
       }
     ]
   },
   {
     "id": "h06_pt1_thuisrouter_nat",
     "code": "H06-PT1",
-    "chapter": "Hoofdstuk 06 - Thuisrouter, NAT, DHCP, WiFi & Internet",
-    "title": "Les 06 PT: Thuisrouter, NAT, DHCP, DNS, WiFi en Port Forwarding",
-    "timeLimitMinutes": 90,
+    "chapter": "Hoofdstuk 06 - Thuisnetwerken, WiFi & NAT",
+    "title": "Les 06 PT: Thuisrouter, NAT, DHCP, DNS, WiFi en WAN Internet",
+    "timeLimitMinutes": 50,
     "showLiveScore": true,
     "liveInternet": true,
-    "instructions": "## Les 06 PT: Thuisrouter, NAT, DHCP, DNS, WIFI en port forwarding\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les06_PT_Thuisrouter.html](https://vwgert.github.io/networksess/Les06_PT_Thuisrouter.html)\n\n### Topologie Overzicht:\n- **LAN-zijde (172.30.0.0/24):** Laptops & PC's krijgen automatisch IP via DHCP van de router (`172.30.0.100+`).\n- **Thuisrouter (OpenWrt / MikroTik):** Verzorgt NAT Masquerade (PAT), DHCP-server en Wireless AP.\n- **WAN-zijde:** Verbonden met **Internet (Public)** of **Het Internet** (ingesteld op WAN IP `45.117.136.17/24`).\n\n### Opdrachten:\n1. Sluit de WAN-poort van de router aan op `InternetPublic` of `Het Internet`.\n2. Controleer dat NAT-translatie actief is zodat interne clients (`172.30.0.x`) naar het internet kunnen surfen en pingen.\n3. Open in `PC0` de **Web Browser** en surf naar `http://www.pxl.be` of `https://icanhazip.com`.\n4. Controleer via PowerShell: `Test-NetConnection 8.8.8.8` en `tnc 8.8.8.8 -Port 53`.\n",
+    "instructions": "## Les 06 PT: Thuisrouter, NAT, DHCP, DNS, WiFi en Port Forwarding\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les06_PT_Thuisrouter.html](https://vwgert.github.io/networksess/Les06_PT_Thuisrouter.html)\n\n### Doel van het labo:\nIn dit labo onderzoek je een complete thuisnetwerktopologie met een geïntegreerde thuisrouter (zoals OpenWrt of Cisco SOHO):\n- WAN-zijde met publieke IP-translatie (NAT Masquerade)\n- LAN-zijde met DHCP server en switchpoorten\n- WiFi Access Point\n- Echte internettoegang via `internet_public` of veilige simulatie via `internet_simulated`.\n",
     "initialTopology": {
       "devices": [
         {
           "id": "HomeRouter",
           "name": "HomeRouter",
           "type": "openwrt",
-          "model": "OpenWrt 23.05",
-          "x": 380,
-          "y": 200,
+          "x": 360,
+          "y": 180,
           "interfaces": {
             "eth0": {
-              "ip": "45.117.136.17",
+              "ip": "203.0.113.2",
               "mask": "255.255.255.0",
               "shutdown": false
             },
-            "eth1": {
-              "ip": "172.30.0.1",
+            "br-lan": {
+              "ip": "192.168.1.1",
               "mask": "255.255.255.0",
               "shutdown": false
             }
           }
         },
         {
-          "id": "InternetPublic",
-          "name": "InternetPublic",
-          "type": "internet_public",
-          "model": "PXL Internet (Public NAT)",
-          "x": 620,
-          "y": 200
-        },
-        {
-          "id": "PC0",
-          "name": "PC0",
+          "id": "PC-Thuis",
+          "name": "PC-Thuis",
           "type": "pc",
           "x": 160,
-          "y": 140,
-          "ip": "172.30.0.10",
+          "y": 280,
+          "dhcpEnabled": true,
+          "ip": "192.168.1.15",
           "mask": "255.255.255.0",
-          "gateway": "172.30.0.1",
-          "dns": "8.8.8.8"
+          "gateway": "192.168.1.1",
+          "dns": "192.168.1.1"
         },
         {
-          "id": "Laptop0",
-          "name": "Laptop0",
-          "type": "laptop",
-          "x": 160,
-          "y": 280,
-          "ip": "172.30.0.20",
-          "mask": "255.255.255.0",
-          "gateway": "172.30.0.1",
-          "dns": "8.8.8.8"
+          "id": "Internet-Cloud",
+          "name": "Internet (Public)",
+          "type": "internet_public",
+          "x": 580,
+          "y": 180,
+          "ip": "203.0.113.1",
+          "mask": "255.255.255.0"
         }
       ],
       "cables": [
         {
+          "fromDevice": "PC-Thuis",
+          "fromPort": "FastEthernet0",
+          "toDevice": "HomeRouter",
+          "toPort": "br-lan",
+          "type": "copper_straight"
+        },
+        {
           "fromDevice": "HomeRouter",
           "fromPort": "eth0",
-          "toDevice": "InternetPublic",
-          "toPort": "WAN"
-        },
-        {
-          "fromDevice": "PC0",
-          "fromPort": "FastEthernet0",
-          "toDevice": "HomeRouter",
-          "toPort": "eth1"
-        },
-        {
-          "fromDevice": "Laptop0",
-          "fromPort": "FastEthernet0",
-          "toDevice": "HomeRouter",
-          "toPort": "eth2"
+          "toDevice": "Internet-Cloud",
+          "toPort": "Internet",
+          "type": "copper_straight"
         }
       ]
     },
     "rubric": [
       {
-        "id": "wan_connected",
-        "description": "Home Router WAN-poort correct verbonden met Internet Gateway",
-        "type": "cable_connection",
-        "dev1": "HomeRouter",
-        "port1": "eth0",
-        "dev2": "InternetPublic",
-        "port2": "WAN",
-        "points": 30
+        "id": "home_pc_dhcp",
+        "category": "interface_ip",
+        "title": "DHCP Lease Thuis PC",
+        "desc": "PC-Thuis heeft geldig IP in subnet 192.168.1.0/24",
+        "type": "ip_subnet",
+        "checkType": "ip_subnet",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC-Thuis",
+          "subnetPrefix": "192.168.1.",
+          "expectedMask": "255.255.255.0"
+        }
       },
       {
-        "id": "pc_default_gw",
-        "description": "PC0 heeft default gateway 172.30.0.1 geconfigureerd",
-        "type": "gateway_config",
-        "device": "PC0",
-        "gateway": "172.30.0.1",
-        "points": 35
-      },
-      {
-        "id": "internet_ping",
-        "description": "PC0 heeft internetverbinding via NAT (ping naar 8.8.8.8 succesvol)",
+        "id": "nat_gateway_reach",
+        "category": "connectivity",
+        "title": "Gateway Bereikbaar",
+        "desc": "PC-Thuis kan default gateway 192.168.1.1 pingen",
         "type": "ping_test",
-        "from": "PC0",
-        "to": "8.8.8.8",
-        "points": 35
+        "checkType": "ping_test",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC-Thuis",
+          "targetIp": "192.168.1.1"
+        }
+      },
+      {
+        "id": "internet_public_reach",
+        "category": "connectivity",
+        "title": "Internet Toegang via NAT",
+        "desc": "Succesvolle verbinding via NAT naar Internet-Cloud",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC-Thuis",
+          "targetIp": "203.0.113.1"
+        }
+      }
+    ]
+  },
+  {
+    "id": "h07_labo_firewall_nat_rules",
+    "code": "H07-Labo",
+    "chapter": "Hoofdstuk 07 - Beveiliging, Firewalls & NAT",
+    "title": "Les 07 Labo: Firewall, NAT Masquerade, Port Forwarding & Filter Rules",
+    "timeLimitMinutes": 55,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## Les 07 - Labo: Firewall, NAT, publishing en rules\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les07_Labo.html](https://vwgert.github.io/networksess/Les07_Labo.html)\n\n### Opzet van het labo:\nIn dit labo configureer je een **MikroTik Firewall** met WAN- en LAN-zijde:\n- WAN switch met WAN-laptops (`172.20.40.10/24`)\n- MikroTik ether1 (WAN): `172.20.40.1/24`\n- MikroTik ether2 (LAN): `192.168.123.1/24`\n- LAN-zijde met interne webserver (`192.168.123.80`)\n- NAT Masquerade rule voor uitgaand LAN-verkeer\n- Port Forwarding (dstnat) poort 80 WAN -> 192.168.123.80 (Web publishing)\n",
+    "initialTopology": {
+      "devices": [
+        {
+          "id": "WAN-Laptop",
+          "name": "WAN-Laptop",
+          "type": "laptop",
+          "x": 120,
+          "y": 200,
+          "dhcpEnabled": false,
+          "ip": "172.20.40.10",
+          "mask": "255.255.255.0",
+          "gateway": "172.20.40.1",
+          "dns": ""
+        },
+        {
+          "id": "WAN-Switch",
+          "name": "WAN-Switch",
+          "type": "switch",
+          "x": 260,
+          "y": 200
+        },
+        {
+          "id": "MikroTik-Firewall",
+          "name": "MikroTik-Firewall",
+          "type": "mikrotik",
+          "x": 420,
+          "y": 200,
+          "interfaces": {
+            "ether1": {
+              "ip": "172.20.40.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            },
+            "ether2": {
+              "ip": "192.168.123.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          }
+        },
+        {
+          "id": "LAN-Switch",
+          "name": "LAN-Switch",
+          "type": "switch",
+          "x": 580,
+          "y": 200
+        },
+        {
+          "id": "LAN-Webserver",
+          "name": "LAN-Webserver",
+          "type": "server",
+          "x": 720,
+          "y": 200,
+          "dhcpEnabled": false,
+          "ip": "192.168.123.80",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.123.1",
+          "dns": "",
+          "services": {
+            "http": true
+          }
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "WAN-Laptop",
+          "fromPort": "FastEthernet0",
+          "toDevice": "WAN-Switch",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "WAN-Switch",
+          "fromPort": "FastEthernet0/2",
+          "toDevice": "MikroTik-Firewall",
+          "toPort": "ether1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "MikroTik-Firewall",
+          "fromPort": "ether2",
+          "toDevice": "LAN-Switch",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "LAN-Switch",
+          "fromPort": "FastEthernet0/2",
+          "toDevice": "LAN-Webserver",
+          "toPort": "FastEthernet0",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "wan_ping_gateway",
+        "category": "connectivity",
+        "title": "WAN Gateway Bereikbaar",
+        "desc": "WAN-Laptop kan MikroTik ether1 (172.20.40.1) pingen",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "WAN-Laptop",
+          "targetIp": "172.20.40.1"
+        }
+      },
+      {
+        "id": "lan_webserver_http",
+        "category": "services",
+        "title": "HTTP Service Webserver",
+        "desc": "HTTP service actief op LAN-Webserver",
+        "type": "http_get",
+        "checkType": "http_get",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "serverId": "LAN-Webserver"
+        }
+      },
+      {
+        "id": "firewall_interfaces_up",
+        "category": "interface_ip",
+        "title": "Firewall Interfaces UP",
+        "desc": "MikroTik ether1 en ether2 correct geconfigureerd",
+        "type": "interface_ip",
+        "checkType": "interface_ip",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "deviceId": "MikroTik-Firewall",
+          "portName": "ether2",
+          "expectedIp": "192.168.123.1",
+          "expectedMask": "255.255.255.0"
+        }
       }
     ]
   },
   {
     "id": "h08_cisco_ios_basis",
     "code": "H08-Cisco",
-    "chapter": "Hoofdstuk 08 - Cisco IOS CLI & Beveiliging",
-    "title": "Zelfstudie: Cisco IOS Netwerk (PC-SW-R-SW-PC) met SSH & Beveiliging",
-    "timeLimitMinutes": 90,
+    "chapter": "Zelfstudie - Cisco IOS CLI & Beveiliging",
+    "title": "Zelfstudie: Cisco IOS Netwerk (PC-SW-R-SW-PC) met SSH",
+    "timeLimitMinutes": 60,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Zelfstudie: Cisco IOS Packet Tracer (PC-SW-R-SW-PC)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Cisco_IOS_PT.html](https://vwgert.github.io/networksess/Cisco_IOS_PT.html)\n\n### Adreseringstabel:\n| Toestel | Interface | IP-adres | Subnetmasker | Default Gateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **PC-L** | NIC | `192.168.1.100` | `255.255.255.0` | `192.168.1.1` |\n| **SW-L** | VLAN 1 (mgmt) | `192.168.1.2` | `255.255.255.0` | `192.168.1.1` |\n| **R1**   | G0/0/0 | `192.168.1.1` | `255.255.255.0` | - |\n| **R1**   | G0/0/1 | `192.168.2.1` | `255.255.255.0` | - |\n| **SW-R** | VLAN 1 (mgmt) | `192.168.2.2` | `255.255.255.0` | `192.168.2.1` |\n| **PC-R** | NIC | `192.168.2.100` | `255.255.255.0` | `192.168.2.1` |\n\n### Cisco IOS Beveiligingsvereisten:\n- Hostname: `R1`\n- Secret: `enable secret class`\n- Console wachtwoord: `password cisco`, `login`\n- Banner: `banner motd #Geautoriseerde toegang alleen!#`\n- SSH: `ip domain-name pxl.be`, `crypto key generate rsa`, `username admin secret cisco123`, `transport input ssh`\n",
+    "instructions": "## Zelfstudie: Cisco IOS Packet Tracer (PC-SW-R-SW-PC)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Cisco_IOS_PT.html](https://vwgert.github.io/networksess/Cisco_IOS_PT.html)\n\n### Doel van de zelfstudie:\nIn deze oefening configureer je een volledig Cisco netwerk met twee switches en één router:\n- Hostnames instellen (`hostname R1`, `hostname S1`)\n- Beveiliging: `enable secret class`, `line console 0` met `password cisco`\n- Encryptie: `service password-encryption`\n- Banner: `banner motd #Geautoriseerde toegang alleen!#`\n- Interface IP's en `no shutdown`\n- SSH beheer configureren\n- Startup-configuratie opslaan in NVRAM (`copy run start`).\n",
     "initialTopology": {
       "devices": [
+        {
+          "id": "PC0",
+          "name": "PC0",
+          "type": "pc",
+          "x": 100,
+          "y": 260,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.1",
+          "dns": ""
+        },
+        {
+          "id": "S1",
+          "name": "S1",
+          "type": "switch",
+          "x": 240,
+          "y": 180,
+          "hostname": "Switch"
+        },
         {
           "id": "R1",
           "name": "R1",
           "type": "router",
-          "model": "4331",
-          "x": 380,
-          "y": 200
+          "x": 420,
+          "y": 140,
+          "hostname": "Router",
+          "interfaces": {
+            "GigabitEthernet0/0/0": {
+              "ip": "192.168.1.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            },
+            "GigabitEthernet0/0/1": {
+              "ip": "192.168.2.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          }
         },
         {
-          "id": "SW-L",
-          "name": "SW-L",
+          "id": "S2",
+          "name": "S2",
           "type": "switch",
-          "model": "2960-24TT",
-          "x": 200,
-          "y": 200
+          "x": 600,
+          "y": 180,
+          "hostname": "Switch"
         },
         {
-          "id": "SW-R",
-          "name": "SW-R",
-          "type": "switch",
-          "model": "2960-24TT",
-          "x": 560,
-          "y": 200
-        },
-        {
-          "id": "PC-L",
-          "name": "PC-L",
+          "id": "PC1",
+          "name": "PC1",
           "type": "pc",
-          "x": 80,
-          "y": 200,
-          "ip": "192.168.1.100",
+          "x": 740,
+          "y": 260,
+          "dhcpEnabled": false,
+          "ip": "192.168.2.10",
           "mask": "255.255.255.0",
-          "gateway": "192.168.1.1"
-        },
-        {
-          "id": "PC-R",
-          "name": "PC-R",
-          "type": "pc",
-          "x": 680,
-          "y": 200,
-          "ip": "192.168.2.100",
-          "mask": "255.255.255.0",
-          "gateway": "192.168.2.1"
+          "gateway": "192.168.2.1",
+          "dns": ""
         }
       ],
       "cables": [
         {
-          "fromDevice": "PC-L",
+          "fromDevice": "PC0",
           "fromPort": "FastEthernet0",
-          "toDevice": "SW-L",
-          "toPort": "FastEthernet0/1"
+          "toDevice": "S1",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
         },
         {
-          "fromDevice": "SW-L",
+          "fromDevice": "S1",
           "fromPort": "GigabitEthernet0/1",
           "toDevice": "R1",
-          "toPort": "GigabitEthernet0/0/0"
+          "toPort": "GigabitEthernet0/0/0",
+          "type": "copper_straight"
         },
         {
           "fromDevice": "R1",
           "fromPort": "GigabitEthernet0/0/1",
-          "toDevice": "SW-R",
-          "toPort": "GigabitEthernet0/1"
+          "toDevice": "S2",
+          "toPort": "GigabitEthernet0/1",
+          "type": "copper_straight"
         },
         {
-          "fromDevice": "SW-R",
+          "fromDevice": "S2",
           "fromPort": "FastEthernet0/1",
-          "toDevice": "PC-R",
-          "toPort": "FastEthernet0"
+          "toDevice": "PC1",
+          "toPort": "FastEthernet0",
+          "type": "copper_straight"
         }
       ]
     },
     "rubric": [
       {
         "id": "r1_hostname",
-        "description": "R1 hostname ingesteld",
-        "type": "cisco_command",
-        "device": "R1",
-        "command": "hostname R1",
-        "points": 15
+        "category": "security",
+        "title": "R1 Hostname",
+        "desc": "Router heeft hostname R1",
+        "type": "hostname",
+        "checkType": "hostname",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "targetDevice": "R1",
+          "expected": "R1"
+        }
       },
       {
-        "id": "r1_secret",
-        "description": "R1 enable secret beveiligd",
-        "type": "cisco_command",
-        "device": "R1",
-        "command": "enable secret class",
-        "points": 15
+        "id": "s1_hostname",
+        "category": "security",
+        "title": "S1 Hostname",
+        "desc": "Switch 1 heeft hostname S1",
+        "type": "hostname",
+        "checkType": "hostname",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "targetDevice": "S1",
+          "expected": "S1"
+        }
       },
       {
-        "id": "r1_g0",
-        "description": "R1 interface G0/0/0 ingesteld op 192.168.1.1/24",
-        "type": "interface_ip",
-        "device": "R1",
-        "interface": "GigabitEthernet0/0/0",
-        "ip": "192.168.1.1",
-        "mask": "255.255.255.0",
-        "points": 20
+        "id": "r1_password_enc",
+        "category": "security",
+        "title": "Wachtwoordversleuteling",
+        "desc": "service password-encryption actief op R1",
+        "type": "password_encryption",
+        "checkType": "password_encryption",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "targetDevice": "R1"
+        }
       },
       {
-        "id": "r1_g1",
-        "description": "R1 interface G0/0/1 ingesteld op 192.168.2.1/24",
-        "type": "interface_ip",
-        "device": "R1",
-        "interface": "GigabitEthernet0/0/1",
-        "ip": "192.168.2.1",
-        "mask": "255.255.255.0",
-        "points": 20
-      },
-      {
-        "id": "r1_banner",
-        "description": "R1 banner motd ingesteld",
-        "type": "cisco_command",
-        "device": "R1",
-        "command": "banner motd",
-        "points": 15
-      },
-      {
-        "id": "ping_routed",
-        "description": "Succesvolle ping tussen PC-L en PC-R",
+        "id": "ping_end_to_end",
+        "category": "connectivity",
+        "title": "End-to-End Ping",
+        "desc": "Succesvolle ping tussen PC0 en PC1",
         "type": "ping_test",
-        "from": "PC-L",
-        "to": "192.168.2.100",
-        "points": 15
+        "checkType": "ping_test",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC0",
+          "targetIp": "192.168.2.10"
+        }
       }
     ]
   }
 ];
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { PXL_COURSE_LABS: window.PXL_COURSE_LABS };
+}
