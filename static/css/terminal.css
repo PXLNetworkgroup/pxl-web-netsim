@@ -1,0 +1,65 @@
+/**
+ * terminal.css - Cisco IOS Monospace Terminal Styling
+ * Part of PXL Web NetSim (Hogeschool PXL)
+ */
+
+.pt-terminal-wrapper {
+  flex: 1;
+  background-color: #0f172a;
+  color: #f8fafc;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.pt-terminal-screen {
+  flex: 1;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+  padding-bottom: 8px;
+}
+
+.pt-terminal-screen::-webkit-scrollbar {
+  width: 8px;
+}
+
+.pt-terminal-screen::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+.pt-terminal-screen::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+.pt-terminal-input-bar {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid #1e293b;
+  padding-top: 8px;
+  background-color: #0f172a;
+}
+
+.pt-terminal-prompt {
+  color: #38bdf8;
+  font-weight: 700;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+
+.pt-terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 13px;
+  caret-color: #38bdf8;
+}

@@ -1,0 +1,21 @@
+{
+  "id": "03_wireless_lan",
+  "title": "PXL SNE - Wireless LAN (WLAN) Setup met Access Point & WPA2-PSK",
+  "timeLimitMinutes": 45,
+  "showLiveScore": true,
+  "instructions": "### Draadloos Netwerk Opzetten\nVerbind de Wireless Router / AP met de Switch.\nConfigureer SSID 'PXL-Guest' met WPA2-PSK wachtwoord 'PXL2026Net!'.\nGa naar de Laptop, open Desktop > PC Wireless en maak verbinding met het AP.",
+  "initialTopology": {
+    "devices": [
+      { "id": "SW1", "type": "switch", "model": "2960-24TT", "hostname": "Switch1", "x": 300, "y": 250 },
+      { "id": "AP1", "type": "wireless_ap", "model": "WRT300N", "hostname": "HomeRouter", "x": 550, "y": 250, "ssid": "PXL-Guest", "passphrase": "PXL2026Net!" },
+      { "id": "LAP1", "type": "laptop", "model": "Standard", "hostname": "Laptop1", "x": 800, "y": 250 }
+    ],
+    "cables": [
+      { "id": "wc1", "fromDevice": "SW1", "fromPort": "FastEthernet0/1", "toDevice": "AP1", "toPort": "Ethernet1", "type": "straight" }
+    ]
+  },
+  "rubric": [
+    { "id": "w1", "category": "wireless", "title": "Draadloze Associatie Laptop met AP", "desc": "Laptop1 is verbonden met SSID PXL-Guest", "points": 50, "enabled": true, "checkType": "wireless_associated", "condition": { "clientId": "LAP1", "expectedAp": "AP1" } },
+    { "id": "w2", "category": "connectivity", "title": "Ping Test Laptop naar AP Gateway", "desc": "Laptop1 kan pingen naar 192.168.0.1", "points": 50, "enabled": true, "checkType": "ping_test", "condition": { "fromDevice": "LAP1", "targetIp": "192.168.0.1" } }
+  ]
+}

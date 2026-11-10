@@ -1,0 +1,23 @@
+{
+  "id": "02_cabling_scratch",
+  "title": "PXL SNE - Praktijkproef: Zelfstandig Bekabelen & Basisconfiguratie",
+  "timeLimitMinutes": 60,
+  "showLiveScore": true,
+  "instructions": "### Zelfstandig Bekabelen en Configureren\nPlaats een Router (4331), een Switch (2960) en een PC.\nVerbind de PC via FastEthernet0 met Switch Fa0/1 (Straight-Through).\nVerbind Switch Gi0/1 met Router Gi0/0/0 (Straight-Through).\nConfigureer IP 192.168.10.1/24 op de router en stel de PC in op 192.168.10.10.",
+  "initialTopology": {
+    "devices": [
+      { "id": "R1", "type": "router", "model": "4331", "hostname": "Router", "x": 500, "y": 150 },
+      { "id": "SW1", "type": "switch", "model": "2960-24TT", "hostname": "Switch", "x": 500, "y": 320 },
+      { "id": "PCA", "type": "pc", "model": "Standard", "hostname": "PC1", "x": 500, "y": 480 }
+    ],
+    "cables": []
+  },
+  "rubric": [
+    { "id": "cb1", "category": "cabling", "title": "Bekabeling PC naar Switch", "desc": "PCA Fa0 naar SW1 Fa0/1 via Straight-Through kabel", "points": 15, "enabled": true, "checkType": "cabling", "condition": { "fromDevice": "PCA", "fromPort": "FastEthernet0", "toDevice": "SW1", "toPort": "FastEthernet0/1", "cableType": "straight" } },
+    { "id": "cb2", "category": "cabling", "title": "Bekabeling Switch naar Router", "desc": "SW1 Gi0/1 naar R1 Gi0/0/0 via Straight-Through kabel", "points": 15, "enabled": true, "checkType": "cabling", "condition": { "fromDevice": "SW1", "fromPort": "GigabitEthernet0/1", "toDevice": "R1", "toPort": "GigabitEthernet0/0/0", "cableType": "straight" } },
+    { "id": "cfg1", "category": "interface_ip", "title": "Router Gi0/0/0 IP & UP", "desc": "IP 192.168.10.1 / 255.255.255.0 en no shutdown", "points": 20, "enabled": true, "checkType": "interface_ip", "condition": { "deviceId": "R1", "portName": "GigabitEthernet0/0/0", "expectedIp": "192.168.10.1", "expectedMask": "255.255.255.0" } },
+    { "id": "cfg2", "category": "hostname", "title": "Hostnames Geconfigureerd", "desc": "Geef router en switch een naam", "points": 15, "enabled": true, "checkType": "hostname" },
+    { "id": "ping1", "category": "connectivity", "title": "Ping Test PC naar Router Gateway", "desc": "PC1 kan pingen naar 192.168.10.1", "points": 25, "enabled": true, "checkType": "ping_test", "condition": { "fromDevice": "PCA", "targetIp": "192.168.10.1" } },
+    { "id": "save1", "category": "saving", "title": "Configuratie Opgeslagen", "desc": "copy run start uitgevoerd", "points": 10, "enabled": true, "checkType": "copy_run_start", "condition": { "targetDevice": "R1" } }
+  ]
+}

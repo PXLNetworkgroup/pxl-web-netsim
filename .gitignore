@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+submissions/*.pxlexam
+.env
+.venv/
+env/
+dist/
+build/
+*.egg-info/
+.DS_Store
+Thumbs.db

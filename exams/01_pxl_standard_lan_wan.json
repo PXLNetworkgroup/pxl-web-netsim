@@ -1,0 +1,39 @@
+{
+  "id": "01_pxl_standard",
+  "title": "PXL SNE - Netwerken 1: Basis Router & Switch Configuratie (Gert & David)",
+  "timeLimitMinutes": 80,
+  "showLiveScore": true,
+  "instructions": "### Doel van het Lab\nConfigureer het netwerk volgens het Cisco PXL lab model:\n- **LAN 1**: 172.16.1.0/24 (R1 Gi0/0/0 = .1, SW1 Vlan1 = .254, PCA = .5)\n- **WAN**: 192.168.1.160/30 (R1 Gi0/0/1 = .161, R2 Gi0/0/1 = .162)\n- **LAN 2**: 10.11.12.0/24 (R2 Gi0/0/0 = .1, SW2 Vlan1 = .254, PCB = .5)\n\nZorg voor unieke hostnames, enable secret, console wachtwoord, banner motd, interface IP's, statische routes en SSH.",
+  "initialTopology": {
+    "devices": [
+      { "id": "PCA", "type": "pc", "model": "Standard", "hostname": "PC1", "x": 80, "y": 240, "ip": "172.16.1.5", "mask": "255.255.255.0", "gateway": "172.16.1.1" },
+      { "id": "SW1", "type": "switch", "model": "2960-24TT", "hostname": "Switch", "x": 260, "y": 240 },
+      { "id": "R1",  "type": "router", "model": "4331", "hostname": "Router", "x": 440, "y": 240 },
+      { "id": "R2",  "type": "router", "model": "4331", "hostname": "Router", "x": 640, "y": 240 },
+      { "id": "SW2", "type": "switch", "model": "2960-24TT", "hostname": "Switch", "x": 820, "y": 240 },
+      { "id": "PCB", "type": "pc", "model": "Standard", "hostname": "PC2", "x": 1000, "y": 240, "ip": "10.11.12.5", "mask": "255.255.255.0", "gateway": "10.11.12.1" }
+    ],
+    "cables": [
+      { "id": "c1", "fromDevice": "PCA", "fromPort": "FastEthernet0", "toDevice": "SW1", "toPort": "FastEthernet0/1", "type": "straight" },
+      { "id": "c2", "fromDevice": "SW1", "fromPort": "GigabitEthernet0/1", "toDevice": "R1", "toPort": "GigabitEthernet0/0/0", "type": "straight" },
+      { "id": "c3", "fromDevice": "R1", "fromPort": "GigabitEthernet0/0/1", "toDevice": "R2", "toPort": "GigabitEthernet0/0/1", "type": "straight" },
+      { "id": "c4", "fromDevice": "R2", "fromPort": "GigabitEthernet0/0/0", "toDevice": "SW2", "toPort": "GigabitEthernet0/1", "type": "straight" },
+      { "id": "c5", "fromDevice": "SW2", "fromPort": "FastEthernet0/1", "toDevice": "PCB", "toPort": "FastEthernet0", "type": "straight" }
+    ]
+  },
+  "rubric": [
+    { "id": "r1", "category": "hostname", "title": "1. Unieke Hostnames", "desc": "Geef alle routers en switches een unieke naam", "points": 6, "enabled": true, "checkType": "hostname" },
+    { "id": "r2", "category": "security", "title": "2. Enable Secret", "desc": "Stel een gehasht enable secret in op alle apparaten", "points": 6, "enabled": true, "checkType": "enable_secret" },
+    { "id": "r3", "category": "security", "title": "3. Console Beveiliging", "desc": "Wachtwoord en login vereist op line con 0", "points": 6, "enabled": true, "checkType": "console_password" },
+    { "id": "r4", "category": "security", "title": "4. Banner MOTD", "desc": "Waarschuwingsbanner bij inloggen", "points": 6, "enabled": true, "checkType": "banner_motd" },
+    { "id": "r5", "category": "security", "title": "5. Password Encryption", "desc": "service password-encryption actief", "points": 8, "enabled": true, "checkType": "password_encryption" },
+    { "id": "r6", "category": "interface_ip", "title": "6. Router R1 Interface IPs & UP", "desc": "G0/0/0 (172.16.1.1) en G0/0/1 (192.168.1.161)", "points": 12, "enabled": true, "checkType": "interface_ip", "condition": { "deviceId": "R1", "portName": "GigabitEthernet0/0/0", "expectedIp": "172.16.1.1", "expectedMask": "255.255.255.0" } },
+    { "id": "r7", "category": "interface_ip", "title": "7. Router R2 Interface IPs & UP", "desc": "G0/0/0 (10.11.12.1) en G0/0/1 (192.168.1.162)", "points": 12, "enabled": true, "checkType": "interface_ip", "condition": { "deviceId": "R2", "portName": "GigabitEthernet0/0/0", "expectedIp": "10.11.12.1", "expectedMask": "255.255.255.0" } },
+    { "id": "r8", "category": "vlan", "title": "8. Switch SW1 Management IP (VLAN 1)", "desc": "172.16.1.254/24 en default gateway 172.16.1.1", "points": 8, "enabled": true, "checkType": "switch_svi", "condition": { "switchId": "SW1", "expectedIp": "172.16.1.254", "expectedMask": "255.255.255.0", "expectedGateway": "172.16.1.1" } },
+    { "id": "r9", "category": "vlan", "title": "9. Switch SW2 Management IP (VLAN 1)", "desc": "10.11.12.254/24 en default gateway 10.11.12.1", "points": 8, "enabled": true, "checkType": "switch_svi", "condition": { "switchId": "SW2", "expectedIp": "10.11.12.254", "expectedMask": "255.255.255.0", "expectedGateway": "10.11.12.1" } },
+    { "id": "r10", "category": "routing", "title": "10. Statische Routering R1 naar LAN 2", "desc": "Route naar 10.11.12.0/24 via 192.168.1.162 of default route", "points": 10, "enabled": true, "checkType": "static_route", "condition": { "routerId": "R1", "network": "10.11.12.0", "mask": "255.255.255.0", "nextHop": "192.168.1.162" } },
+    { "id": "r11", "category": "routing", "title": "11. Statische Routering R2 naar LAN 1", "desc": "Route naar 172.16.1.0/24 via 192.168.1.161 of default route", "points": 10, "enabled": true, "checkType": "static_route", "condition": { "routerId": "R2", "network": "172.16.1.0", "mask": "255.255.255.0", "nextHop": "192.168.1.161" } },
+    { "id": "r12", "category": "connectivity", "title": "12. End-to-End Ping PC1 naar PC2", "desc": "PCA (172.16.1.5) kan succesvol pingen naar PCB (10.11.12.5)", "points": 10, "enabled": true, "checkType": "ping_test", "condition": { "fromDevice": "PCA", "targetIp": "10.11.12.5" } },
+    { "id": "r13", "category": "saving", "title": "13. Configuratie Opgeslagen (NVRAM)", "desc": "Running-config opgeslagen met copy run start op routers", "points": 6, "enabled": true, "checkType": "copy_run_start", "condition": { "targetDevice": "R1" } }
+  ]
+}

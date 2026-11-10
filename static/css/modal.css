@@ -1,0 +1,566 @@
+/**
+ * modal.css - Device Modal, Physical Faceplates, Desktop Apps, and Teacher Studio
+ * Part of PXL Web NetSim (Hogeschool PXL)
+ */
+
+.pt-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(2px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+/* DEVICE MODAL DIALOG */
+.pt-device-dialog {
+  width: 820px;
+  height: 600px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--pt-border);
+}
+
+.pt-device-header {
+  height: 44px;
+  background: #f1f5f9;
+  border-bottom: 1px solid var(--pt-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+.pt-device-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.pt-btn-close {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  font-weight: bold;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.pt-btn-close:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.pt-device-tabs {
+  height: 38px;
+  background: #e2e8f0;
+  display: flex;
+  padding: 0 12px;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.pt-tab-btn {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #cbd5e1;
+  border: none;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  cursor: pointer;
+  color: #475569;
+}
+
+.pt-tab-btn.active {
+  background: #ffffff;
+  color: #0284c7;
+}
+
+.pt-device-body {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+}
+
+.pt-modal-pane {
+  flex: 1;
+  display: none;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.pt-modal-pane.active {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 1. PHYSICAL TAB */
+.pt-physical-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #f8fafc;
+  height: 100%;
+}
+
+.pt-physical-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  padding: 12px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--pt-border);
+}
+
+.pt-power-switch-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pt-power-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+.pt-power-btn.on {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.pt-power-btn.off {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+/* Realistic Hardware Chassis Faceplate */
+.pt-faceplate-chassis {
+  background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+  border-radius: 6px;
+  border: 3px solid #0f172a;
+  padding: 16px;
+  box-shadow: inset 0 2px 4px rgba(255,255,255,0.1), 0 8px 16px rgba(0,0,0,0.2);
+  color: #ffffff;
+}
+
+.pt-faceplate-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #94a3b8;
+  border-bottom: 1px solid #475569;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+.pt-cisco-logo {
+  font-weight: 800;
+  color: #38bdf8;
+  letter-spacing: 1px;
+}
+
+.pt-faceplate-ports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pt-chassis-port {
+  width: 58px;
+  height: 64px;
+  background: #0f172a;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+  padding: 4px;
+}
+
+.pt-port-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.pt-port-led.green {
+  background: #22c55e;
+  box-shadow: 0 0 6px #22c55e;
+}
+
+.pt-port-led.amber {
+  background: #f59e0b;
+  box-shadow: 0 0 6px #f59e0b;
+}
+
+.pt-port-jack {
+  width: 24px;
+  height: 16px;
+  background: #334155;
+  border: 1px solid #64748b;
+  border-radius: 2px;
+}
+
+.pt-port-name {
+  font-size: 9px;
+  font-family: 'Consolas', monospace;
+  color: #cbd5e1;
+}
+
+/* 2. CONFIG TAB */
+.pt-config-layout {
+  display: flex;
+  height: 100%;
+}
+
+.pt-config-sidebar {
+  width: 200px;
+  background: #f1f5f9;
+  border-right: 1px solid var(--pt-border);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.pt-config-sidebar h4 {
+  font-size: 12px;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.pt-sidebar-port-btn {
+  padding: 8px 10px;
+  font-size: 11px;
+  font-family: 'Consolas', monospace;
+  text-align: left;
+  border: 1px solid var(--pt-border);
+  background: #ffffff;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pt-sidebar-port-btn:hover {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.pt-config-body {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.pt-form-group {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pt-form-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.pt-input, .pt-textarea {
+  padding: 8px 12px;
+  font-size: 12px;
+  border: 1px solid var(--pt-border);
+  border-radius: 6px;
+  outline: none;
+  font-family: inherit;
+}
+
+.pt-input:focus, .pt-textarea:focus {
+  border-color: var(--pxl-blue);
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.pt-checkbox-label {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.pt-help-text {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 8px;
+}
+
+/* 4. DESKTOP TAB */
+.pt-desktop-grid {
+  height: 80px;
+  background: #f1f5f9;
+  border-bottom: 1px solid var(--pt-border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 24px;
+}
+
+.pt-desktop-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.pt-desktop-icon:hover {
+  background: #e2e8f0;
+}
+
+.pt-desktop-app-icon {
+  font-size: 26px;
+}
+
+.pt-desktop-icon span {
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.pt-pc-app-viewport {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background: #ffffff;
+}
+
+.pt-app-window {
+  border: 1px solid var(--pt-border);
+  border-radius: 6px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.pt-cmd-window {
+  padding: 0;
+  border: none;
+  height: 100%;
+}
+
+/* TEACHER STUDIO DIALOG */
+.pt-studio-dialog {
+  width: 900px;
+  height: 650px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--pt-border);
+}
+
+.pt-studio-header {
+  height: 50px;
+  background: #0f172a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.pt-studio-badge {
+  font-size: 10px;
+  font-weight: 800;
+  background: var(--pxl-accent);
+  color: #0f172a;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 8px;
+}
+
+.pt-studio-title h3 {
+  font-size: 14px;
+  display: inline;
+}
+
+.pt-studio-tabs {
+  height: 40px;
+  background: #1e293b;
+  display: flex;
+  padding: 0 16px;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.pt-studio-tabs .pt-tab-btn {
+  background: #334155;
+  color: #cbd5e1;
+}
+
+.pt-studio-tabs .pt-tab-btn.active {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.pt-studio-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.pt-studio-pane {
+  display: none;
+}
+
+.pt-studio-pane.active {
+  display: block;
+}
+
+.pt-form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.pt-form-row .pt-form-group {
+  flex: 1;
+}
+
+.pt-snapshot-actions {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.pt-summary-box {
+  padding: 12px;
+  border: 1px solid var(--pt-border);
+  border-radius: 6px;
+  background: #f8fafc;
+  font-size: 12px;
+}
+
+.pt-rubric-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.pt-total-points-badge {
+  font-size: 14px;
+  color: #0284c7;
+}
+
+.pt-rubric-items-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.pt-rubric-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--pt-border);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.pt-rubric-info {
+  flex: 1;
+}
+
+.pt-rubric-title-input {
+  width: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  padding: 2px 4px;
+}
+
+.pt-rubric-title-input:hover, .pt-rubric-title-input:focus {
+  border-color: #cbd5e1;
+}
+
+.pt-rubric-desc {
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.pt-rubric-points-input {
+  width: 50px;
+  padding: 4px;
+  font-size: 12px;
+  border: 1px solid var(--pt-border);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.pt-btn-del {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.pt-pka-dropzone {
+  border: 2px dashed #94a3b8;
+  border-radius: 8px;
+  padding: 40px;
+  text-align: center;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.pt-pka-icon {
+  font-size: 40px;
+}
+
+.pt-file-input {
+  margin: 10px 0;
+}
+
+.pt-studio-footer {
+  height: 54px;
+  background: #f8fafc;
+  border-top: 1px solid var(--pt-border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 20px;
+  gap: 12px;
+}

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PXL NetSim - Cisco Packet Tracer Web Exam Platform</title>
+  <link rel="icon" type="image/png" href="img/pxl_logo.png">
+  <link rel="stylesheet" href="css/packet_tracer.css">
+  <link rel="stylesheet" href="css/modal.css">
+  <link rel="stylesheet" href="css/terminal.css">
+</head>
+<body>
+
+  <!-- TOP HEADER NAVIGATION (PXL BRANDED) -->
+  <header class="pt-header">
+    <div class="pt-brand">
+      <img src="img/pxl_logo.png" alt="Hogeschool PXL" class="pt-brand-logo">
+      <div class="pt-brand-titles">
+        <h1>PXL NetSim • Cisco IOS Exam & Lab Platform</h1>
+        <p>© Parren, Van Waeyenberg, Frissaer, Jean, Hombroeks • Hogeschool PXL (Toegepaste Informatica / SNE)</p>
+      </div>
+    </div>
+
+    <div class="pt-header-center">
+      <select id="examSelector" class="pt-input" style="font-weight: 600; max-width: 260px;">
+        <option value="01_pxl_standard">Lab 1: PXL LAN/WAN Routing (Standaard)</option>
+        <option value="02_cabling_scratch">Lab 2: Zelfstandig Bekabelen & Setup</option>
+        <option value="03_wireless_lan">Lab 3: Wireless LAN & WPA2-PSK</option>
+      </select>
+
+      <div class="pt-timer-badge">
+        ⏱️ <span id="examTimer">80:00</span>
+      </div>
+
+      <div class="pt-score-badge">
+        <span class="pt-score-text" id="scoreText">Score: 0%</span>
+        <div class="pt-score-progress">
+          <div class="pt-score-bar" id="scoreBar"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-header-actions">
+      <button class="pt-btn pt-btn-secondary" id="btnShowRubric">
+        📋 Beoordelingsrubric
+      </button>
+      <button class="pt-btn pt-btn-accent" id="btnToggleStudio">
+        🛠️ Teacher Studio
+      </button>
+      <button class="pt-btn pt-btn-primary" id="btnSubmitExam">
+        🚀 Examen Inleveren
+      </button>
+    </div>
+  </header>
+
+  <!-- WORKSPACE TOOLBAR -->
+  <div class="pt-toolbar">
+    <div class="pt-tool-group">
+      <button class="pt-tool-btn active" id="toolSelect" onclick="window.PXLApp.canvasWorkspace.setTool('select')">
+        <span>↖️ Selecteer</span>
+      </button>
+      <button class="pt-tool-btn" id="toolDelete" onclick="window.PXLApp.canvasWorkspace.setTool('delete')">
+        <span>❌ Verwijderen</span>
+      </button>
+    </div>
+
+    <div class="pt-tool-group">
+      <button class="pt-tool-btn" onclick="window.PXLApp.canvasWorkspace.scale *= 1.15; window.PXLApp.canvasWorkspace.render()">
+        <span>🔍+ Zoom In</span>
+      </button>
+      <button class="pt-tool-btn" onclick="window.PXLApp.canvasWorkspace.scale *= 0.85; window.PXLApp.canvasWorkspace.render()">
+        <span>🔍- Zoom Uit</span>
+      </button>
+      <button class="pt-tool-btn" onclick="window.PXLApp.canvasWorkspace.resetZoom()">
+        <span>🎯 Reset Zoom</span>
+      </button>
+    </div>
+
+    <span id="examTitleLabel" class="pt-exam-title-badge">PXL SNE - Cisco Lab</span>
+  </div>
+
+  <!-- MAIN WORKSPACE CANVAS -->
+  <main class="pt-workspace">
+    <div id="canvasContainer"></div>
+  </main>
+
+  <!-- BOTTOM PACKET TRACER DEVICE SHELF -->
+  <footer class="pt-device-shelf">
+    <div class="pt-shelf-categories">
+      <button class="pt-category-btn active">🌐 Netwerkapparaten & Kabels</button>
+    </div>
+    <div class="pt-shelf-items" id="deviceShelfItems">
+      <!-- Dynamically populated shelf items (Routers, Switches, PCs, Cables) -->
+    </div>
+  </footer>
+
+  <!-- SLIDE-OUT RUBRIC PANEL -->
+  <aside class="pt-rubric-side-panel" id="rubricSidePanel">
+    <div id="rubricSidePanelContent"></div>
+  </aside>
+
+  <!-- DEVICE CONFIGURATION & INTERACTION MODAL -->
+  <div class="pt-modal-overlay" id="deviceModal">
+    <div class="pt-device-dialog">
+      <div class="pt-device-header">
+        <h3 id="modalDeviceTitle">Router0 (Cisco 4331)</h3>
+        <button class="pt-btn-close" onclick="window.PXLApp.closeDeviceModal()">✕</button>
+      </div>
+
+      <div class="pt-device-tabs">
+        <button class="pt-tab-btn" id="tabBtnPhysical" onclick="window.PXLApp.switchDeviceModalTab('physical')">Physical (Hardware)</button>
+        <button class="pt-tab-btn" id="tabBtnConfig" onclick="window.PXLApp.switchDeviceModalTab('config')">Config (GUI)</button>
+        <button class="pt-tab-btn active" id="tabBtnCli" onclick="window.PXLApp.switchDeviceModalTab('cli')">CLI (Cisco IOS)</button>
+        <button class="pt-tab-btn" id="tabBtnDesktop" onclick="window.PXLApp.switchDeviceModalTab('desktop')" style="display:none;">Desktop (Apps)</button>
+      </div>
+
+      <div class="pt-device-body">
+        <div class="pt-modal-pane" id="modalPanePhysical"></div>
+        <div class="pt-modal-pane" id="modalPaneConfig"></div>
+        <div class="pt-modal-pane active" id="modalPaneCli"></div>
+        <div class="pt-modal-pane" id="modalPaneDesktop"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUBMISSION MODAL -->
+  <div class="pt-modal-overlay" id="submissionModal">
+    <div class="pt-device-dialog" style="width: 500px; height: 380px;">
+      <div class="pt-device-header">
+        <h3>Examen Inleveren (Schoolyear / Blackboard)</h3>
+        <button class="pt-btn-close" onclick="window.PXLApp.closeSubmissionModal()">✕</button>
+      </div>
+      <div class="pt-physical-container" style="justify-content: center;">
+        <p style="font-size: 13px; color: #334155; margin-bottom: 12px;">
+          Vul je studentengegevens in om je officiële, cryptografisch ondertekende examenbestand (<code>.pxlexam</code>) te downloaden voor Blackboard.
+        </p>
+        <div class="pt-form-group">
+          <label>Voor- en Achternaam:</label>
+          <input type="text" id="subStudentName" class="pt-input" placeholder="bv. David Parren" required>
+        </div>
+        <div class="pt-form-group">
+          <label>Studentennummer (r-nummer):</label>
+          <input type="text" id="subStudentNum" class="pt-input" placeholder="bv. 12600786" required>
+        </div>
+        <div class="pt-form-group">
+          <label>Klasgroep:</label>
+          <input type="text" id="subStudentGroup" class="pt-input" value="1SNE" required>
+        </div>
+        <button class="pt-btn pt-btn-primary" style="margin-top: 10px; width: 100%; justify-content: center;" onclick="window.PXLApp.submitExamPackage()">
+          📥 Download Inzending (.pxlexam)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div class="pt-toast" id="toastNotification">Actie uitgevoerd</div>
+
+  <!-- MODULAR JAVASCRIPT BUNDLE -->
+  <script src="js/cisco_icons.js"></script>
+  <script src="js/cisco_crypto.js"></script>
+  <script src="js/cisco_device.js"></script>
+  <script src="js/cisco_cli.js"></script>
+  <script src="js/pc_desktop.js"></script>
+  <script src="js/network_simulator.js"></script>
+  <script src="js/cabling_engine.js"></script>
+  <script src="js/canvas_workspace.js"></script>
+  <script src="js/grading_engine.js"></script>
+  <script src="js/submission_exporter.js"></script>
+  <script src="js/teacher_studio.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
