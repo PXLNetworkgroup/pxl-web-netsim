@@ -1,0 +1,132 @@
+{
+  "id": "h04_pt1_dns_http",
+  "code": "H04-PT1",
+  "chapter": "Hoofdstuk 04 - DNS, DHCP & Web Services",
+  "title": "Les 04 PT: DHCP, DNS en HTTP Webserver in Simulation Mode",
+  "timeLimitMinutes": 75,
+  "showLiveScore": true,
+  "liveInternet": false,
+  "instructions": "## Les 04 PT: DHCP + DNS + HTTP\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les04_PT_DNS.html](https://vwgert.github.io/networksess/Les04_PT_DNS.html)\n\n### Adresering & Server Rollen:\n| Server | IP-adres | Actieve Dienst | Details |\n| :--- | :--- | :--- | :--- |\n| **DHCP-Server** | `192.168.1.150` | DHCP Server | Pool: `192.168.1.10` - `.50`, DNS: `192.168.1.100` |\n| **DNS-Server**  | `192.168.1.100` | DNS Service | Record: `www.pxl.be` -> `192.168.1.200` |\n| **WEB-Server**  | `192.168.1.200` | HTTP Service | Bevat `index.html` en `style.css` |\n\n### Opdrachten:\n1. Sluit de servers en clients (PC0, Laptop0) aan op `Switch0`.\n2. Configureer op `DNS-Server` een DNS A-record voor `www.pxl.be` wijzend naar `192.168.1.200`.\n3. Stel op `PC0` en `Laptop0` de netwerkadapter in met DNS Server: `192.168.1.100`.\n4. Test DNS-resolutie vanuit PowerShell:\n   - `Resolve-DnsName www.pxl.be`\n   - `nslookup www.pxl.be`\n5. Surf in de Web Browser van PC0 naar `http://www.pxl.be` of voer uit: `Invoke-WebRequest http://www.pxl.be`.\n",
+  "initialTopology": {
+    "devices": [
+      {
+        "id": "Switch0",
+        "name": "Switch0",
+        "type": "switch",
+        "model": "2960-24TT",
+        "x": 380,
+        "y": 240
+      },
+      {
+        "id": "DNS-Server",
+        "name": "DNS-Server",
+        "type": "server",
+        "x": 160,
+        "y": 80,
+        "ip": "192.168.1.100",
+        "mask": "255.255.255.0",
+        "services": {
+          "dns": {
+            "enabled": true,
+            "records": [
+              {
+                "name": "www.pxl.be",
+                "type": "A",
+                "ip": "192.168.1.200"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "WEB-Server",
+        "name": "WEB-Server",
+        "type": "server",
+        "x": 600,
+        "y": 80,
+        "ip": "192.168.1.200",
+        "mask": "255.255.255.0",
+        "services": {
+          "http": {
+            "enabled": true,
+            "content": "<h1>Hogeschool PXL</h1><p>Welkom op www.pxl.be via de lokale DNS-server!</p>"
+          }
+        }
+      },
+      {
+        "id": "PC0",
+        "name": "PC0",
+        "type": "pc",
+        "x": 180,
+        "y": 380,
+        "ip": "192.168.1.10",
+        "mask": "255.255.255.0",
+        "dns": "192.168.1.100"
+      },
+      {
+        "id": "Laptop0",
+        "name": "Laptop0",
+        "type": "laptop",
+        "x": 580,
+        "y": 380,
+        "ip": "192.168.1.20",
+        "mask": "255.255.255.0",
+        "dns": "192.168.1.100"
+      }
+    ],
+    "cables": [
+      {
+        "fromDevice": "DNS-Server",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch0",
+        "toPort": "FastEthernet0/1"
+      },
+      {
+        "fromDevice": "WEB-Server",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch0",
+        "toPort": "FastEthernet0/2"
+      },
+      {
+        "fromDevice": "PC0",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch0",
+        "toPort": "FastEthernet0/3"
+      },
+      {
+        "fromDevice": "Laptop0",
+        "fromPort": "FastEthernet0",
+        "toDevice": "Switch0",
+        "toPort": "FastEthernet0/4"
+      }
+    ]
+  },
+  "rubric": [
+    {
+      "id": "dns_record",
+      "description": "DNS A-record www.pxl.be -> 192.168.1.200 aanwezig op DNS-Server",
+      "type": "dns_record",
+      "device": "DNS-Server",
+      "recordName": "www.pxl.be",
+      "targetIp": "192.168.1.200",
+      "points": 35
+    },
+    {
+      "id": "dns_resolv",
+      "description": "Succesvolle DNS resolutie van www.pxl.be vanaf PC0",
+      "type": "dns_resolution",
+      "from": "PC0",
+      "query": "www.pxl.be",
+      "expectedIp": "192.168.1.200",
+      "points": 35
+    },
+    {
+      "id": "web_access",
+      "description": "Succesvol surfen naar http://www.pxl.be vanaf PC0",
+      "type": "http_web_test",
+      "from": "PC0",
+      "target": "www.pxl.be",
+      "points": 30
+    }
+  ]
+}

@@ -64,3 +64,30 @@
   caret-color: #38bdf8;
 }
 
+/* Windows PowerShell Theme */
+.pt-powershell-window {
+  background-color: #012456 !important;
+  color: #eeedf0 !important;
+  border: 1px solid #023882;
+}
+
+.pt-powershell-window .pt-terminal-screen {
+  background-color: #012456 !important;
+  color: #eeedf0 !important;
+}
+
+.pt-powershell-window .pt-terminal-input-bar {
+  background-color: #012456 !important;
+  border-top: 1px solid #03449e !important;
+}
+
+.pt-powershell-window .pt-terminal-prompt {
+  color: #ffff80 !important;
+  font-weight: 700;
+}
+
+.pt-powershell-window .pt-terminal-input {
+  color: #ffffff !important;
+  caret-color: #ffff80 !important;
+}
+

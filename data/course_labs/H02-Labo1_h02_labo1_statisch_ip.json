@@ -1,0 +1,87 @@
+{
+  "id": "h02_labo1_statisch_ip",
+  "code": "H02-Labo1",
+  "chapter": "Hoofdstuk 02 - Statische IP-Adresering & Webserver",
+  "title": "Les 02 Labo: Statische IP-configuratie (PC ↔ Webserver)",
+  "timeLimitMinutes": 50,
+  "showLiveScore": true,
+  "liveInternet": false,
+  "instructions": "## Les 02 Labo: Statische IP-configuratie (PC ↔ Server)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les02_PT_Statisch_IP.html](https://vwgert.github.io/networksess/Les02_PT_Statisch_IP.html)\n\n### Adreseringstabel:\n| Toestel | Interface | IP-adres | Subnetmasker | Rol |\n| :--- | :--- | :--- | :--- | :--- |\n| **PC0** | FastEthernet0 | `192.168.1.10` | `255.255.255.0` | Client host |\n| **Server0** | FastEthernet0 | `192.168.1.2` | `255.255.255.0` | HTTP Webserver |\n\n### Opdrachten:\n1. Verbind `PC0` rechtstreeks met `Server0` met een straight-through of cross-over netwerkkabel.\n2. Stel op `PC0` het IP-adres in op `192.168.1.10` met subnetmasker `255.255.255.0`.\n   *(Tip: Dit kan via Desktop -> IP Configuration OF via PowerShell met: `Set-NetIPAddress -IPAddress 192.168.1.10 -PrefixLength 24`)*\n3. Stel op `Server0` het IP-adres in op `192.168.1.2` met subnetmasker `255.255.255.0`.\n4. Controleer op `Server0` bij **Services -> HTTP** dat de webserver ingeschakeld (On) is.\n5. Test connectiviteit:\n   - Voer op `PC0` in PowerShell uit: `Test-NetConnection 192.168.1.2 -Port 80`\n   - Open de **Web Browser** op `PC0` en surf naar `http://192.168.1.2` of voer in PowerShell uit: `Invoke-WebRequest http://192.168.1.2`\n",
+  "initialTopology": {
+    "devices": [
+      {
+        "id": "PC0",
+        "name": "PC0",
+        "type": "pc",
+        "x": 180,
+        "y": 200,
+        "dhcpEnabled": false,
+        "ip": "",
+        "mask": ""
+      },
+      {
+        "id": "Server0",
+        "name": "Server0",
+        "type": "server",
+        "x": 520,
+        "y": 200,
+        "dhcpEnabled": false,
+        "ip": "192.168.1.2",
+        "mask": "255.255.255.0",
+        "services": {
+          "http": {
+            "enabled": true,
+            "content": "<h1>PXL Web Server</h1><p>Welkom op het statisch IP labo!</p>"
+          }
+        }
+      }
+    ],
+    "cables": []
+  },
+  "rubric": [
+    {
+      "id": "cable_connected",
+      "description": "Kabelverbinding aanwezig tussen PC0 en Server0",
+      "type": "cable_connection",
+      "dev1": "PC0",
+      "port1": "FastEthernet0",
+      "dev2": "Server0",
+      "port2": "FastEthernet0",
+      "points": 25
+    },
+    {
+      "id": "pc0_ip",
+      "description": "PC0 correct geconfigureerd met IP 192.168.1.10 en masker 255.255.255.0",
+      "type": "ip_config",
+      "device": "PC0",
+      "ip": "192.168.1.10",
+      "mask": "255.255.255.0",
+      "points": 25
+    },
+    {
+      "id": "server0_ip",
+      "description": "Server0 correct geconfigureerd met IP 192.168.1.2 en masker 255.255.255.0",
+      "type": "ip_config",
+      "device": "Server0",
+      "ip": "192.168.1.2",
+      "mask": "255.255.255.0",
+      "points": 20
+    },
+    {
+      "id": "ping_test",
+      "description": "Succesvolle ping tussen PC0 en Server0",
+      "type": "ping_test",
+      "from": "PC0",
+      "to": "192.168.1.2",
+      "points": 15
+    },
+    {
+      "id": "http_test",
+      "description": "Webserver bereikbaar via HTTP op 192.168.1.2",
+      "type": "http_web_test",
+      "from": "PC0",
+      "target": "192.168.1.2",
+      "points": 15
+    }
+  ]
+}

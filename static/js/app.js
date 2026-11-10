@@ -156,6 +156,13 @@ class PXLNetSimApp {
         ]
       }
     };
+
+    // Load Course Labs from vwgert.github.io/networksess
+    if (window.PXL_COURSE_LABS && Array.isArray(window.PXL_COURSE_LABS)) {
+      window.PXL_COURSE_LABS.forEach(lab => {
+        this.presetExams[lab.id] = lab;
+      });
+    }
   }
 
   loadExam(exam) {
@@ -213,8 +220,10 @@ class PXLNetSimApp {
       // Network Devices - MikroTik & OpenWrt Routers
       { type: 'mikrotik', model: 'hEX lite (RB750r2)', label: 'MikroTik hEX lite', category: 'routers' },
       { type: 'openwrt', model: 'OpenWrt 23.05', label: 'OpenWrt Router', category: 'routers' },
-      // Global Internet Simulator
-      { type: 'internet_cloud', model: 'PXL Global Internet', label: 'Het Internet', category: 'routers' },
+      // Internet Gateways (Public Real NAT & Simulated Welkom op het Internet)
+      { type: 'internet_simulated', model: 'PXL Internet (Simulated)', label: 'Internet (Simulated)', category: 'routers' },
+      { type: 'internet_public', model: 'PXL Internet (Public NAT)', label: 'Internet (Public)', category: 'routers' },
+      { type: 'internet_cloud', model: 'PXL Global Internet', label: 'Het Internet (Hybrid)', category: 'routers' },
       // Network Devices - Switches
       { type: 'switch', model: '2960-24TT', label: '2960-24TT Switch', category: 'switches' },
       { type: 'switch', model: '3560-24PS', label: '3560 Multilayer', category: 'switches' },
@@ -286,6 +295,7 @@ class PXLNetSimApp {
     }
 
     // Exam selector
+    this.populateExamSelector();
     const examSelect = document.getElementById('examSelector');
     if (examSelect) {
       examSelect.onchange = (e) => {
@@ -307,6 +317,79 @@ class PXLNetSimApp {
     if (submitBtn) {
       submitBtn.onclick = () => this.openSubmissionModal();
     }
+  }
+
+  populateExamSelector(selectedId) {
+    const examSelect = document.getElementById('examSelector');
+    if (!examSelect) return;
+    examSelect.innerHTML = '';
+
+    const ogDefault = document.createElement('optgroup');
+    ogDefault.label = 'Standaard PXL Examens';
+    ogDefault.innerHTML = `
+      <option value="01_pxl_standard">Lab 1: PXL LAN/WAN Routing (Standaard)</option>
+      <option value="02_cabling_scratch">Lab 2: Zelfstandig Bekabelen & Setup</option>
+      <option value="03_wireless_lan">Lab 3: Wireless LAN & WPA2-PSK</option>
+    `;
+    examSelect.appendChild(ogDefault);
+
+    if (window.PXL_COURSE_LABS && Array.isArray(window.PXL_COURSE_LABS)) {
+      const ogCourse = document.createElement('optgroup');
+      ogCourse.label = 'Cursus Labs (vwgert.github.io/networksess)';
+      window.PXL_COURSE_LABS.forEach(lab => {
+        const opt = document.createElement('option');
+        opt.value = lab.id;
+        opt.innerText = `${lab.code} - ${lab.title.split(':')[1]?.trim() || lab.title}`;
+        ogCourse.appendChild(opt);
+      });
+      examSelect.appendChild(ogCourse);
+    }
+
+    if (selectedId) examSelect.value = selectedId;
+  }
+
+  exportCurrentLabJson() {
+    if (!this.activeExam) return;
+    const currentTopo = this.sim.exportTopology();
+    const exportData = {
+      ...this.activeExam,
+      initialTopology: currentTopo
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+    const dlAnchorElem = document.createElement('a');
+    dlAnchorElem.setAttribute("href", dataStr);
+    const safeTitle = (exportData.code || exportData.id || 'PXL_Lab').replace(/[^a-zA-Z0-9_-]/g, '_');
+    dlAnchorElem.setAttribute("download", `${safeTitle}.json`);
+    dlAnchorElem.click();
+    this.showToast(`📤 Lab '${exportData.title}' succesvol geëxporteerd als JSON!`);
+  }
+
+  importLabJson() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const lab = JSON.parse(event.target.result);
+          if (!lab.id || !lab.title) {
+            throw new Error("Ongeldig labformaat: 'id' en 'title' zijn verplicht.");
+          }
+          this.presetExams[lab.id] = lab;
+          this.populateExamSelector(lab.id);
+          this.loadExam(lab);
+          this.showToast(`📥 Lab '${lab.title}' succesvol geïmporteerd en geactiveerd!`);
+        } catch (err) {
+          alert(`Fout bij importeren van lab JSON: ${err.message}`);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }
   }
 
   // --- DEVICE MODAL (PHYSICAL / CONFIG / CLI / DESKTOP) ---
@@ -331,13 +414,13 @@ class PXLNetSimApp {
         cliTabBtn.innerText = 'CLI (RouterOS)';
       } else if (device.type === 'openwrt') {
         cliTabBtn.innerText = 'CLI (Ash Linux)';
-      } else if (device.type === 'internet_cloud') {
-        cliTabBtn.innerText = 'Status (Het Internet)';
+      } else if (device.type === 'internet_cloud' || device.type === 'internet_simulated' || device.type === 'internet_public') {
+        cliTabBtn.innerText = device.type === 'internet_public' ? 'Status (Internet Public NAT)' : 'Status (Het Internet)';
       } else {
         cliTabBtn.innerText = 'CLI (Cisco IOS)';
       }
     }
-    if (desktopTabBtn) desktopTabBtn.style.display = (device.type === 'pc' || device.type === 'laptop') ? 'inline-block' : 'none';
+    if (desktopTabBtn) desktopTabBtn.style.display = isHost ? 'inline-block' : 'none';
     if (servicesTabBtn) servicesTabBtn.style.display = isServer ? 'inline-block' : 'none';
 
     // Switch to primary operational tab
@@ -564,17 +647,24 @@ class PXLNetSimApp {
     const container = document.getElementById('modalPaneCli');
     if (!dev || !container) return;
 
-    // Internet Cloud Simulator Status View
-    if (dev.type === 'internet_cloud') {
-      const isLive = this.sim.liveInternetEnabled;
+    // Internet Gateway Views (Public NAT / Simulated / Hybrid)
+    if (dev.type === 'internet_cloud' || dev.type === 'internet_simulated' || dev.type === 'internet_public') {
+      const isPublicOnly = (dev.type === 'internet_public');
+      const isSimOnly = (dev.type === 'internet_simulated');
+      const isLive = isPublicOnly ? true : (isSimOnly ? false : this.sim.liveInternetEnabled);
+
       container.innerHTML = `
         <div style="background: #0f172a; color: #f8fafc; padding: 25px; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
           <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 15px; margin-bottom: 18px;">
             <div style="display: flex; align-items: center; gap: 12px;">
               <span style="font-size: 32px;">🌐</span>
               <div>
-                <h3 style="margin: 0; color: #38bdf8;">Het Internet (PXL Global Cloud Gateway)</h3>
-                <span style="font-size: 12px; color: #94a3b8;">Virtuele WAN Gateway &bull; PXL NetSim</span>
+                <h3 style="margin: 0; color: #38bdf8;">
+                  ${isPublicOnly ? 'Het Internet (Public NAT Bridge)' : (isSimOnly ? 'Het Internet (Gesimuleerd • Examen)' : 'Het Internet (PXL Global Cloud Gateway)')}
+                </h3>
+                <span style="font-size: 12px; color: #94a3b8;">
+                  ${isPublicOnly ? 'Fysieke Netwerkadapter &bull; Echte Internettoegang' : (isSimOnly ? 'Gesloten Simulatiewebsite &bull; Examenveilig' : 'Virtuele WAN Gateway &bull; PXL NetSim')}
+                </span>
               </div>
             </div>
             <div style="background: ${isLive ? '#065f46' : '#1e3a8a'}; color: ${isLive ? '#34d399' : '#60a5fa'}; font-weight: bold; font-size: 12px; padding: 5px 14px; border-radius: 20px; border: 1px solid ${isLive ? '#059669' : '#3b82f6'};">
@@ -582,25 +672,34 @@ class PXLNetSimApp {
             </div>
           </div>
 
-          <!-- Interactive Live Internet NAT Gateway Switch -->
-          <div style="background: #1e293b; padding: 16px 20px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">
-            <div style="max-width: 65%;">
-              <strong style="color: #38bdf8; font-size: 14px;">🌐 Fysieke Internet NAT Bridge:</strong>
-              <div style="font-size: 12px; color: #94a3b8; margin-top: 3px; line-height: 1.4;">
-                Koppel deze virtuele cloud aan de fysieke adapter van de server (Google Cloud Run / Host). Wanneer actief, krijgen studenten vanuit de browser en pings <strong>echte live internettoegang</strong>.
+          ${(!isPublicOnly && !isSimOnly) ? `
+            <!-- Interactive Live Internet NAT Gateway Switch (Hybrid Device) -->
+            <div style="background: #1e293b; padding: 16px 20px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">
+              <div style="max-width: 65%;">
+                <strong style="color: #38bdf8; font-size: 14px;">🌐 Fysieke Internet NAT Bridge Schakelaar:</strong>
+                <div style="font-size: 12px; color: #94a3b8; margin-top: 3px; line-height: 1.4;">
+                  Koppel deze wolk aan de fysieke adapter van de server (Google Cloud Run / Host).
+                </div>
               </div>
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; background: #0f172a; padding: 8px 16px; border-radius: 24px; border: 2px solid ${isLive ? '#10b981' : '#475569'};">
+                <input type="checkbox" id="chkLiveInternetModal" ${isLive ? 'checked' : ''} onchange="window.PXLApp.toggleLiveInternet(this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
+                <span style="font-weight: 800; font-size: 12px; color: ${isLive ? '#34d399' : '#cbd5e1'};">
+                  ${isLive ? 'LIVE NAT AAN' : 'SIMULATIE'}
+                </span>
+              </label>
             </div>
-            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; background: #0f172a; padding: 8px 16px; border-radius: 24px; border: 2px solid ${isLive ? '#10b981' : '#475569'};">
-              <input type="checkbox" id="chkLiveInternetModal" ${isLive ? 'checked' : ''} onchange="window.PXLApp.toggleLiveInternet(this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
-              <span style="font-weight: 800; font-size: 12px; color: ${isLive ? '#34d399' : '#cbd5e1'};">
-                ${isLive ? 'LIVE NAT AAN' : 'SIMULATIE'}
-              </span>
-            </label>
-          </div>
-
-          <p style="color: #cbd5e1; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px 0;">
-            Dit cloud-apparaat simuleert het volledige publieke internet. Sluit er een kabel op aan vanuit jouw router of switch. Het reageert met 100% succes op <strong>ALLE</strong> mogelijke doellocaties (bv. <code>8.8.8.8</code>, <code>1.1.1.1</code>, <code>pxl.be</code>).
-          </p>
+          ` : `
+            <div style="background: ${isLive ? '#064e3b' : '#172554'}; padding: 14px 18px; border-radius: 8px; border: 1px solid ${isLive ? '#059669' : '#1d4ed8'}; margin-bottom: 18px;">
+              <strong style="color: ${isLive ? '#a7f3d0' : '#bfdbfe'}; font-size: 13px;">
+                ${isLive ? '🌐 Vaste Publieke NAT Interface Actief:' : '🔒 Vaste Gesimuleerde Omgeving Actief:'}
+              </strong>
+              <p style="margin: 4px 0 0; font-size: 12.5px; color: #e2e8f0; line-height: 1.5;">
+                ${isLive
+                  ? 'Dit apparaat is een <strong>fysieke NAT-gateway</strong>. Alle netwerkaanvragen (HTTP, DNS, ping/TCP probes) worden daadwerkelijk uitgestuurd via de netwerkadapter van de server (Google Cloud / Localhost).'
+                  : 'Dit apparaat simuleert een <strong>afgesloten internetomgeving</strong>. Elk IP-adres en elke domeinnaam toont de interne landingspagina <em>"Welkom op het Internet"</em> met het PXL-symbool. Veilig voor examens en offline klassen.'}
+              </p>
+            </div>
+          `}
 
           <div style="margin-top: 15px;">
             <h4 style="color: #38bdf8; margin-bottom: 10px; font-size: 13px;">Beschikbare Internet Ingress Poorten:</h4>
@@ -770,6 +869,10 @@ class PXLNetSimApp {
           <div class="pt-desktop-app-icon">⬛</div>
           <span>Command Prompt</span>
         </div>
+        <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('powershell')">
+          <div class="pt-desktop-app-icon" style="background: #012456; color: #38bdf8; font-weight: 900; font-size: 14px; border: 1px solid #03449e; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">PS</div>
+          <span>PowerShell</span>
+        </div>
         <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('ipconfig')">
           <div class="pt-desktop-app-icon">⚙️</div>
           <span>IP Configuration</span>
@@ -782,6 +885,12 @@ class PXLNetSimApp {
           <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('wireless')">
             <div class="pt-desktop-app-icon">📶</div>
             <span>PC Wireless</span>
+          </div>
+        ` : ''}
+        ${dev.type === 'server' ? `
+          <div class="pt-desktop-icon" onclick="window.PXLApp.switchDeviceModalTab('services')">
+            <div class="pt-desktop-app-icon">🖥️</div>
+            <span>Server Services</span>
           </div>
         ` : ''}
       </div>
@@ -863,6 +972,54 @@ class PXLNetSimApp {
           e.preventDefault();
           if (handler && typeof handler.tabComplete === 'function') {
             const completed = handler.tabComplete(input.value);
+            if (completed && completed !== input.value) {
+              input.value = completed;
+              input.selectionStart = input.selectionEnd = completed.length;
+            }
+          }
+        }
+      };
+    } else if (appKey === 'powershell') {
+      const isServer = (dev.type === 'server');
+      const defaultPrompt = isServer ? 'PS C:\\Users\\Administrator> ' : 'PS C:\\Users\\Student> ';
+      viewport.innerHTML = `
+        <div class="pt-app-window pt-powershell-window">
+          <div class="pt-terminal-screen" id="pcPsScreen">Windows PowerShell (PXL NetSim Edition v7.4)\nCopyright (C) Microsoft Corporation / Hogeschool PXL (Toegepaste Informatica / SNE).\n\nTyp 'Get-Help' voor een lijst met ondersteunde cmdlets en netwerkcommando's.\n\n</div>
+          <div class="pt-terminal-input-bar">
+            <span class="pt-terminal-prompt" id="pcPsPrompt">${defaultPrompt}</span>
+            <input type="text" class="pt-terminal-input" id="pcPsInput" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+      `;
+
+      const screen = document.getElementById('pcPsScreen');
+      const input = document.getElementById('pcPsInput');
+      const promptEl = document.getElementById('pcPsPrompt');
+      const psHandler = new PowerShellHandler(
+        dev,
+        (t) => {
+          screen.innerHTML += `${t}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => this.triggerScoreUpdate(),
+        (newPrompt) => {
+          if (promptEl) promptEl.innerText = newPrompt;
+        }
+      );
+
+      input.focus();
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          const val = input.value;
+          const curPrompt = promptEl ? promptEl.innerText : defaultPrompt;
+          screen.innerHTML += `${curPrompt}${val}\n`;
+          input.value = '';
+          psHandler.handleCommand(val);
+          screen.scrollTop = screen.scrollHeight;
+        } else if (e.key === 'Tab') {
+          e.preventDefault();
+          if (psHandler && typeof psHandler.tabComplete === 'function') {
+            const completed = psHandler.tabComplete(input.value);
             if (completed && completed !== input.value) {
               input.value = completed;
               input.selectionStart = input.selectionEnd = completed.length;
@@ -1152,19 +1309,57 @@ class PXLNetSimApp {
   getServiceSubtabHtml(sub, dev) {
     if (sub === 'http') {
       const http = dev.services.http;
+      if (!http.files) {
+        http.files = {
+          'index.html': http.content || '<h1>PXL Web Server</h1>\n<p>Welkom op de server van Hogeschool PXL!</p>',
+          'helloworld.html': '<h2>Hello World!</h2>\n<p>PXL Network Essentials Web Server Test Pagina.</p>',
+          'style.css': 'body { font-family: -apple-system, sans-serif; background: #f8fafc; color: #0f172a; padding: 25px; }\nh1 { color: #0284c7; }',
+          'data.json': JSON.stringify({ school: 'Hogeschool PXL', department: 'Toegepaste Informatica / SNE', course: 'Network Essentials', status: 'online' }, null, 2),
+          'info.txt': 'PXL Web NetSim Server v2.1\nMulti-format HTTP Server.\nOndersteunde formaten: .html, .css, .json, .txt'
+        };
+      }
+
+      this.currentHttpFile = this.currentHttpFile || 'index.html';
+      if (!http.files[this.currentHttpFile]) {
+        this.currentHttpFile = Object.keys(http.files)[0] || 'index.html';
+      }
+
+      const activeContent = http.files[this.currentHttpFile] || '';
+
       return `
-        <h3>🌐 HTTP Webserver Configuratie</h3>
+        <h3>🌐 HTTP Webserver Configuratie (Multi-Formaat Server)</h3>
         <div class="pt-service-status-bar">
           <span>Dienst Status:</span>
           <label><input type="radio" name="srvHttp" ${http.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceHttp(true)"> Ingeschakeld (On)</label>
           <label><input type="radio" name="srvHttp" ${!http.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceHttp(false)"> Uitgeschakeld (Off)</label>
-          <span style="margin-left: auto; color: #64748b; font-size: 12px;">Poort: 80</span>
+          <span style="margin-left: auto; color: #64748b; font-size: 12px;">Poort: 80 &bull; Ondersteunt: HTML, CSS, JSON, TXT</span>
         </div>
+
+        <!-- File Selector & Actions Bar -->
+        <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+            <label style="font-weight: 600; font-size: 13px; color: #334155;">Actief Bestand:</label>
+            <select id="httpFileSelect" class="pt-input" style="width: 220px;" onchange="window.PXLApp.selectHttpFile(this.value)">
+              ${Object.keys(http.files).map(fn => `<option value="${fn}" ${fn === this.currentHttpFile ? 'selected' : ''}>${fn}</option>`).join('')}
+            </select>
+            <button class="pt-btn" style="background: #e2e8f0; color: #334155; font-size: 12px;" onclick="window.PXLApp.addNewHttpFile()">+ Nieuw Bestand</button>
+            ${this.currentHttpFile !== 'index.html' ? `
+              <button class="pt-btn-del" title="Verwijder bestand" onclick="window.PXLApp.deleteHttpFile('${this.currentHttpFile}')">🗑️</button>
+            ` : ''}
+          </div>
+          <span style="font-size: 11.5px; color: #64748b; font-family: monospace;">URL: http://${dev.ip || 'server'}/${this.currentHttpFile}</span>
+        </div>
+
         <div class="pt-form-group">
-          <label>Website Broncode (index.html):</label>
-          <textarea id="httpHtmlInput" class="pt-input" style="height: 240px; font-family: monospace; font-size: 12px;">${dev.services.http.content}</textarea>
+          <label style="display: flex; justify-content: space-between;">
+            <span>Broncode van <code>${this.currentHttpFile}</code>:</span>
+            <span style="font-size: 11px; color: #64748b;">Grootte: ${activeContent.length} tekens</span>
+          </label>
+          <textarea id="httpHtmlInput" class="pt-input" style="height: 220px; font-family: 'Consolas', monospace; font-size: 12px; line-height: 1.45;">${activeContent}</textarea>
         </div>
-        <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.saveHttpContent()">💾 Website Opslaan & Publiceren</button>
+        <div style="display: flex; gap: 10px;">
+          <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.saveHttpContent()">💾 '${this.currentHttpFile}' Opslaan & Publiceren</button>
+        </div>
       `;
     } else if (sub === 'dns') {
       const dns = dev.services.dns;
@@ -1248,11 +1443,51 @@ class PXLNetSimApp {
     }
   }
 
+  selectHttpFile(fileName) {
+    this.currentHttpFile = fileName;
+    this.renderServicesTab();
+  }
+
+  addNewHttpFile() {
+    const fn = prompt("Voer bestandsnaam in (bv. test.html, info.json, styles.css):", "nieuw_bestand.html");
+    if (!fn) return;
+    const cleanFn = fn.trim().replace(/[^a-zA-Z0-9._-]/g, '');
+    if (!cleanFn) return;
+    if (this.activeDevice && this.activeDevice.services && this.activeDevice.services.http) {
+      if (!this.activeDevice.services.http.files) this.activeDevice.services.http.files = {};
+      this.activeDevice.services.http.files[cleanFn] = `/* ${cleanFn} - Aangemaakt op ${new Date().toLocaleDateString()} */\n`;
+      this.currentHttpFile = cleanFn;
+      this.renderServicesTab();
+      this.showToast(`✅ Bestand '${cleanFn}' aangemaakt.`);
+    }
+  }
+
+  deleteHttpFile(fileName) {
+    if (fileName === 'index.html') {
+      alert("index.html kan niet worden verwijderd.");
+      return;
+    }
+    if (confirm(`Weet je zeker dat je '${fileName}' wilt verwijderen?`)) {
+      if (this.activeDevice?.services?.http?.files) {
+        delete this.activeDevice.services.http.files[fileName];
+        this.currentHttpFile = 'index.html';
+        this.renderServicesTab();
+        this.showToast(`🗑️ Bestand '${fileName}' verwijderd.`);
+      }
+    }
+  }
+
   saveHttpContent() {
     const ta = document.getElementById('httpHtmlInput');
-    if (this.activeDevice && this.activeDevice.services && ta) {
-      this.activeDevice.services.http.content = ta.value;
-      this.showToast('✅ Website index.html succesvol opgeslagen');
+    const dev = this.activeDevice;
+    if (dev && dev.services && dev.services.http && ta) {
+      const fn = this.currentHttpFile || 'index.html';
+      if (!dev.services.http.files) dev.services.http.files = {};
+      dev.services.http.files[fn] = ta.value;
+      if (fn === 'index.html') {
+        dev.services.http.content = ta.value;
+      }
+      this.showToast(`✅ Bestand '${fn}' succesvol opgeslagen & gepubliceerd.`);
       this.triggerScoreUpdate();
     }
   }

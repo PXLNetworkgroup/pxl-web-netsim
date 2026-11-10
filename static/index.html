@@ -22,11 +22,18 @@
     </div>
 
     <div class="pt-header-center">
-      <select id="examSelector" class="pt-input" style="font-weight: 600; max-width: 240px;">
+      <select id="examSelector" class="pt-input" style="font-weight: 600; max-width: 250px;">
         <option value="01_pxl_standard">Lab 1: PXL LAN/WAN Routing (Standaard)</option>
         <option value="02_cabling_scratch">Lab 2: Zelfstandig Bekabelen & Setup</option>
         <option value="03_wireless_lan">Lab 3: Wireless LAN & WPA2-PSK</option>
       </select>
+
+      <button class="pt-btn" onclick="window.PXLApp.importLabJson()" title="Importeer een labo vanuit JSON bestand" style="font-size: 11px; padding: 5px 9px; background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; cursor: pointer;">
+        📥 Import
+      </button>
+      <button class="pt-btn" onclick="window.PXLApp.exportCurrentLabJson()" title="Exporteer huidig labo en topologie als JSON" style="font-size: 11px; padding: 5px 9px; background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; cursor: pointer;">
+        📤 Export
+      </button>
 
       <button class="pt-btn" id="btnOpdrachtDropdown" onclick="window.PXLApp.toggleOpdrachtDropdown()" style="font-weight: 700; background: #0284c7; color: white; border: none; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer;">
         📋 Opdracht & Rubric ▾
@@ -222,9 +229,11 @@
   <script src="js/mikrotik_cli.js?v=20261110_v2"></script>
   <script src="js/openwrt_cli.js?v=20261110_v2"></script>
   <script src="js/pc_desktop.js?v=20261110_v2"></script>
+  <script src="js/powershell_engine.js?v=20261110_v2"></script>
   <script src="js/network_simulator.js?v=20261110_v2"></script>
   <script src="js/cabling_engine.js?v=20261110_v2"></script>
   <script src="js/canvas_workspace.js?v=20261110_v2"></script>
+  <script src="js/course_labs.js?v=20261110_v2"></script>
   <script src="js/grading_engine.js?v=20261110_v2"></script>
   <script src="js/submission_exporter.js?v=20261110_v2"></script>
   <script src="js/teacher_studio.js?v=20261110_v2"></script>

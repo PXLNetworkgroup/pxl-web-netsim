@@ -34,6 +34,10 @@ class NetworkSimulator {
     }).catch(() => {});
   }
 
+  isInternetDevice(dev) {
+    return !!(dev && (dev.type === 'internet_cloud' || dev.type === 'internet_simulated' || dev.type === 'internet_public'));
+  }
+
   registerDevice(device) {
     this.devices[device.id] = device;
   }
@@ -240,7 +244,7 @@ class NetworkSimulator {
 
     // Check if destination device exists directly in local topology
     const dstInfo = this.findDeviceByIp(targetIp);
-    const inetCloud = Object.values(this.devices).find(d => d.type === 'internet_cloud' && d.powerOn);
+    const inetCloud = Object.values(this.devices).find(d => this.isInternetDevice(d) && d.powerOn);
 
     if (!dstInfo && !inetCloud) {
       return { success: false, hops, reason: 'Destination host unreachable (no device has this IP)' };
@@ -292,11 +296,11 @@ class NetworkSimulator {
     }
 
     // If Het Internet cloud is active in the network, it provides automatic public DNS resolution!
-    const inetCloud = Object.values(this.devices).find(d => d.type === 'internet_cloud' && d.powerOn);
+    const inetCloud = Object.values(this.devices).find(d => this.isInternetDevice(d) && d.powerOn);
     if (inetCloud) {
       const routeToInet = this.routePacket(srcDevId, inetCloud.interfaces['WAN']?.ip || '8.8.8.8');
       if (routeToInet.success) {
-        return { success: true, ip: '193.190.173.1', dnsServerIp: '8.8.8.8' };
+        return { success: true, ip: inetCloud.type === 'internet_public' ? '8.8.8.8' : '193.190.173.1', dnsServerIp: '8.8.8.8' };
       }
     }
 
@@ -320,11 +324,16 @@ class NetworkSimulator {
   }
 
   fetchHttp(srcDevId, target) {
-    let cleanTarget = target.replace(/^https?:\/\//i, '').split('/')[0].trim();
-    let targetIp = cleanTarget;
+    let cleanTarget = target.replace(/^https?:\/\//i, '').trim();
+    let slashIdx = cleanTarget.indexOf('/');
+    let hostPart = slashIdx !== -1 ? cleanTarget.substring(0, slashIdx).trim() : cleanTarget;
+    let pathPart = slashIdx !== -1 ? cleanTarget.substring(slashIdx) : '/';
+    if (!pathPart) pathPart = '/';
 
-    if (!IPUtils.isValidIp(cleanTarget)) {
-      const dnsRes = this.resolveDns(srcDevId, cleanTarget);
+    let targetIp = hostPart;
+
+    if (!IPUtils.isValidIp(hostPart)) {
+      const dnsRes = this.resolveDns(srcDevId, hostPart);
       if (!dnsRes.success) {
         return { success: false, reason: dnsRes.reason };
       }
@@ -336,11 +345,11 @@ class NetworkSimulator {
       return { success: false, reason: `Request Timeout: could not connect to ${targetIp}:80` };
     }
 
-    // Check if packet was received by Het Internet Cloud Simulator
-    const inetCloud = Object.values(this.devices).find(d => d.type === 'internet_cloud' && d.powerOn);
-    if (inetCloud && (pingResult.reason === 'Echo reply from Het Internet' || pingResult.hops.includes('Het Internet') || targetIp === '193.190.173.1' || !this.findDeviceByIp(targetIp))) {
-      // If live internet NAT bridge is active, forward out to real internet!
-      if (this.liveInternetEnabled) {
+    // Check if packet was received by Internet Cloud Gateway (Simulated or Public NAT)
+    const inetCloud = Object.values(this.devices).find(d => this.isInternetDevice(d) && d.powerOn);
+    if (inetCloud && (pingResult.reason === 'Echo reply from Het Internet' || pingResult.hops.some(h => String(h).includes('Internet')) || targetIp === '193.190.173.1' || !this.findDeviceByIp(targetIp))) {
+      const isLive = (inetCloud.type === 'internet_public' || (inetCloud.type === 'internet_cloud' && this.liveInternetEnabled));
+      if (isLive) {
         return {
           success: true,
           targetIp: targetIp,
@@ -361,10 +370,42 @@ class NetworkSimulator {
       return { success: false, reason: `Connection Refused: HTTP web service inactive on ${targetIp}` };
     }
 
+    const srvHttp = dstInfo.device.services.http;
+    let requestedFileName = pathPart.replace(/^\/+/, '');
+    if (!requestedFileName || requestedFileName === 'index.html') {
+      return {
+        success: true,
+        targetIp: targetIp,
+        html: srvHttp.content || (srvHttp.files && srvHttp.files['index.html']) || '<h1>PXL Web Server</h1>'
+      };
+    }
+
+    if (srvHttp.files && srvHttp.files[requestedFileName]) {
+      const fileData = srvHttp.files[requestedFileName];
+      if (requestedFileName.endsWith('.json')) {
+        return {
+          success: true,
+          targetIp: targetIp,
+          html: `<pre style="font-family: monospace; background: #1e293b; color: #38bdf8; padding: 15px; border-radius: 6px;">${fileData}</pre>`
+        };
+      }
+      if (requestedFileName.endsWith('.css') || requestedFileName.endsWith('.txt')) {
+        return {
+          success: true,
+          targetIp: targetIp,
+          html: `<pre style="font-family: monospace; padding: 15px; background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px;">${fileData}</pre>`
+        };
+      }
+      return {
+        success: true,
+        targetIp: targetIp,
+        html: fileData
+      };
+    }
+
     return {
-      success: true,
-      targetIp: targetIp,
-      html: dstInfo.device.services.http.content
+      success: false,
+      reason: `HTTP 404 Not Found: Bestand '${requestedFileName}' niet gevonden op ${targetIp}`
     };
   }
 
@@ -433,19 +474,19 @@ class NetworkSimulator {
       return { success: false, hops, reason: `Device ${currentDevId} is down` };
     }
 
-    // Het Internet Cloud Simulator terminates and answers all external requests
-    if (dev.type === 'internet_cloud') {
-      hops.push('Het Internet');
+    // Internet Cloud Gateway terminates and answers all external requests
+    if (this.isInternetDevice(dev)) {
+      hops.push(dev.hostname || 'Het Internet');
       return { success: true, hops, ingressIp: '193.190.173.1', isInternet: true };
     }
 
-    // Check if any port on this device connects directly to Het Internet cloud
+    // Check if any port on this device connects directly to Internet cloud gateway
     for (const [portName, intf] of Object.entries(dev.interfaces)) {
       if (intf.shutdown) continue;
       const peer = this.getConnectedPeer(dev.id, portName);
       if (peer) {
         const peerDev = this.devices[peer.deviceId];
-        if (peerDev && peerDev.type === 'internet_cloud' && peerDev.powerOn) {
+        if (peerDev && this.isInternetDevice(peerDev) && peerDev.powerOn) {
           hops.push(intf.ip || dev.hostname);
           return this.routePacket(peerDev.id, targetIp, visited, hops);
         }

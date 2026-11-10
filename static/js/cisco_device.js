@@ -207,14 +207,15 @@ class CiscoDevice {
         'eth3': { ip: "", mask: "", shutdown: false, description: "LAN3 / br-lan", mac: genMac('5254.00') },
         'eth4': { ip: "", mask: "", shutdown: false, description: "LAN4 / br-lan", mac: genMac('5254.00') }
       };
-    } else if (this.type === 'internet_cloud') {
-      // Simulated Global Internet Gateway (Any destination IP)
+    } else if (this.type === 'internet_cloud' || this.type === 'internet_simulated' || this.type === 'internet_public') {
+      // Global Internet Gateway (Simulated or Public NAT Bridge)
+      this.isPublic = (this.type === 'internet_public');
       this.interfaces = {
-        'WAN': { ip: "193.190.173.1", mask: "255.255.255.0", shutdown: false, description: "Global Internet Backbone", mac: genMac('0001.64') },
-        'Ethernet0': { ip: "8.8.8.8", mask: "255.255.255.0", shutdown: false, description: "Internet Peer Link 0", mac: genMac('0001.64') },
-        'Ethernet1': { ip: "1.1.1.1", mask: "255.255.255.0", shutdown: false, description: "Internet Peer Link 1", mac: genMac('0001.64') },
-        'Ethernet2': { ip: "9.9.9.9", mask: "255.255.255.0", shutdown: false, description: "Internet Peer Link 2", mac: genMac('0001.64') },
-        'Ethernet3': { ip: "208.67.222.222", mask: "255.255.255.0", shutdown: false, description: "Internet Peer Link 3", mac: genMac('0001.64') }
+        'WAN': { ip: "193.190.173.1", mask: "255.255.255.0", shutdown: false, description: this.isPublic ? "Public Internet NAT Bridge" : "Global Internet Backbone", mac: genMac('0001.64') },
+        'Ethernet0': { ip: "8.8.8.8", mask: "255.255.255.0", shutdown: false, description: "DNS Provider (Google)", mac: genMac('0001.64') },
+        'Ethernet1': { ip: "1.1.1.1", mask: "255.255.255.0", shutdown: false, description: "DNS Provider (Cloudflare)", mac: genMac('0001.64') },
+        'Ethernet2': { ip: "9.9.9.9", mask: "255.255.255.0", shutdown: false, description: "DNS Provider (Quad9)", mac: genMac('0001.64') },
+        'Ethernet3': { ip: "208.67.222.222", mask: "255.255.255.0", shutdown: false, description: "OpenDNS Gateway", mac: genMac('0001.64') }
       };
     }
 
@@ -247,8 +248,8 @@ class CiscoDevice {
       return `root@${h}:~# `;
     }
 
-    if (this.type === 'internet_cloud') {
-      return `[Internet Gateway Active]`;
+    if (this.type === 'internet_cloud' || this.type === 'internet_simulated' || this.type === 'internet_public') {
+      return this.type === 'internet_public' ? `[Public Internet NAT Active]` : `[Simulated Internet Active]`;
     }
 
     switch (this.mode) {

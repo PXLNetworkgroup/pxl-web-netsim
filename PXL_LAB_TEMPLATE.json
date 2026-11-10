@@ -1,0 +1,92 @@
+{
+  "$schema": "https://pxl.be/schemas/pxl-web-netsim-lab-v1.json",
+  "id": "h00_lab_template",
+  "code": "H00-Template",
+  "chapter": "Hoofdstuk XX - Titel van het Hoofdstuk",
+  "title": "Les XX: Volledige Naam van het Labo",
+  "course": "PXL Network Essentials (vwgert.github.io/networksess)",
+  "author": "Docent Naam (PXL SNE)",
+  "timeLimitMinutes": 60,
+  "showLiveScore": true,
+  "liveInternet": false,
+  "instructions": "## Les XX: Labo Titel\\n\\n### Doelstellingen:\\n- Leerdoel 1\\n- Leerdoel 2\\n\\n### Adreseringstabel:\\n| Toestel | Interface | IP-adres | Subnetmasker | Default Gateway |\\n| :--- | :--- | :--- | :--- | :--- |\\n| PC0 | FastEthernet0 | 192.168.1.10 | 255.255.255.0 | 192.168.1.1 |\\n| R1 | GigabitEthernet0/0/0 | 192.168.1.1 | 255.255.255.0 | - |\\n\\n### Stappenplan:\\n1. Plaats de toestellen op het canvas.\\n2. Sluit de kabels aan volgens de tabel.\\n3. Configureer IP-adressen via GUI of PowerShell (`Set-NetIPAddress`).\\n4. Test connectiviteit via `Test-NetConnection` of `ping`.",
+  "initialTopology": {
+    "devices": [
+      {
+        "id": "PC0",
+        "name": "PC0",
+        "type": "pc",
+        "model": "Standard",
+        "x": 160,
+        "y": 200,
+        "dhcpEnabled": false,
+        "ip": "",
+        "mask": "",
+        "gateway": "",
+        "dns": ""
+      },
+      {
+        "id": "R1",
+        "name": "R1",
+        "type": "router",
+        "model": "4331",
+        "x": 420,
+        "y": 200,
+        "interfaces": {
+          "GigabitEthernet0/0/0": {
+            "ip": "",
+            "mask": "",
+            "shutdown": true,
+            "description": "LAN Gateway"
+          }
+        }
+      },
+      {
+        "id": "InternetSim",
+        "name": "InternetSim",
+        "type": "internet_simulated",
+        "model": "PXL Internet (Simulated)",
+        "x": 680,
+        "y": 200
+      }
+    ],
+    "cables": [
+      {
+        "fromDevice": "PC0",
+        "fromPort": "FastEthernet0",
+        "toDevice": "R1",
+        "toPort": "GigabitEthernet0/0/0",
+        "type": "straight"
+      }
+    ]
+  },
+  "rubric": [
+    {
+      "id": "step1_ip_pc",
+      "description": "PC0 is geconfigureerd met IP 192.168.1.10 en masker 255.255.255.0",
+      "type": "ip_config",
+      "device": "PC0",
+      "ip": "192.168.1.10",
+      "mask": "255.255.255.0",
+      "points": 30
+    },
+    {
+      "id": "step2_r1_intf",
+      "description": "R1 interface G0/0/0 geconfigureerd met 192.168.1.1/24 (no shutdown)",
+      "type": "interface_ip",
+      "device": "R1",
+      "interface": "GigabitEthernet0/0/0",
+      "ip": "192.168.1.1",
+      "mask": "255.255.255.0",
+      "points": 40
+    },
+    {
+      "id": "step3_ping",
+      "description": "Succesvolle ping tussen PC0 en router R1",
+      "type": "ping_test",
+      "from": "PC0",
+      "to": "192.168.1.1",
+      "points": 30
+    }
+  ]
+}

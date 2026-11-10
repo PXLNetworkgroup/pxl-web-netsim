@@ -134,7 +134,8 @@ class CanvasWorkspace {
     if (type === 'wireless_ap') prefix = 'WirelessRouter';
     if (type === 'mikrotik') prefix = 'MikroTik';
     if (type === 'openwrt') prefix = 'OpenWrt';
-    if (type === 'internet_cloud') prefix = 'Internet';
+    if (type === 'internet_cloud' || type === 'internet_simulated') prefix = 'InetSim';
+    if (type === 'internet_public') prefix = 'InetPublic';
 
     const id = `${prefix}${count}`;
     const newDev = new CiscoDevice(id, type, id, {
@@ -672,10 +673,11 @@ class CanvasWorkspace {
       ctx.moveTo(x + 16, y + 18); ctx.lineTo(x + 12, y + 8);
       ctx.moveTo(x + 54, y + 18); ctx.lineTo(x + 58, y + 8);
       ctx.stroke();
-    } else if (dev.type === 'internet_cloud') {
+    } else if (dev.type === 'internet_cloud' || dev.type === 'internet_simulated' || dev.type === 'internet_public') {
+      const isPub = (dev.type === 'internet_public' || (dev.type === 'internet_cloud' && sim.liveInternetEnabled));
       // Cloud shape
-      ctx.fillStyle = '#38bdf8';
-      ctx.strokeStyle = '#0284c7';
+      ctx.fillStyle = isPub ? '#059669' : '#38bdf8';
+      ctx.strokeStyle = isPub ? '#10b981' : '#0284c7';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(x + 26, y + 36, 14, 0, Math.PI * 2);
@@ -683,6 +685,12 @@ class CanvasWorkspace {
       ctx.arc(x + 56, y + 36, 13, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+
+      // Badge on cloud
+      ctx.font = 'bold 8px sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(isPub ? 'LIVE' : 'SIM', x + 42, y + 39);
     } else if (dev.type === 'pc' || dev.type === 'server') {
       // Monitor + base
       ctx.fillStyle = '#f8fafc';

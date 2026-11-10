@@ -169,13 +169,33 @@ Dit script voert automatisch de volgende stappen uit:
 | **Cisco Switch** | Catalyst 2960-24TT, 3560 | Cisco IOS CLI | 24 FastEthernet poorten, SVI Vlan1 beheer, MAC-table inspectie. |
 | **MikroTik Router** | hEX lite (RB750r2) | MikroTik RouterOS 7.12 CLI | 5 FastEthernet poorten, RouterOS syntax (`/ip address add`, `/ip route add`, `/system identity`, `/export`), en **volledige SSH-toegang**. |
 | **OpenWrt Router** | OpenWrt 23.05 | Linux BusyBox (Ash) Shell & LuCI Web GUI | `uci show network`, `uci set`, `uci commit`, `ifconfig`, `cat /etc/banner`, webinterface. |
-| **Het Internet** | PXL Global Cloud | Simulated WAN Gateway | Reageert met 100% succes op **ALLE IP-adressen** (bv. `8.8.8.8`, `1.1.1.1`, `pxl.be`) en toont in de browser de **"Welkom op het Internet"** webpagina met PXL-logo. |
-| **PC & Laptop** | PC-PT, Laptop-PT | Windows Command Prompt & Desktop Apps | `ipconfig`, `ping`, `tracert`, `nslookup`, `ssh admin@<ip>`, WPA2 Wireless, Web Browser, FTP Client. |
-| **Server** | Server-PT | Cisco PT Services Engine | Actieve HTTP Webserver, DNS Name Resolution zonebeheer, FTP server met authenticatie. |
+| **Internet (Public NAT)** | PXL Public WAN | Live NAT Gateway via Fysieke Instance Adapter | Stuurt al het verkeer rechtstreeks uit via de fysieke netwerkadapter van de server (Google Cloud / Host). Biedt **echte live internettoegang** voor browsers en pings. |
+| **Internet (Simulated)** | PXL Global Cloud | Offline Examen Gateway | Reageert met 100% succes op **ALLE IP-adressen** (bv. `8.8.8.8`, `1.1.1.1`, `pxl.be`) en toont in de browser de **"Welkom op het Internet"** webpagina met PXL-logo. 100% examenveilig. |
+| **PC & Laptop** | PC-PT, Laptop-PT | Windows CMD & **PowerShell Terminal** | Volledige PowerShell ondersteuning (`Get-NetIPAddress`, `Get-NetIPConfiguration`, `Test-NetConnection`, `Resolve-DnsName`, `Invoke-WebRequest`, `Get-NetNeighbor`, `Get-NetRoute`, etc.), WPA2 Wireless, Web Browser, FTP Client. |
+| **Server** | Server-PT | **Multi-Format Webserver** & Services | Multi-format bestandsbeheer (`index.html`, `style.css`, `data.json`, `info.txt`), actieve DNS Name Resolution zonebeheer, FTP server en **PowerShell**. |
 
 ---
 
-## 7. Hulp & Ondersteuning
+## 7. Cursus Labs (Network Essentials) & AI Lab Authoring
+Alle labs van de cursus [vwgert.github.io/networksess/](https://vwgert.github.io/networksess/) zijn voorgeprogrammeerd en direct selecteerbaar via het dropdownmenu:
+- **H01-Labo1:** Les 01 Labo: Rechtstreekse verbinding tussen 2 Laptops (APIPA)
+- **H02-Labo1:** Les 02 Labo: Statische IP-configuratie (PC ↔ Webserver)
+- **H03-PT1:** Les 03 PT: Switch, ARP, ICMP en MAC-Address-Table
+- **H04-PT1:** Les 04 PT: DHCP, DNS en HTTP Webserver in Simulation Mode
+- **H05-Labo1:** Les 05 Labo 1: MikroTik hEX lite als Router (4 Netwerken)
+- **H05-PT1:** Les 05 PT: Twee LANs via Eén Cisco Router
+- **H05-PT2:** Les 05 PT: Twee LANs via Twee Cisco Routers (Static Routing)
+- **H06-PT1:** Les 06 PT: Thuisrouter, NAT, DHCP, DNS, WiFi en WAN Internet
+- **H08-Cisco:** Zelfstudie: Cisco IOS Netwerk (PC-SW-R-SW-PC) met SSH
+
+### Labs Importeren & Exporteren
+- **📥 Import:** Klik bovenaan op **📥 Import** om een willekeurig `.json` labbestand in te laden.
+- **📤 Export:** Klik op **📤 Export** om het actieve lab inclusief de getekende topologie en rubric te downloaden als `.json`.
+- **AI Lab Authoring:** Zie [`LAB_AUTHORING_GUIDE.md`](LAB_AUTHORING_GUIDE.md) en [`PXL_LAB_TEMPLATE.json`](PXL_LAB_TEMPLATE.json) om met behulp van AI in 30 seconden nieuwe labs te bouwen!
+
+---
+
+## 8. Hulp & Ondersteuning
 
 Voor vragen over het platform, feature requests of ondersteuning bij examens:
 - **E-mail:** David Parren (`david.parren@pxl.be`)

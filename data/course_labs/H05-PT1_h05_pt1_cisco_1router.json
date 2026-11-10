@@ -1,0 +1,114 @@
+{
+  "id": "h05_pt1_cisco_1router",
+  "code": "H05-PT1",
+  "chapter": "Hoofdstuk 05 - Routering & Cisco IOS",
+  "title": "Les 05 PT: Twee LANs via Eén Cisco Router (Subnets & Routing)",
+  "timeLimitMinutes": 60,
+  "showLiveScore": true,
+  "liveInternet": false,
+  "instructions": "## Les 05 PT: 2 LAN's via 1 router\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_PT_1router.html](https://vwgert.github.io/networksess/Les05_PT_1router.html)\n\n### Adreseringstabel:\n| Toestel | Interface | IP-adres | Subnetmasker | Default Gateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **R1** | GigabitEthernet0/0/0 | `192.168.1.1` | `255.255.255.0` | - |\n| **R1** | GigabitEthernet0/0/1 | `10.0.1.1`    | `255.255.255.0` | - |\n| **Laptop0** | FastEthernet0 | `192.168.1.10` | `255.255.255.0` | `192.168.1.1` |\n| **PC0**     | FastEthernet0 | `10.0.1.100`   | `255.255.255.0` | `10.0.1.1` |\n\n### Opdrachten:\n1. Configureer `R1` (Cisco 4331):\n   ```cisco\n   enable\n   configure terminal\n   hostname R1\n   interface GigabitEthernet0/0/0\n    ip address 192.168.1.1 255.255.255.0\n    no shutdown\n   interface GigabitEthernet0/0/1\n    ip address 10.0.1.1 255.255.255.0\n    no shutdown\n   exit\n   ```\n2. Test inter-LAN routering met ping van `Laptop0` naar `PC0` (`10.0.1.100`).\n",
+  "initialTopology": {
+    "devices": [
+      {
+        "id": "R1",
+        "name": "R1",
+        "type": "router",
+        "model": "4331",
+        "x": 380,
+        "y": 200
+      },
+      {
+        "id": "SW-Left",
+        "name": "SW-Left",
+        "type": "switch",
+        "model": "2960-24TT",
+        "x": 200,
+        "y": 200
+      },
+      {
+        "id": "SW-Right",
+        "name": "SW-Right",
+        "type": "switch",
+        "model": "2960-24TT",
+        "x": 560,
+        "y": 200
+      },
+      {
+        "id": "Laptop0",
+        "name": "Laptop0",
+        "type": "laptop",
+        "x": 100,
+        "y": 200,
+        "ip": "192.168.1.10",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.1.1"
+      },
+      {
+        "id": "PC0",
+        "name": "PC0",
+        "type": "pc",
+        "x": 660,
+        "y": 200,
+        "ip": "10.0.1.100",
+        "mask": "255.255.255.0",
+        "gateway": "10.0.1.1"
+      }
+    ],
+    "cables": [
+      {
+        "fromDevice": "Laptop0",
+        "fromPort": "FastEthernet0",
+        "toDevice": "SW-Left",
+        "toPort": "FastEthernet0/1"
+      },
+      {
+        "fromDevice": "SW-Left",
+        "fromPort": "GigabitEthernet0/1",
+        "toDevice": "R1",
+        "toPort": "GigabitEthernet0/0/0"
+      },
+      {
+        "fromDevice": "R1",
+        "fromPort": "GigabitEthernet0/0/1",
+        "toDevice": "SW-Right",
+        "toPort": "GigabitEthernet0/1"
+      },
+      {
+        "fromDevice": "SW-Right",
+        "fromPort": "FastEthernet0/1",
+        "toDevice": "PC0",
+        "toPort": "FastEthernet0"
+      }
+    ]
+  },
+  "rubric": [
+    {
+      "id": "r1_g0",
+      "description": "R1 interface G0/0/0 geconfigureerd met 192.168.1.1/24 (no shutdown)",
+      "type": "interface_ip",
+      "device": "R1",
+      "interface": "GigabitEthernet0/0/0",
+      "ip": "192.168.1.1",
+      "mask": "255.255.255.0",
+      "points": 35
+    },
+    {
+      "id": "r1_g1",
+      "description": "R1 interface G0/0/1 geconfigureerd met 10.0.1.1/24 (no shutdown)",
+      "type": "interface_ip",
+      "device": "R1",
+      "interface": "GigabitEthernet0/0/1",
+      "ip": "10.0.1.1",
+      "mask": "255.255.255.0",
+      "points": 35
+    },
+    {
+      "id": "ping_routed",
+      "description": "Succesvol gerouteerde ICMP ping van Laptop0 naar PC0",
+      "type": "ping_test",
+      "from": "Laptop0",
+      "to": "10.0.1.100",
+      "points": 30
+    }
+  ]
+}
