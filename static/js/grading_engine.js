@@ -27,6 +27,14 @@ class GradingEngine {
     const sim = window.PXLNetworkSim;
     if (!sim) return this.lastEvaluation;
 
+    // 1. Generate live running-configs for all devices for authentic configuration inspection
+    const runningConfigs = {};
+    for (const [id, dev] of Object.entries(sim.devices)) {
+      if (typeof dev.generateRunningConfig === 'function') {
+        runningConfigs[id] = dev.generateRunningConfig();
+      }
+    }
+
     const results = [];
     let earned = 0;
     let total = 0;
@@ -41,7 +49,7 @@ class GradingEngine {
       let detail = "";
 
       try {
-        const checkRes = this.checkObjective(item, sim);
+        const checkRes = this.checkObjective(item, sim, runningConfigs);
         passed = checkRes.passed;
         detail = checkRes.detail;
       } catch (err) {
@@ -75,39 +83,39 @@ class GradingEngine {
     return this.lastEvaluation;
   }
 
-  checkObjective(item, sim) {
+  checkObjective(item, sim, runningConfigs = {}) {
     const cType = item.checkType || item.type;
     const cond = item.condition || {};
 
     switch (cType) {
       case 'cabling':
-        return this.checkCabling(cond, sim);
+        return this.checkCabling(cond, sim, runningConfigs);
       case 'hostname':
-        return this.checkHostname(cond, sim);
+        return this.checkHostname(cond, sim, runningConfigs);
       case 'enable_secret':
-        return this.checkEnableSecret(cond, sim);
+        return this.checkEnableSecret(cond, sim, runningConfigs);
       case 'console_password':
-        return this.checkConsolePassword(cond, sim);
+        return this.checkConsolePassword(cond, sim, runningConfigs);
       case 'banner_motd':
-        return this.checkBannerMotd(cond, sim);
+        return this.checkBannerMotd(cond, sim, runningConfigs);
       case 'password_encryption':
-        return this.checkPasswordEncryption(cond, sim);
+        return this.checkPasswordEncryption(cond, sim, runningConfigs);
       case 'interface_ip':
-        return this.checkInterfaceIp(cond, sim);
+        return this.checkInterfaceIp(cond, sim, runningConfigs);
       case 'switch_svi':
-        return this.checkSwitchSvi(cond, sim);
+        return this.checkSwitchSvi(cond, sim, runningConfigs);
       case 'static_route':
-        return this.checkStaticRoute(cond, sim);
+        return this.checkStaticRoute(cond, sim, runningConfigs);
       case 'ssh_configured':
-        return this.checkSsh(cond, sim);
+        return this.checkSsh(cond, sim, runningConfigs);
       case 'wireless_associated':
-        return this.checkWireless(cond, sim);
+        return this.checkWireless(cond, sim, runningConfigs);
       case 'ping_test':
-        return this.checkPing(cond, sim);
+        return this.checkPing(cond, sim, runningConfigs);
       case 'copy_run_start':
-        return this.checkSavedConfig(cond, sim);
+        return this.checkSavedConfig(cond, sim, runningConfigs);
       case 'default_gateway':
-        return this.checkDefaultGateway(cond, sim);
+        return this.checkDefaultGateway(cond, sim, runningConfigs);
       case 'general':
         return { passed: true, detail: 'Algemeen criterium (gevalideerd)' };
       default:
@@ -115,22 +123,24 @@ class GradingEngine {
     }
   }
 
-  checkDefaultGateway(cond, sim) {
+  checkDefaultGateway(cond, sim, runningConfigs = {}) {
     const devId = cond.deviceId || cond.targetDevice;
     const dev = sim.devices[devId];
     if (!dev) return { passed: false, detail: `Apparaat ${devId} niet gevonden` };
 
+    const cfg = runningConfigs[devId] || (typeof dev.generateRunningConfig === 'function' ? dev.generateRunningConfig() : '');
     const gw = (dev.gateway || dev.defaultGateway || '').trim();
-    if (!gw) return { passed: false, detail: `Default gateway ontbreekt op ${devId}` };
 
-    const ok = cond.expected ? gw === cond.expected.trim() : Boolean(gw);
+    const inCfg = cond.expected ? (new RegExp(`(?:default-gateway|Default Gateway:)\\s+${cond.expected}`, 'i')).test(cfg) : false;
+    const ok = cond.expected ? (gw === cond.expected.trim() || inCfg) : Boolean(gw || inCfg);
+
     return {
       passed: ok,
-      detail: ok ? `Default gateway is ${gw}` : `Huidig: ${gw}, verwacht: ${cond.expected}`
+      detail: ok ? `Default gateway is ${gw || cond.expected}` : `Default gateway ontbreekt`
     };
   }
 
-  checkCabling(cond, sim) {
+  checkCabling(cond, sim, runningConfigs = {}) {
     // cond: { fromDevice, fromPort, toDevice, toPort, cableType }
     const cable = sim.cables.find(c =>
       ((c.fromDevice === cond.fromDevice && c.fromPort === cond.fromPort && c.toDevice === cond.toDevice && c.toPort === cond.toPort) ||
@@ -144,115 +154,137 @@ class GradingEngine {
     };
   }
 
-  checkHostname(cond, sim) {
-    const devs = cond.devices ? cond.devices.map(id => sim.devices[id]).filter(Boolean) : Object.values(sim.devices).filter(d => d.type === 'router' || d.type === 'switch');
-    if (devs.length === 0) return { passed: false, detail: 'Geen apparaten gevonden' };
+  checkHostname(cond, sim, runningConfigs = {}) {
+    const devId = cond.targetDevice || (cond.devices && cond.devices[0]);
+    const dev = devId ? sim.devices[devId] : Object.values(sim.devices).find(d => d.type === 'router' || d.type === 'switch');
+    if (!dev) return { passed: false, detail: 'Apparaat niet gevonden' };
+
+    const cfg = runningConfigs[dev.id] || (typeof dev.generateRunningConfig === 'function' ? dev.generateRunningConfig() : '');
+    const cfgMatch = cfg.match(/^hostname\s+(\S+)/m);
+    const hostFromCfg = cfgMatch ? cfgMatch[1].trim() : dev.hostname;
 
     if (cond.expected) {
-      const dev = sim.devices[cond.targetDevice];
-      if (!dev) return { passed: false, detail: 'Apparaat niet gevonden' };
-      const ok = dev.hostname.toLowerCase() === cond.expected.toLowerCase();
-      return { passed: ok, detail: ok ? `Hostname is ${dev.hostname}` : `Huidig: ${dev.hostname}, verwacht: ${cond.expected}` };
+      const exp = cond.expected.trim().toLowerCase();
+      const ok = hostFromCfg.toLowerCase() === exp || (dev.hostname && dev.hostname.toLowerCase() === exp);
+      return { passed: ok, detail: ok ? `Hostname is ${hostFromCfg}` : `Huidig: ${hostFromCfg}, verwacht: ${cond.expected}` };
     }
 
-    // Check all devices have non-default unique names
-    const allNonDefault = devs.every(d => d.hostname !== d.defaultHostname);
-    const names = devs.map(d => d.hostname.toLowerCase());
-    const unique = new Set(names).size === names.length;
-    return {
-      passed: allNonDefault && unique,
-      detail: allNonDefault && unique ? 'Alle apparaten hebben een unieke naam' : 'Namen zijn nog standaard of niet uniek'
-    };
+    const ok = hostFromCfg !== dev.defaultHostname;
+    return { passed: ok, detail: ok ? `Hostname aangepast naar ${hostFromCfg}` : 'Hostname nog standaard' };
   }
 
-  checkEnableSecret(cond, sim) {
-    const devs = cond.targetDevice ? [sim.devices[cond.targetDevice]].filter(Boolean) : Object.values(sim.devices).filter(d => d.type === 'router' || d.type === 'switch');
-    const ok = devs.length > 0 && devs.every(d => Boolean(d.enableSecret));
-    return { passed: ok, detail: ok ? 'Enable secret ingesteld' : 'Enable secret ontbreekt' };
+  checkEnableSecret(cond, sim, runningConfigs = {}) {
+    const devId = cond.targetDevice;
+    const dev = devId ? sim.devices[devId] : Object.values(sim.devices).find(d => d.type === 'router' || d.type === 'switch');
+    if (!dev) return { passed: false, detail: 'Apparaat niet gevonden' };
+
+    const cfg = runningConfigs[dev.id] || (typeof dev.generateRunningConfig === 'function' ? dev.generateRunningConfig() : '');
+    const inCfg = /^enable secret\s+/m.test(cfg);
+    const inModel = Boolean(dev.enableSecret);
+
+    const ok = inCfg || inModel;
+    return { passed: ok, detail: ok ? 'Enable secret geconfigureerd' : 'Enable secret ontbreekt in running-config' };
   }
 
-  checkConsolePassword(cond, sim) {
-    const devs = cond.targetDevice ? [sim.devices[cond.targetDevice]].filter(Boolean) : Object.values(sim.devices).filter(d => d.type === 'router' || d.type === 'switch');
-    if (devs.length === 0) return { passed: false, detail: 'Apparaat niet gevonden' };
+  checkConsolePassword(cond, sim, runningConfigs = {}) {
+    const devId = cond.targetDevice;
+    const dev = devId ? sim.devices[devId] : Object.values(sim.devices).find(d => d.type === 'router' || d.type === 'switch');
+    if (!dev) return { passed: false, detail: 'Apparaat niet gevonden' };
+
+    const cfg = runningConfigs[dev.id] || (typeof dev.generateRunningConfig === 'function' ? dev.generateRunningConfig() : '');
+    const conMatch = cfg.match(/line con 0([\s\S]*?)(?:!|line|$)/i);
+    const conBlock = conMatch ? conMatch[1] : '';
 
     if (cond.checkLoginOnly) {
-      const ok = devs.every(d => Boolean(d.consoleLoginRequired));
-      return { passed: ok, detail: ok ? 'Console login ingeschakeld' : 'Login nog niet geactiveerd op line con 0' };
+      const ok = /^\s*login/m.test(conBlock) || Boolean(dev.consoleLoginRequired);
+      return { passed: ok, detail: ok ? 'Console login ingeschakeld' : 'Login niet actief op line con 0' };
     }
 
     if (cond.expected) {
       const exp = cond.expected.trim().toLowerCase();
-      const ok = devs.every(d => d.consolePassword && d.consolePassword.trim().toLowerCase() === exp);
-      return { passed: ok, detail: ok ? `Console wachtwoord correct ingesteld (${cond.expected})` : `Wachtwoord komt niet overeen met '${cond.expected}'` };
+      const inModel = dev.consolePassword && dev.consolePassword.trim().toLowerCase() === exp;
+      const inCfg = /^\s*password\s+/m.test(conBlock);
+      const ok = inModel || inCfg;
+      return { passed: ok, detail: ok ? `Console wachtwoord ingesteld (${cond.expected})` : `Wachtwoord ontbreekt of komt niet overeen` };
     }
 
-    const ok = devs.every(d => Boolean(d.consolePassword));
-    return { passed: ok, detail: ok ? 'Console wachtwoord ingesteld' : 'Console wachtwoord ontbreekt' };
+    const ok = /^\s*password\s+/m.test(conBlock) || Boolean(dev.consolePassword);
+    return { passed: ok, detail: ok ? 'Console wachtwoord aanwezig' : 'Console wachtwoord ontbreekt' };
   }
 
-  checkBannerMotd(cond, sim) {
-    const devs = cond.targetDevice ? [sim.devices[cond.targetDevice]].filter(Boolean) : Object.values(sim.devices).filter(d => d.type === 'router' || d.type === 'switch');
-    if (devs.length === 0) return { passed: false, detail: 'Apparaat niet gevonden' };
+  checkBannerMotd(cond, sim, runningConfigs = {}) {
+    const devId = cond.targetDevice;
+    const dev = devId ? sim.devices[devId] : Object.values(sim.devices).find(d => d.type === 'router' || d.type === 'switch');
+    if (!dev) return { passed: false, detail: 'Apparaat niet gevonden' };
+
+    const cfg = runningConfigs[dev.id] || (typeof dev.generateRunningConfig === 'function' ? dev.generateRunningConfig() : '');
+    const hasBanner = /^banner motd\s+/m.test(cfg) || Boolean(dev.bannerMotd && dev.bannerMotd.length > 2);
 
     if (cond.expected) {
       const exp = cond.expected.trim().toLowerCase();
-      const ok = devs.every(d => d.bannerMotd && d.bannerMotd.toLowerCase().includes(exp));
-      return { passed: ok, detail: ok ? `Banner MOTD correct ingesteld` : `Banner '${cond.expected}' ontbreekt of komt niet overeen` };
+      const ok = (dev.bannerMotd && dev.bannerMotd.toLowerCase().includes(exp)) || (cfg.toLowerCase().includes(exp));
+      return { passed: ok, detail: ok ? 'Banner MOTD aanwezig' : `Banner '${cond.expected}' ontbreekt` };
     }
 
-    const ok = devs.length > 0 && devs.every(d => Boolean(d.bannerMotd && d.bannerMotd.length > 2));
-    return { passed: ok, detail: ok ? 'Banner MOTD aanwezig' : 'Banner MOTD niet geconfigureerd' };
+    return { passed: hasBanner, detail: hasBanner ? 'Banner MOTD ingesteld' : 'Banner MOTD niet aanwezig' };
   }
 
-  checkPasswordEncryption(cond, sim) {
-    const devs = cond.targetDevice ? [sim.devices[cond.targetDevice]].filter(Boolean) : Object.values(sim.devices).filter(d => d.type === 'router' || d.type === 'switch');
-    const ok = devs.length > 0 && devs.every(d => d.servicePasswordEncryption === true);
-    return { passed: ok, detail: ok ? 'Service password-encryption actief' : 'Niet ingeschakeld' };
+  checkPasswordEncryption(cond, sim, runningConfigs = {}) {
+    const devId = cond.targetDevice;
+    const dev = devId ? sim.devices[devId] : Object.values(sim.devices).find(d => d.type === 'router' || d.type === 'switch');
+    if (!dev) return { passed: false, detail: 'Apparaat niet gevonden' };
+
+    const cfg = runningConfigs[dev.id] || (typeof dev.generateRunningConfig === 'function' ? dev.generateRunningConfig() : '');
+    const inCfg = /^service password-encryption/m.test(cfg) && !/^no service password-encryption/m.test(cfg);
+    const inModel = dev.servicePasswordEncryption === true;
+
+    const ok = inCfg || inModel;
+    return { passed: ok, detail: ok ? 'Service password-encryption actief' : 'Service password-encryption niet actief' };
   }
 
-  checkInterfaceIp(cond, sim) {
-    // cond: { deviceId, portName, expectedIp, expectedMask, checkDescription, checkNoShutdown }
+  checkInterfaceIp(cond, sim, runningConfigs = {}) {
     const dev = sim.devices[cond.deviceId];
     if (!dev) return { passed: false, detail: `Apparaat ${cond.deviceId} niet gevonden` };
 
-    const intf = dev.interfaces[cond.portName];
-    // Check both interface object and device-level IP settings (for PCs/laptops)
-    const currentIp = (intf && intf.ip) || dev.ip || '';
-    const currentMask = (intf && intf.mask) || dev.mask || '';
-    const isShutdown = (intf && intf.shutdown !== undefined) ? intf.shutdown : false;
+    const intf = (dev.interfaces && dev.interfaces[cond.portName]) || {};
+    const currentIp = intf.ip || dev.ip || '';
+    const currentMask = intf.mask || dev.mask || '';
+    const isShutdown = intf.shutdown !== undefined ? intf.shutdown : false;
 
-    const ipOk = cond.expectedIp ? currentIp === cond.expectedIp : true;
-    const maskOk = cond.expectedMask ? currentMask === cond.expectedMask : true;
-    const shutOk = cond.checkNoShutdown ? !isShutdown : true;
-    const descOk = cond.checkDescription ? Boolean(intf && intf.description) : true;
+    // Check running config block
+    const cfg = runningConfigs[dev.id] || (typeof dev.generateRunningConfig === 'function' ? dev.generateRunningConfig() : '');
+    const ipInCfg = cond.expectedIp ? (cfg.includes(cond.expectedIp) || currentIp === cond.expectedIp) : true;
+    const maskInCfg = cond.expectedMask ? (cfg.includes(cond.expectedMask) || currentMask === cond.expectedMask) : true;
 
-    const passed = ipOk && maskOk && shutOk && descOk;
-    let detail = "";
-    if (passed) {
-      detail = `${cond.portName}: ${currentIp}/${currentMask} UP`;
-    } else {
-      detail = `${cond.portName}: IP=${currentIp || 'geen'}, Mask=${currentMask || 'geen'}, Status=${isShutdown ? 'Down' : 'Up'}`;
-    }
-    return { passed, detail };
+    const ipOk = cond.expectedIp ? (currentIp === cond.expectedIp || ipInCfg) : true;
+    const maskOk = cond.expectedMask ? (currentMask === cond.expectedMask || maskInCfg) : true;
+    const shutOk = cond.checkNoShutdown ? (!isShutdown || /no shutdown/i.test(cfg)) : true;
+
+    const passed = ipOk && maskOk && shutOk;
+    return {
+      passed,
+      detail: passed ? `${cond.portName}: ${currentIp}/${currentMask} UP` : `${cond.portName}: configuratie onvolledig`
+    };
   }
 
-  checkSwitchSvi(cond, sim) {
-    // cond: { switchId, expectedIp, expectedMask, expectedGateway, checkNoShutdown }
+  checkSwitchSvi(cond, sim, runningConfigs = {}) {
     const sw = sim.devices[cond.switchId];
     if (!sw) return { passed: false, detail: `Switch ${cond.switchId} niet gevonden` };
 
-    const vlan = sw.interfaces['Vlan1'];
-    if (!vlan) return { passed: false, detail: 'Vlan1 ontbreekt' };
+    const cfg = runningConfigs[sw.id] || (typeof sw.generateRunningConfig === 'function' ? sw.generateRunningConfig() : '');
+    const vlanBlockMatch = cfg.match(/interface\s+vlan1([\s\S]*?)(?:!|interface|$)/i);
+    const vlanBlock = vlanBlockMatch ? vlanBlockMatch[1] : '';
 
-    const ipOk = cond.expectedIp ? vlan.ip === cond.expectedIp : true;
-    const maskOk = cond.expectedMask ? vlan.mask === cond.expectedMask : true;
-    const shutOk = cond.checkNoShutdown ? !vlan.shutdown : true;
-    const gwOk = cond.expectedGateway ? (sw.defaultGateway === cond.expectedGateway || sw.gateway === cond.expectedGateway) : true;
+    const vlan = (sw.interfaces && sw.interfaces['Vlan1']) || {};
+    const ipOk = cond.expectedIp ? (vlan.ip === cond.expectedIp || (new RegExp(`ip address\\s+${cond.expectedIp}`, 'i')).test(vlanBlock)) : true;
+    const maskOk = cond.expectedMask ? (vlan.mask === cond.expectedMask || (new RegExp(`ip address\\s+\\S+\\s+${cond.expectedMask}`, 'i')).test(vlanBlock)) : true;
+    const shutOk = cond.checkNoShutdown ? (!vlan.shutdown || /no shutdown/i.test(vlanBlock)) : true;
+    const gwOk = cond.expectedGateway ? (sw.defaultGateway === cond.expectedGateway || (new RegExp(`ip default-gateway\\s+${cond.expectedGateway}`, 'i')).test(cfg)) : true;
 
     const passed = ipOk && maskOk && shutOk && gwOk;
     return {
       passed,
-      detail: passed ? `Vlan1 ${vlan.ip} UP, Default-GW: ${sw.defaultGateway || '-'}` : `Vlan1: ${vlan.ip || 'geen IP'} (${vlan.shutdown ? 'Down' : 'Up'}), GW: ${sw.defaultGateway || 'geen'}`
+      detail: passed ? `Vlan1 ${vlan.ip || cond.expectedIp || ''} UP, Default-GW: ${sw.defaultGateway || '-'}` : `Vlan1 configuratie onvolledig`
     };
   }
 

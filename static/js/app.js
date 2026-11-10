@@ -29,8 +29,23 @@ class PXLNetSimApp {
     this.checkAuthStatus();
     this.initAutoSaveTimer();
 
+    // Initialize 10-second Running-Config scanner & live score updater
+    this.initRunningConfigScanner();
+
     // Load default exam
     this.loadExam(this.presetExams['01_pxl_standard']);
+  }
+
+  initRunningConfigScanner() {
+    if (this._runningConfigInterval) {
+      clearInterval(this._runningConfigInterval);
+    }
+    // Automatically inspect running-config and re-evaluate score every 10 seconds
+    this._runningConfigInterval = setInterval(() => {
+      if (this.activeExam) {
+        this.triggerScoreUpdate();
+      }
+    }, 10000);
   }
 
   // --- PRESET EXAMS BUNDLED FOR STANDALONE RUNTIME ---
