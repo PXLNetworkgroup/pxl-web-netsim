@@ -189,6 +189,33 @@ class CiscoDevice {
         'Ethernet2': { ip: "", mask: "", shutdown: false, description: "LAN Port 2", mac: genMac('0021.d8') },
         'Wireless0': { ip: "192.168.0.1", mask: "255.255.255.0", shutdown: false, description: "2.4GHz Wireless Radio", mac: genMac('0021.d8') }
       };
+    } else if (this.type === 'mikrotik') {
+      // MikroTik hEX lite (RB750r2): 5 FastEthernet ports
+      this.interfaces = {
+        'ether1': { ip: "", mask: "", shutdown: false, description: "WAN / ether1", mac: genMac('488f.5a') },
+        'ether2': { ip: "192.168.88.1", mask: "255.255.255.0", shutdown: false, description: "LAN / ether2", mac: genMac('488f.5a') },
+        'ether3': { ip: "", mask: "", shutdown: false, description: "LAN / ether3", mac: genMac('488f.5a') },
+        'ether4': { ip: "", mask: "", shutdown: false, description: "LAN / ether4", mac: genMac('488f.5a') },
+        'ether5': { ip: "", mask: "", shutdown: false, description: "LAN / ether5", mac: genMac('488f.5a') }
+      };
+    } else if (this.type === 'openwrt') {
+      // OpenWrt Router: 1 WAN (eth0) + 4 LAN (eth1-eth4)
+      this.interfaces = {
+        'eth0': { ip: "", mask: "", shutdown: false, description: "WAN / eth0", mac: genMac('5254.00') },
+        'eth1': { ip: "192.168.1.1", mask: "255.255.255.0", shutdown: false, description: "LAN1 / br-lan", mac: genMac('5254.00') },
+        'eth2': { ip: "", mask: "", shutdown: false, description: "LAN2 / br-lan", mac: genMac('5254.00') },
+        'eth3': { ip: "", mask: "", shutdown: false, description: "LAN3 / br-lan", mac: genMac('5254.00') },
+        'eth4': { ip: "", mask: "", shutdown: false, description: "LAN4 / br-lan", mac: genMac('5254.00') }
+      };
+    } else if (this.type === 'internet_cloud') {
+      // Simulated Global Internet Gateway (Any destination IP)
+      this.interfaces = {
+        'WAN': { ip: "193.190.173.1", mask: "255.255.255.0", shutdown: false, description: "Global Internet Backbone", mac: genMac('0001.64') },
+        'Ethernet0': { ip: "8.8.8.8", mask: "255.255.255.0", shutdown: false, description: "Internet Peer Link 0", mac: genMac('0001.64') },
+        'Ethernet1': { ip: "1.1.1.1", mask: "255.255.255.0", shutdown: false, description: "Internet Peer Link 1", mac: genMac('0001.64') },
+        'Ethernet2': { ip: "9.9.9.9", mask: "255.255.255.0", shutdown: false, description: "Internet Peer Link 2", mac: genMac('0001.64') },
+        'Ethernet3': { ip: "208.67.222.222", mask: "255.255.255.0", shutdown: false, description: "Internet Peer Link 3", mac: genMac('0001.64') }
+      };
     }
 
     // 2. Overlay any custom interface configurations (excluding null / None keys)
@@ -208,6 +235,20 @@ class CiscoDevice {
     if (!this.powerOn) return '[Device is Powered Off]';
     if (this.promptState && this.promptState.promptText) {
       return this.promptState.promptText;
+    }
+
+    if (this.type === 'mikrotik') {
+      const id = this.mikrotikConfig?.identity || this.hostname || 'MikroTik';
+      return `[admin@${id}] > `;
+    }
+
+    if (this.type === 'openwrt') {
+      const h = this.openwrtConfig?.hostname || this.hostname || 'OpenWrt';
+      return `root@${h}:~# `;
+    }
+
+    if (this.type === 'internet_cloud') {
+      return `[Internet Gateway Active]`;
     }
 
     switch (this.mode) {
@@ -238,7 +279,7 @@ class CiscoDevice {
     'bannerMotd', 'domainName', 'rsaKeyBits', 'sshVersion', 'users', 'consolePassword',
     'consoleLoginRequired', 'vtyLines', 'maxConfiguredVty', 'vtyPassword', 'vtyLoginMode',
     'vtyTransportInput', 'interfaces', 'defaultGateway', 'staticRoutes', 'ipClassless',
-    'ip', 'mask', 'gateway', 'dns', 'dhcpEnabled', 'wireless', 'services'
+    'ip', 'mask', 'gateway', 'dns', 'dhcpEnabled', 'wireless', 'services', 'mikrotikConfig', 'openwrtConfig'
   ];
 
   snapshotConfig() {

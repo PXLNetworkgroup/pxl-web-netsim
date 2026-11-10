@@ -203,9 +203,14 @@ class PXLNetSimApp {
   // --- DEVICE SHELF (BOTTOM DOCK) ---
   initDeviceShelf() {
     const shelfItems = [
-      // Network Devices - Routers
+      // Network Devices - Cisco Routers
       { type: 'router', model: '4331', label: 'Cisco 4331', category: 'routers' },
       { type: 'router', model: '2911', label: 'Cisco 2911', category: 'routers' },
+      // Network Devices - MikroTik & OpenWrt Routers
+      { type: 'mikrotik', model: 'hEX lite (RB750r2)', label: 'MikroTik hEX lite', category: 'routers' },
+      { type: 'openwrt', model: 'OpenWrt 23.05', label: 'OpenWrt Router', category: 'routers' },
+      // Global Internet Simulator
+      { type: 'internet_cloud', model: 'PXL Global Internet', label: 'Het Internet', category: 'routers' },
       // Network Devices - Switches
       { type: 'switch', model: '2960-24TT', label: '2960-24TT Switch', category: 'switches' },
       { type: 'switch', model: '3560-24PS', label: '3560 Multilayer', category: 'switches' },
@@ -316,7 +321,18 @@ class PXLNetSimApp {
     const desktopTabBtn = document.getElementById('tabBtnDesktop');
     const servicesTabBtn = document.getElementById('tabBtnServices');
 
-    if (cliTabBtn) cliTabBtn.style.display = isHost ? 'none' : 'inline-block';
+    if (cliTabBtn) {
+      cliTabBtn.style.display = isHost ? 'none' : 'inline-block';
+      if (device.type === 'mikrotik') {
+        cliTabBtn.innerText = 'CLI (RouterOS)';
+      } else if (device.type === 'openwrt') {
+        cliTabBtn.innerText = 'CLI (Ash Linux)';
+      } else if (device.type === 'internet_cloud') {
+        cliTabBtn.innerText = 'Status (Het Internet)';
+      } else {
+        cliTabBtn.innerText = 'CLI (Cisco IOS)';
+      }
+    }
     if (desktopTabBtn) desktopTabBtn.style.display = (device.type === 'pc' || device.type === 'laptop') ? 'inline-block' : 'none';
     if (servicesTabBtn) servicesTabBtn.style.display = isServer ? 'inline-block' : 'none';
 
@@ -538,11 +554,45 @@ class PXLNetSimApp {
     }
   }
 
-  // 3. CLI TAB (Cisco IOS Monospace Console)
+  // 3. CLI TAB (Cisco IOS / MikroTik / OpenWrt / Internet Gateway)
   renderCliTab() {
     const dev = this.activeDevice;
     const container = document.getElementById('modalPaneCli');
     if (!dev || !container) return;
+
+    // Internet Cloud Simulator Status View
+    if (dev.type === 'internet_cloud') {
+      container.innerHTML = `
+        <div style="background: #0f172a; color: #f8fafc; padding: 25px; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 15px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 32px;">🌐</span>
+              <div>
+                <h3 style="margin: 0; color: #38bdf8;">Het Internet (PXL Global Cloud Gateway)</h3>
+                <span style="font-size: 12px; color: #94a3b8;">Simulatie van het publieke wereldwijde internet</span>
+              </div>
+            </div>
+            <div style="background: #065f46; color: #34d399; font-weight: bold; font-size: 12px; padding: 4px 12px; border-radius: 20px; border: 1px solid #059669;">
+              ● ONLINE (ANY-IP RESPONDER)
+            </div>
+          </div>
+          <p style="color: #cbd5e1; font-size: 13.5px; line-height: 1.6;">
+            Dit cloud-apparaat simuleert het volledige publieke internet. Sluit er een kabel op aan vanuit jouw router of switch. Het reageert met 100% succes op <strong>ALLE</strong> bestemmingen (bv. <code>8.8.8.8</code>, <code>1.1.1.1</code>, <code>pxl.be</code>). In de web browser van elke verbonden PC toont het de webpagina: <strong>"Welkom op het Internet"</strong> met het officiële PXL-symbool.
+          </p>
+          <div style="margin-top: 20px;">
+            <h4 style="color: #38bdf8; margin-bottom: 10px;">Beschikbare Internet Ingress Poorten:</h4>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+              ${Object.entries(dev.interfaces).map(([p, intf]) => `
+                <div style="background: #1e293b; padding: 10px; border-radius: 6px; border: 1px solid #334155; font-size: 12px;">
+                  <strong style="color: #38bdf8;">${p}</strong>: ${intf.ip || 'DHCP/WAN'} <span style="color: #64748b;">(${intf.description})</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+      return;
+    }
 
     container.innerHTML = `
       <div class="pt-terminal-wrapper" style="cursor: text;">
@@ -566,23 +616,57 @@ class PXLNetSimApp {
       };
     }
 
-    this.activeTerminalParser = new CiscoCLIParser(
-      dev,
-      (text) => {
-        screen.innerHTML += `${text}\n`;
-        screen.scrollTop = screen.scrollHeight;
-      },
-      () => {
-        prompt.innerText = dev.getPrompt();
-      },
-      () => {
-        this.triggerScoreUpdate();
+    if (dev.type === 'mikrotik') {
+      this.activeTerminalParser = new MikroTikCLIParser(
+        dev,
+        (text) => {
+          screen.innerHTML += `${text}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => {
+          prompt.innerText = dev.getPrompt();
+        },
+        () => {
+          this.triggerScoreUpdate();
+        }
+      );
+      if (!dev.history || dev.history.length === 0) {
+        screen.innerHTML = `MikroTik RouterOS 7.12 (c) 1994-2026\nRouterOS is active and ready.\nType '/help' or '?' for command reference.\n\n`;
       }
-    );
-
-    // Initial boot message
-    if (!dev.history || dev.history.length === 0) {
-      screen.innerHTML = `Cisco IOS Software, ${dev.model} Software (X86_64_LINUX_IOSD-UNIVERSALK9-M), Version 15.4(3)M2\nTechnical Support: http://www.cisco.com/techsupport\nCopyright (c) 1986-2026 by Cisco Systems, Inc.\n\n`;
+    } else if (dev.type === 'openwrt') {
+      this.activeTerminalParser = new OpenWrtCLIParser(
+        dev,
+        (text) => {
+          screen.innerHTML += `${text}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => {
+          prompt.innerText = dev.getPrompt();
+        },
+        () => {
+          this.triggerScoreUpdate();
+        }
+      );
+      if (!dev.history || dev.history.length === 0) {
+        screen.innerHTML = `  _______                     ________        __\n |       |.-----.-----.-----.|  |  |  |.----.|  |_\n |   -   ||  _  |  -__|     ||  |  |  ||   _||   _|\n |_______||   __|_____|__|__||________||__|  |____|\n          |__| W I R E L E S S   F R E E D O M\n -----------------------------------------------------\n OpenWrt 23.05.2, r23630-94290f9e3d\n -----------------------------------------------------\n\n`;
+      }
+    } else {
+      this.activeTerminalParser = new CiscoCLIParser(
+        dev,
+        (text) => {
+          screen.innerHTML += `${text}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => {
+          prompt.innerText = dev.getPrompt();
+        },
+        () => {
+          this.triggerScoreUpdate();
+        }
+      );
+      if (!dev.history || dev.history.length === 0) {
+        screen.innerHTML = `Cisco IOS Software, ${dev.model} Software (X86_64_LINUX_IOSD-UNIVERSALK9-M), Version 15.4(3)M2\nTechnical Support: http://www.cisco.com/techsupport\nCopyright (c) 1986-2026 by Cisco Systems, Inc.\n\n`;
+      }
     }
 
     prompt.innerText = dev.getPrompt();
@@ -722,27 +806,45 @@ class PXLNetSimApp {
         <div class="pt-app-window pt-cmd-window">
           <div class="pt-terminal-screen" id="pcCmdScreen">Command Prompt (Microsoft Windows PXL NetSim Edition)\n(c) Hogeschool PXL. All rights reserved.\n\n</div>
           <div class="pt-terminal-input-bar">
-            <span class="pt-terminal-prompt">C:\\Users\\Student></span>
-            <input type="text" class="pt-terminal-input" id="pcCmdInput" autocomplete="off">
+            <span class="pt-terminal-prompt" id="pcCmdPrompt">C:\\Users\\Student> </span>
+            <input type="text" class="pt-terminal-input" id="pcCmdInput" autocomplete="off" spellcheck="false">
           </div>
         </div>
       `;
 
       const screen = document.getElementById('pcCmdScreen');
       const input = document.getElementById('pcCmdInput');
-      const handler = new PCDesktopHandler(dev, (t) => {
-        screen.innerHTML += `${t}\n`;
-        screen.scrollTop = screen.scrollHeight;
-      }, () => this.triggerScoreUpdate());
+      const promptEl = document.getElementById('pcCmdPrompt');
+      const handler = new PCDesktopHandler(
+        dev,
+        (t) => {
+          screen.innerHTML += `${t}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => this.triggerScoreUpdate(),
+        (newPrompt) => {
+          if (promptEl) promptEl.innerText = newPrompt;
+        }
+      );
 
       input.focus();
       input.onkeydown = (e) => {
         if (e.key === 'Enter') {
           const val = input.value;
-          screen.innerHTML += `C:\\Users\\Student> ${val}\n`;
+          const curPrompt = promptEl ? promptEl.innerText : 'C:\\Users\\Student> ';
+          screen.innerHTML += `${curPrompt} ${val}\n`;
           input.value = '';
           handler.handleCommand(val);
           screen.scrollTop = screen.scrollHeight;
+        } else if (e.key === 'Tab') {
+          e.preventDefault();
+          if (handler && typeof handler.tabComplete === 'function') {
+            const completed = handler.tabComplete(input.value);
+            if (completed && completed !== input.value) {
+              input.value = completed;
+              input.selectionStart = input.selectionEnd = completed.length;
+            }
+          }
         }
       };
     } else if (appKey === 'wireless') {

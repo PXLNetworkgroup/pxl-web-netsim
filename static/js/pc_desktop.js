@@ -4,15 +4,34 @@
  */
 
 class PCDesktopHandler {
-  constructor(device, printCallback, triggerScoreUpdate) {
+  constructor(device, printCallback, triggerScoreUpdate, updatePromptCallback) {
     this.device = device;
     this.print = printCallback || console.log;
     this.triggerScoreUpdate = triggerScoreUpdate || (() => {});
+    this.updatePrompt = updatePromptCallback || (() => {});
+    this.activeSshSession = null;
   }
 
   handleCommand(rawLine) {
     const dev = this.device;
     const line = rawLine.trim();
+
+    // If inside an active SSH session to a remote device (Cisco, MikroTik, OpenWrt)
+    if (this.activeSshSession) {
+      if (line.toLowerCase() === 'exit' || line.toLowerCase() === 'quit') {
+        const remoteName = this.activeSshSession.targetDev.hostname || 'remote';
+        this.print(`[Connection to ${remoteName} closed]`);
+        this.activeSshSession = null;
+        this.updatePrompt('C:\\Users\\Student> ');
+        return;
+      }
+      this.activeSshSession.parser.handleCommand(rawLine);
+      const prompt = this.activeSshSession.targetDev.getPrompt ? this.activeSshSession.targetDev.getPrompt() : '> ';
+      this.updatePrompt(prompt);
+      if (this.triggerScoreUpdate) this.triggerScoreUpdate();
+      return;
+    }
+
     if (!line) {
       this.print("");
       return;
@@ -38,6 +57,9 @@ class PCDesktopHandler {
       case 'nslookup':
         this.handleNslookup(parts.slice(1));
         break;
+      case 'ssh':
+        this.handleSsh(parts.slice(1));
+        break;
       case 'ftp':
         this.handleFtp(parts.slice(1));
         break;
@@ -46,13 +68,127 @@ class PCDesktopHandler {
         if (window.PXLApp) window.PXLApp.clearActiveTerminal();
         break;
       case 'help':
-        this.print("Supported commands: ipconfig, ipconfig /all, ping <ip>, tracert <ip>, nslookup <domain>, ftp <target>, cls");
+        this.print("Supported commands: ipconfig, ipconfig /all, ping <ip>, tracert <ip>, nslookup <domain>, ssh [-l user] <ip>, ftp <target>, cls");
         break;
       default:
         this.print(`'${cmd}' is not recognized as an internal or external command.`);
     }
 
     if (this.triggerScoreUpdate) this.triggerScoreUpdate();
+  }
+
+  handleSsh(args) {
+    if (args.length === 0) {
+      this.print("usage: ssh [-l username] destination-ip (e.g. ssh admin@192.168.88.1 or ssh -l admin 192.168.88.1)");
+      return;
+    }
+
+    let user = 'admin';
+    let targetIp = '';
+
+    if (args[0] === '-l') {
+      user = args[1] || 'admin';
+      targetIp = args[2] || '';
+    } else if (args[0].includes('@')) {
+      const parts = args[0].split('@');
+      user = parts[0];
+      targetIp = parts[1];
+    } else {
+      targetIp = args[0];
+    }
+
+    if (!targetIp) {
+      this.print("ssh: missing destination IP address.");
+      return;
+    }
+
+    const sim = window.PXLNetworkSim;
+    if (!sim) {
+      this.print("ssh: network simulation engine not loaded.");
+      return;
+    }
+
+    // Check reachability
+    const pingRes = sim.executePing(this.device.id, targetIp);
+    if (!pingRes.success) {
+      this.print(`ssh: connect to host ${targetIp} port 22: Connection timed out`);
+      return;
+    }
+
+    const dstInfo = sim.findDeviceByIp(targetIp);
+    if (!dstInfo) {
+      this.print(`ssh: connect to host ${targetIp} port 22: Connection refused`);
+      return;
+    }
+
+    const targetDev = dstInfo.device;
+
+    // 1. MikroTik Router SSH
+    if (targetDev.type === 'mikrotik') {
+      const srv = targetDev.mikrotikConfig?.services?.ssh;
+      if (srv && srv.enabled === false) {
+        this.print(`ssh: connect to host ${targetIp} port 22: Connection refused (SSH service disabled on MikroTik)`);
+        return;
+      }
+      this.print(`\nMikroTik RouterOS 7.12 (c) 1994-2026`);
+      this.print(`Authenticated as '${user}' over secure SSH session.`);
+      const parser = new MikroTikCLIParser(
+        targetDev,
+        this.print,
+        () => this.updatePrompt(targetDev.getPrompt()),
+        this.triggerScoreUpdate
+      );
+      this.activeSshSession = { targetDev, parser, user };
+      this.updatePrompt(targetDev.getPrompt());
+      return;
+    }
+
+    // 2. OpenWrt Router SSH
+    if (targetDev.type === 'openwrt') {
+      this.print(`\nOpenWrt 23.05 (r23630-94290f9e3d) - Dropbear SSH`);
+      this.print(`Authenticated as '${user}' on ${targetDev.hostname}.\n`);
+      const parser = new OpenWrtCLIParser(
+        targetDev,
+        this.print,
+        () => this.updatePrompt(targetDev.getPrompt()),
+        this.triggerScoreUpdate
+      );
+      this.activeSshSession = { targetDev, parser, user };
+      this.updatePrompt(targetDev.getPrompt());
+      return;
+    }
+
+    // 3. Cisco Switch / Router SSH
+    if (targetDev.type === 'router' || targetDev.type === 'switch') {
+      const vtyHasSsh = targetDev.vtyTransportInput.includes('ssh') || targetDev.vtyTransportInput === 'all';
+      if (!vtyHasSsh && targetDev.vtyTransportInput !== "") {
+        this.print(`% Connection refused by remote host (SSH not permitted on line vty)`);
+        return;
+      }
+      this.print(`\nOpen SSH session to ${targetDev.hostname} (${targetIp})`);
+      this.print(`User Access Verification - Connected via SSH v2\n`);
+      const parser = new CiscoCLIParser(
+        targetDev,
+        this.print,
+        () => this.updatePrompt(targetDev.getPrompt()),
+        this.triggerScoreUpdate
+      );
+      this.activeSshSession = { targetDev, parser, user };
+      this.updatePrompt(targetDev.getPrompt());
+      return;
+    }
+
+    this.print(`ssh: connect to host ${targetIp} port 22: Protocol not supported on this device type`);
+  }
+
+  tabComplete(inputLine) {
+    if (this.activeSshSession && this.activeSshSession.parser && typeof this.activeSshSession.parser.tabComplete === 'function') {
+      return this.activeSshSession.parser.tabComplete(inputLine);
+    }
+    const pcCommands = ['ipconfig', 'ipconfig /all', 'ping', 'tracert', 'nslookup', 'ssh admin@', 'ftp', 'cls'];
+    const match = pcCommands.find(c => c.startsWith(inputLine.trim()));
+    if (match) return match + ' ';
+    return inputLine;
   }
 
   handleIpconfig(args) {

@@ -2,6 +2,7 @@
 # © Parren, Van Waeyenberg, Frissaer, Jean, Hombroeks • Hogeschool PXL
 
 $ErrorActionPreference = "Continue"
+Set-Location $PSScriptRoot
 
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host "  PXL Web NetSim • Google Cloud Run Deployment" -ForegroundColor Cyan
@@ -70,7 +71,7 @@ if ($projectNumber) {
 # 4. Deploy to Cloud Run
 Write-Host "[3/4] Applicatie bouwen en implementeren naar Cloud Run (europe-west1)..." -ForegroundColor Yellow
 & $gcloudPath run deploy pxl-web-netsim `
-    --source . `
+    --source $PSScriptRoot `
     --platform managed `
     --region europe-west1 `
     --allow-unauthenticated `

@@ -132,6 +132,9 @@ class CanvasWorkspace {
     if (type === 'laptop') prefix = 'Laptop';
     if (type === 'server') prefix = 'Server';
     if (type === 'wireless_ap') prefix = 'WirelessRouter';
+    if (type === 'mikrotik') prefix = 'MikroTik';
+    if (type === 'openwrt') prefix = 'OpenWrt';
+    if (type === 'internet_cloud') prefix = 'Internet';
 
     const id = `${prefix}${count}`;
     const newDev = new CiscoDevice(id, type, id, {
@@ -645,6 +648,41 @@ class CanvasWorkspace {
       ctx.beginPath();
       ctx.moveTo(x + 18, y + 25); ctx.lineTo(x + 36, y + 25); ctx.lineTo(x + 36, y + 22); ctx.lineTo(x + 42, y + 27); ctx.lineTo(x + 36, y + 32); ctx.lineTo(x + 36, y + 29); ctx.lineTo(x + 18, y + 29); ctx.fill();
       ctx.moveTo(x + 52, y + 42); ctx.lineTo(x + 34, y + 42); ctx.lineTo(x + 34, y + 39); ctx.lineTo(x + 28, y + 44); ctx.lineTo(x + 34, y + 49); ctx.lineTo(x + 34, y + 46); ctx.lineTo(x + 52, y + 46); ctx.fill();
+    } else if (dev.type === 'mikrotik') {
+      ctx.fillStyle = '#f8fafc';
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 2;
+      ctx.fillRect(x + 6, y + 15, 58, 38);
+      ctx.strokeRect(x + 6, y + 15, 58, 38);
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(x + 12, y + 22, 10, 10);
+      for (let p = 0; p < 5; p++) {
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(x + 28 + (p * 7), y + 24, 5, 8);
+      }
+    } else if (dev.type === 'openwrt') {
+      ctx.fillStyle = '#0284c7';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.fillRect(x + 8, y + 18, 54, 34);
+      ctx.strokeRect(x + 8, y + 18, 54, 34);
+      // Antennas
+      ctx.strokeStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.moveTo(x + 16, y + 18); ctx.lineTo(x + 12, y + 8);
+      ctx.moveTo(x + 54, y + 18); ctx.lineTo(x + 58, y + 8);
+      ctx.stroke();
+    } else if (dev.type === 'internet_cloud') {
+      // Cloud shape
+      ctx.fillStyle = '#38bdf8';
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x + 26, y + 36, 14, 0, Math.PI * 2);
+      ctx.arc(x + 42, y + 26, 16, 0, Math.PI * 2);
+      ctx.arc(x + 56, y + 36, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
     } else if (dev.type === 'pc' || dev.type === 'server') {
       // Monitor + base
       ctx.fillStyle = '#f8fafc';

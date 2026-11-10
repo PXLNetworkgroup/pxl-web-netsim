@@ -215,16 +215,24 @@ class NetworkSimulator {
       if (intf.ip === targetIp && !intf.shutdown) return { success: true, hops: [targetIp], reason: 'Echo reply from self' };
     }
 
-    // Find destination device in network
+    // Check if destination device exists directly in local topology
     const dstInfo = this.findDeviceByIp(targetIp);
-    if (!dstInfo) {
+    const inetCloud = Object.values(this.devices).find(d => d.type === 'internet_cloud' && d.powerOn);
+
+    if (!dstInfo && !inetCloud) {
       return { success: false, hops, reason: 'Destination host unreachable (no device has this IP)' };
     }
 
-    // Step 1: Forward path (src -> dst)
+    // Step 1: Forward path (src -> dst or src -> internet_cloud)
     const forwardPath = this.routePacket(srcDevId, targetIp);
     if (!forwardPath.success) {
       return { success: false, hops: forwardPath.hops, reason: forwardPath.reason };
+    }
+
+    // If destination was Het Internet cloud simulator, echo reply is guaranteed!
+    if (forwardPath.isInternet || !dstInfo) {
+      hops.push(...forwardPath.hops);
+      return { success: true, hops: forwardPath.hops, reason: 'Echo reply from Het Internet' };
     }
 
     // Step 2: Return path (dst -> src)
@@ -256,7 +264,20 @@ class NetworkSimulator {
   resolveDns(srcDevId, domainName) {
     const cleanHost = domainName.replace(/^https?:\/\//i, '').split('/')[0].trim();
     const srcDev = this.devices[srcDevId];
-    if (!srcDev || !srcDev.dns) {
+    if (!srcDev) {
+      return { success: false, reason: 'Invalid source device' };
+    }
+
+    // If Het Internet cloud is active in the network, it provides automatic public DNS resolution!
+    const inetCloud = Object.values(this.devices).find(d => d.type === 'internet_cloud' && d.powerOn);
+    if (inetCloud) {
+      const routeToInet = this.routePacket(srcDevId, inetCloud.interfaces['WAN']?.ip || '8.8.8.8');
+      if (routeToInet.success) {
+        return { success: true, ip: '193.190.173.1', dnsServerIp: '8.8.8.8' };
+      }
+    }
+
+    if (!srcDev.dns) {
       return { success: false, reason: 'DNS server IP not configured on host' };
     }
     const dnsIp = srcDev.dns;
@@ -292,6 +313,16 @@ class NetworkSimulator {
       return { success: false, reason: `Request Timeout: could not connect to ${targetIp}:80` };
     }
 
+    // Check if packet was received by Het Internet Cloud Simulator
+    const inetCloud = Object.values(this.devices).find(d => d.type === 'internet_cloud' && d.powerOn);
+    if (inetCloud && (pingResult.reason === 'Echo reply from Het Internet' || pingResult.hops.includes('Het Internet') || targetIp === '193.190.173.1' || !this.findDeviceByIp(targetIp))) {
+      return {
+        success: true,
+        targetIp: targetIp,
+        html: this.getInternetLandingHtml(target)
+      };
+    }
+
     const dstInfo = this.findDeviceByIp(targetIp);
     if (!dstInfo || !dstInfo.device.services || !dstInfo.device.services.http || !dstInfo.device.services.http.enabled) {
       return { success: false, reason: `Connection Refused: HTTP web service inactive on ${targetIp}` };
@@ -302,6 +333,42 @@ class NetworkSimulator {
       targetIp: targetIp,
       html: dstInfo.device.services.http.content
     };
+  }
+
+  getInternetLandingHtml(target) {
+    return `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0b132b; color: #f8fafc; min-height: 420px; padding: 25px; border-radius: 8px; text-align: center; box-sizing: border-box;">
+        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px; padding: 25px; max-width: 580px; margin: 0 auto; box-shadow: 0 15px 35px rgba(0,0,0,0.6);">
+          <div style="margin-bottom: 15px;">
+            <img src="img/pxl_logo.png" alt="Hogeschool PXL" style="height: 60px; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));">
+          </div>
+          <div style="display: inline-block; background: #0284c7; color: #ffffff; padding: 4px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 12px;">
+            🌐 PXL NETSIM • GLOBAL INTERNET GATEWAY
+          </div>
+          <h1 style="color: #38bdf8; font-size: 26px; margin: 0 0 10px 0; font-weight: 800;">Welkom op het Internet</h1>
+          <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+            Gefeliciteerd! Jouw netwerkpakketten hebben met succes de lokale netwerkinfrastructuur en de default gateway doorlopen en hebben het wereldwijde Internet bereikt via de virtuele <strong>Het Internet</strong> Cloud.
+          </p>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; text-align: left;">
+            <div style="background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
+              <div style="font-size: 10px; color: #64748b; font-weight: bold;">OPGEVRAAGD ADRES</div>
+              <div style="font-size: 12px; font-weight: bold; color: #38bdf8; word-break: break-all;">${target}</div>
+            </div>
+            <div style="background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
+              <div style="font-size: 10px; color: #64748b; font-weight: bold;">WAN LATENCY</div>
+              <div style="font-size: 12px; font-weight: bold; color: #10b981;">12 ms (Optimaal)</div>
+            </div>
+            <div style="background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
+              <div style="font-size: 10px; color: #64748b; font-weight: bold;">STATUS</div>
+              <div style="font-size: 12px; font-weight: bold; color: #10b981;">● Verbonden</div>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+            Hogeschool PXL • Departement Toegepaste Informatica • System & Network Engineering (SNE)
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   findDeviceByIp(targetIp) {
@@ -333,7 +400,26 @@ class NetworkSimulator {
       return { success: false, hops, reason: `Device ${currentDevId} is down` };
     }
 
-    // Check all active interfaces on this device
+    // Het Internet Cloud Simulator terminates and answers all external requests
+    if (dev.type === 'internet_cloud') {
+      hops.push('Het Internet');
+      return { success: true, hops, ingressIp: '193.190.173.1', isInternet: true };
+    }
+
+    // Check if any port on this device connects directly to Het Internet cloud
+    for (const [portName, intf] of Object.entries(dev.interfaces)) {
+      if (intf.shutdown) continue;
+      const peer = this.getConnectedPeer(dev.id, portName);
+      if (peer) {
+        const peerDev = this.devices[peer.deviceId];
+        if (peerDev && peerDev.type === 'internet_cloud' && peerDev.powerOn) {
+          hops.push(intf.ip || dev.hostname);
+          return this.routePacket(peerDev.id, targetIp, visited, hops);
+        }
+      }
+    }
+
+    // Check all active interfaces on this device for local subnet match
     for (const [portName, intf] of Object.entries(dev.interfaces)) {
       const myIp = (dev.type === 'pc' || dev.type === 'laptop' || dev.type === 'server') ? dev.ip : intf.ip;
       const myMask = (dev.type === 'pc' || dev.type === 'laptop' || dev.type === 'server') ? dev.mask : intf.mask;
@@ -359,7 +445,7 @@ class NetworkSimulator {
       nextHopIp = dev.gateway;
     } else if (dev.type === 'switch') {
       nextHopIp = dev.defaultGateway;
-    } else if (dev.type === 'router') {
+    } else if (dev.type === 'router' || dev.type === 'mikrotik' || dev.type === 'openwrt') {
       // Longest prefix match in static routes
       let bestMatch = null;
       let bestPrefix = -1;

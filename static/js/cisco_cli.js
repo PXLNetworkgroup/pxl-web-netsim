@@ -126,17 +126,17 @@ class CiscoCLIParser {
     const cmd = tokens[0].toLowerCase();
 
     // Universal navigation: 'exit' and 'end'
-    if (this.matchCmd(cmd, 'exit')) {
+    if (cmd === 'exit' || cmd === 'quit' || (cmd.startsWith('ex') && dev.mode !== 'USER_EXEC')) {
       this.handleExit();
       return;
     }
-    if (this.matchCmd(cmd, 'end')) {
-      if (dev.mode !== 'USER_EXEC' && dev.mode !== 'PRIV_EXEC') {
-        dev.mode = 'PRIV_EXEC';
-        dev.currentInterface = null;
-        dev.currentLine = null;
-        this.print("");
-      }
+
+    // 'end' is ONLY valid in configuration modes (Router(config)#, config-if, config-line)
+    if (cmd === 'end' && dev.mode !== 'USER_EXEC' && dev.mode !== 'PRIV_EXEC') {
+      dev.mode = 'PRIV_EXEC';
+      dev.currentInterface = null;
+      dev.currentLine = null;
+      this.print("");
       return;
     }
 
@@ -211,6 +211,11 @@ class CiscoCLIParser {
   handlePrivExec(tokens, fullLine) {
     const dev = this.device;
     const cmd0 = tokens[0].toLowerCase();
+
+    // 'enable' / 'en' while already in privileged mode is a no-op
+    if (this.matchCmd(cmd0, 'enable')) {
+      return;
+    }
 
     if (this.matchCmd(cmd0, 'disable')) {
       dev.mode = 'USER_EXEC';
@@ -1012,6 +1017,7 @@ class CiscoCLIParser {
         'configure terminal',
         'copy running-config startup-config',
         'disable',
+        'enable',
         'erase startup-config',
         'exit',
         'ping',

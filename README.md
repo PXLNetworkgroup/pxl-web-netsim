@@ -32,13 +32,17 @@ Wanneer studenten de native desktopversie van Cisco Packet Tracer draaien, moet 
 | :--- | :--- |
 | **Topologie & Canvas** | Dynamische canvas met zoom, pan, selectie, grid snap, officiële Cisco SVG iconen, real-time link LED's (groen/oranje/rood). |
 | **Bekabeling** | Koper straight-through, crossover, console kabel, serial kabel met automatische interfacekeuze en link negotiation. |
-| **Cisco IOS CLI** | CLI met `--More--` pager (Spatiebalk voor volgende pagina, Enter voor regel, `q` om af te breken), tab-completion, `?` inline syntaxhulp, command history (pijltjes), syntax foutmeldingen. |
+| **Cisco IOS CLI** | CLI met `--More--` pager (Spatiebalk voor volgende pagina, Enter voor regel, `q` om af te breken), context-aware tab-completion, `?` inline syntaxhulp, command history (pijltjes), verkorte commando's (`en`, `conf t`, `sh run`, `no sh`). |
+| **MikroTik RouterOS** | Volledige emulatie van de **MikroTik hEX lite (RB750r2)** met 5 FastEthernet poorten, RouterOS CLI (`/ip address add`, `/ip route add`, `/system identity`, `/export`) en **beveiligde SSH-toegang**. |
+| **OpenWrt Router** | Emulatie van **OpenWrt 23.05** met BusyBox/Ash shell (`uci show network`, `uci set`, `uci commit`, `ifconfig`, `cat /etc/banner`) en LuCI webinterface. |
+| **Het Internet Simulator** | Cloud device dat op het canvas gesleept kan worden. Reageert met 100% succes op **ALLE IP-adressen** en toont in de browser de **"Welkom op het Internet"** webpagina met PXL-logo. |
 | **Factory Reset** | Wis switch/router configuratie via `write erase` / `erase startup-config` / `reload` én via de fysieke "Wis Config" knop in de GUI. |
 | **Server Services** | Server-PT ondersteunt **HTTP Webserver** (met bewerkbare `index.html`), **DNS Service** (A-records met dynamische domeinnaamresolutie) en **FTP Service** (gebruikersbeheer en bestandsopslag). |
-| **PC & Laptop Desktop** | Command Prompt (`ping`, `traceroute`, `ipconfig`, `nslookup`, `ftp`), IP Configuration, PC Wireless WPA2 utility en **Web Browser** app met HTTP URL browsing. |
+| **PC & Laptop Desktop** | Command Prompt (`ping`, `traceroute`, `ipconfig`, `nslookup`, `ssh admin@<ip>`, `ftp`), IP Configuration, PC Wireless WPA2 utility en **Web Browser** app met HTTP URL browsing. |
 | **Opdracht Dropdown** | Altijd toegankelijk via de header: toont opgave, netwerkschema, adresseringstabel en live rubric checklist. |
 | **Database & Accounts** | SQLite database (`data/netsim.db`) met gehashte wachtwoorden, studentensessies, en **automatische auto-save elke 60 seconden**. |
 | **Teacher Studio** | Beveiligd met docentenlogin (`teacher` / `SinterklaasOp6December`), rubric score editor, live studentenmonitor en **CSV bulk student import** (`username;password;full_name;class`). |
+| **Team Samenwerking** | Uitgebreide docentenhandleiding [`COLLEGA_INSTALLATIE_HANDLEIDING.md`](file:///G:/Mijn%20Drive/antigravitylogs/pxl-web-netsim/COLLEGA_INSTALLATIE_HANDLEIDING.md) met GitHub branch workflow, persoonlijke `collega-workspaces/` en 1-klik GitHub synchronisatie. |
 | **Cloud Deployment** | Kant-en-klaar voor **Google Cloud Run** met Dockerfile en één-klik PowerShell script (`deploy_gcloud.ps1`). |
 
 ---

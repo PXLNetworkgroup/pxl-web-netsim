@@ -156,6 +156,67 @@ const CiscoIcons = {
       <path d="M 22 42 L 56 42 A 12 12 0 0 0 58 18 A 16 16 0 0 0 28 16 A 14 14 0 0 0 16 32 A 10 10 0 0 0 22 42 Z"
             fill="url(#cloudGrad)" stroke="#475569" stroke-width="2"/>
       <text x="38" y="33" font-family="Arial, sans-serif" font-weight="bold" font-size="11" fill="#0369a1" text-anchor="middle">WAN</text>
+    </svg>`,
+
+  // MikroTik Router (hEX lite RB750r2)
+  mikrotik: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 56" width="76" height="56">
+      <defs>
+        <linearGradient id="mtGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#e2e8f0"/>
+        </linearGradient>
+      </defs>
+      <rect x="4" y="8" width="68" height="40" rx="4" fill="url(#mtGrad)" stroke="#475569" stroke-width="2"/>
+      <polygon points="12,22 17,22 23,28 17,34 12,34 18,28" fill="#0284c7"/>
+      <polygon points="20,22 25,22 31,28 25,34 20,34 26,28" fill="#334155"/>
+      <rect x="36" y="24" width="5" height="7" rx="1" fill="#334155" stroke="#0284c7" stroke-width="0.75"/>
+      <rect x="43" y="24" width="5" height="7" rx="1" fill="#334155" stroke="#0284c7" stroke-width="0.75"/>
+      <rect x="50" y="24" width="5" height="7" rx="1" fill="#334155" stroke="#0284c7" stroke-width="0.75"/>
+      <rect x="57" y="24" width="5" height="7" rx="1" fill="#334155" stroke="#0284c7" stroke-width="0.75"/>
+      <rect x="64" y="24" width="5" height="7" rx="1" fill="#334155" stroke="#0284c7" stroke-width="0.75"/>
+      <circle cx="38" cy="18" r="1" fill="#22c55e"/>
+      <circle cx="45" cy="18" r="1" fill="#22c55e"/>
+      <circle cx="52" cy="18" r="1" fill="#22c55e"/>
+      <circle cx="59" cy="18" r="1" fill="#22c55e"/>
+      <circle cx="66" cy="18" r="1" fill="#22c55e"/>
+      <text x="12" y="44" font-family="Arial, sans-serif" font-weight="bold" font-size="6" fill="#475569">hEX lite</text>
+    </svg>`,
+
+  // OpenWrt Gateway Router
+  openwrt: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 56" width="76" height="56">
+      <defs>
+        <linearGradient id="owrtGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#0284c7"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+      </defs>
+      <line x1="14" y1="12" x2="10" y2="2" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="62" y1="12" x2="66" y2="2" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round"/>
+      <rect x="6" y="12" width="64" height="36" rx="4" fill="url(#owrtGrad)" stroke="#38bdf8" stroke-width="1.5"/>
+      <circle cx="22" cy="30" r="8" fill="none" stroke="#38bdf8" stroke-width="1.5"/>
+      <circle cx="22" cy="30" r="4" fill="#38bdf8"/>
+      <circle cx="36" cy="30" r="1.5" fill="#22c55e"/>
+      <circle cx="42" cy="30" r="1.5" fill="#22c55e"/>
+      <circle cx="48" cy="30" r="1.5" fill="#38bdf8"/>
+      <circle cx="54" cy="30" r="1.5" fill="#22c55e"/>
+      <text x="63" y="42" font-family="Arial, sans-serif" font-weight="bold" font-size="6.5" fill="#f8fafc" text-anchor="end">OpenWrt</text>
+    </svg>`,
+
+  // Het Internet Global Cloud Simulator
+  internet_cloud: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 60" width="84" height="60">
+      <defs>
+        <linearGradient id="inetGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#38bdf8"/>
+          <stop offset="50%" stop-color="#0284c7"/>
+          <stop offset="100%" stop-color="#0369a1"/>
+        </linearGradient>
+      </defs>
+      <path d="M 24 45 L 62 45 A 14 14 0 0 0 64 18 A 18 18 0 0 0 31 16 A 16 16 0 0 0 17 33 A 12 12 0 0 0 24 45 Z"
+            fill="url(#inetGrad)" stroke="#e0f2fe" stroke-width="2"/>
+      <circle cx="42" cy="30" r="11" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.85"/>
+      <ellipse cx="42" cy="30" rx="5" ry="11" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
+      <line x1="31" y1="30" x2="53" y2="30" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
+      <text x="42" y="55" font-family="Arial, sans-serif" font-weight="bold" font-size="7.5" fill="#0369a1" text-anchor="middle">INTERNET</text>
     </svg>`
 };
 
@@ -178,6 +239,9 @@ function getCiscoDeviceIcon(type, model = "") {
   }
   if (t === 'laptop') return CiscoIcons.laptop;
   if (t === 'server') return CiscoIcons.server;
+  if (t === 'mikrotik') return CiscoIcons.mikrotik;
+  if (t === 'openwrt') return CiscoIcons.openwrt;
+  if (t === 'internet_cloud' || t === 'internet') return CiscoIcons.internet_cloud;
   if (t === 'cloud') return CiscoIcons.cloud;
   return CiscoIcons.pc; // default PC
 }
