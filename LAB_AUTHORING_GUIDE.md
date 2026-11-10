@@ -83,3 +83,4 @@ De simulator voert elke 10 seconden automatisch de beoordelingsengine uit:
 ## 5. Hoe een Nieuw Lab Toevoegen met AI?
 Geef aan een AI assistent de template [`PXL_LAB_TEMPLATE.json`](file:///G:/My%20Drive/antigravitylogs/pxl-web-netsim/PXL_LAB_TEMPLATE.json) samen met de lab-opdracht (bijvoorbeeld van [vwgert.github.io/networksess/](https://vwgert.github.io/networksess/)).
 De AI genereert direct een valide JSON-bestand dat via de knop **📥 Import** in de applicatie kan worden ingeladen of aan de map `data/course_labs/` kan worden toegevoegd.
+

@@ -390,7 +390,6 @@ class PXLNetSimApp {
     };
     input.click();
   }
-  }
 
   // --- DEVICE MODAL (PHYSICAL / CONFIG / CLI / DESKTOP) ---
   openDeviceModal(device) {
