@@ -96,3 +96,4 @@ if __name__ == "__main__":
     print(f"  Geschikt voor Schoolyear Kiosk Lockdown (1 URL)")
     print(f"============================================================")
     app.run(host="0.0.0.0", port=port, debug=False)
+

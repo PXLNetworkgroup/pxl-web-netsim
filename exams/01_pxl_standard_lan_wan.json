@@ -37,3 +37,4 @@
     { "id": "r13", "category": "saving", "title": "13. Configuratie Opgeslagen (NVRAM)", "desc": "Running-config opgeslagen met copy run start op routers", "points": 6, "enabled": true, "checkType": "copy_run_start", "condition": { "targetDevice": "R1" } }
   ]
 }
+

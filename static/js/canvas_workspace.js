@@ -21,7 +21,8 @@ class CanvasWorkspace {
     this.panStartY = 0;
 
     // Interaction State
-    this.activeTool = 'select'; // 'select', 'cable', 'delete', 'note'
+    this.activeTool = 'select'; // 'select', 'cable', 'delete', 'place'
+    this.placingDeviceSpec = null; // { type, model }
     this.selectedDevice = null;
     this.draggedDevice = null;
     this.dragOffsetX = 0;
@@ -40,8 +41,9 @@ class CanvasWorkspace {
   }
 
   resizeCanvas() {
-    this.canvas.width = this.container.clientWidth || 1200;
-    this.canvas.height = this.container.clientHeight || 700;
+    const rect = this.container.getBoundingClientRect();
+    this.canvas.width = rect.width || window.innerWidth || 1200;
+    this.canvas.height = rect.height || (window.innerHeight - 160) || 700;
     this.render();
   }
 
@@ -61,19 +63,113 @@ class CanvasWorkspace {
 
   initEventListeners() {
     this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
-    this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+    window.addEventListener('mousemove', (e) => this.handleMouseMove(e));
     window.addEventListener('mouseup', (e) => this.handleMouseUp(e));
     this.canvas.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
     this.canvas.addEventListener('dblclick', (e) => this.handleDoubleClick(e));
+
+    // HTML5 Drag-and-Drop from Shelf onto Canvas
+    this.container.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    });
+
+    this.container.addEventListener('drop', (e) => {
+      e.preventDefault();
+      try {
+        const raw = e.dataTransfer.getData('text/plain');
+        if (raw) {
+          const spec = JSON.parse(raw);
+          if (spec && spec.type) {
+            const pos = this.screenToCanvas(e.clientX, e.clientY);
+            this.placeDeviceAt(spec.type, spec.model, Math.round(pos.x - 35), Math.round(pos.y - 35));
+          }
+        }
+      } catch (err) {
+        console.error('Drop error:', err);
+      }
+    });
+
+    // Keyboard shortcuts (Delete key removes selected device)
+    window.addEventListener('keydown', (e) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedDevice) {
+        // Only if not focused on an input
+        if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+          return;
+        }
+        window.PXLNetworkSim.removeDevice(this.selectedDevice.id);
+        this.selectedDevice = null;
+        this.render();
+        if (window.PXLApp) window.PXLApp.triggerScoreUpdate();
+      }
+    });
+  }
+
+  setPlacingDevice(type, model) {
+    this.activeTool = 'place';
+    this.placingDeviceSpec = { type, model };
+    this.canvas.style.cursor = 'crosshair';
+  }
+
+  cancelPlacingDevice() {
+    this.activeTool = 'select';
+    this.placingDeviceSpec = null;
+    this.canvas.style.cursor = 'default';
+    if (window.PXLApp) window.PXLApp.highlightActiveShelfBtn(null);
+  }
+
+  placeDeviceAt(type, model, x, y) {
+    const sim = window.PXLNetworkSim;
+    const existing = Object.values(sim.devices).filter(d => d.type === type);
+    const count = existing.length + 1;
+    let prefix = 'Device';
+    if (type === 'router') prefix = 'Router';
+    if (type === 'switch') prefix = 'Switch';
+    if (type === 'pc') prefix = 'PC';
+    if (type === 'laptop') prefix = 'Laptop';
+    if (type === 'server') prefix = 'Server';
+    if (type === 'wireless_ap') prefix = 'WirelessRouter';
+
+    const id = `${prefix}${count}`;
+    const newDev = new CiscoDevice(id, type, id, {
+      model: model,
+      x: x,
+      y: y
+    });
+
+    sim.registerDevice(newDev);
+    this.selectedDevice = newDev;
+    this.render();
+    if (window.PXLApp) {
+      window.PXLApp.showToast(`✅ ${newDev.hostname} geplaatst op werkveld`);
+      window.PXLApp.triggerScoreUpdate();
+    }
   }
 
   handleMouseDown(e) {
+    // Only left click
+    if (e.button !== 0) return;
+
     const pos = this.screenToCanvas(e.clientX, e.clientY);
     const clickedDev = this.getDeviceAt(pos.x, pos.y);
 
+    // 1. PLACE TOOL (User clicked a device in shelf and now clicks canvas)
+    if (this.activeTool === 'place' && this.placingDeviceSpec) {
+      this.placeDeviceAt(
+        this.placingDeviceSpec.type,
+        this.placingDeviceSpec.model,
+        Math.round(pos.x - 35),
+        Math.round(pos.y - 35)
+      );
+      this.cancelPlacingDevice();
+      return;
+    }
+
+    // 2. DELETE TOOL
     if (this.activeTool === 'delete') {
       if (clickedDev) {
         window.PXLNetworkSim.removeDevice(clickedDev.id);
+        this.selectedDevice = null;
         this.render();
         if (window.PXLApp) window.PXLApp.triggerScoreUpdate();
         return;
@@ -87,6 +183,7 @@ class CanvasWorkspace {
       }
     }
 
+    // 3. CABLE TOOL
     if (this.activeTool === 'cable') {
       if (clickedDev) {
         const screenPos = this.canvasToScreen(clickedDev.x + 35, clickedDev.y + 35);
@@ -97,18 +194,21 @@ class CanvasWorkspace {
       return;
     }
 
-    // Select Tool
+    // 4. SELECT / MOVE TOOL
     if (clickedDev) {
+      e.preventDefault();
       this.selectedDevice = clickedDev;
       this.draggedDevice = clickedDev;
       this.dragOffsetX = pos.x - clickedDev.x;
       this.dragOffsetY = pos.y - clickedDev.y;
+      this.canvas.style.cursor = 'grabbing';
     } else {
       this.selectedDevice = null;
       // Start canvas panning
       this.isPanning = true;
       this.panStartX = e.clientX - this.panX;
       this.panStartY = e.clientY - this.panY;
+      this.canvas.style.cursor = 'grab';
     }
     this.render();
   }
@@ -125,14 +225,23 @@ class CanvasWorkspace {
       this.panX = e.clientX - this.panStartX;
       this.panY = e.clientY - this.panStartY;
       this.render();
-    } else if (this.cabling.pendingConnection) {
+    } else if (this.cabling && this.cabling.pendingConnection) {
       this.render();
+    } else if (this.activeTool === 'select') {
+      const hoverDev = this.getDeviceAt(pos.x, pos.y);
+      this.canvas.style.cursor = hoverDev ? 'grab' : 'default';
     }
   }
 
   handleMouseUp(e) {
-    this.draggedDevice = null;
+    if (this.draggedDevice) {
+      this.draggedDevice = null;
+      if (window.PXLApp) window.PXLApp.triggerScoreUpdate();
+    }
     this.isPanning = false;
+    if (this.activeTool === 'select') {
+      this.canvas.style.cursor = 'default';
+    }
   }
 
   handleDoubleClick(e) {
@@ -165,7 +274,8 @@ class CanvasWorkspace {
     // Search in reverse for top-most
     for (let i = devs.length - 1; i >= 0; i--) {
       const d = devs[i];
-      if (x >= d.x && x <= d.x + 70 && y >= d.y && y <= d.y + 70) {
+      // Target 70x70 device footprint + padding for easy grabbing
+      if (x >= d.x - 5 && x <= d.x + 75 && y >= d.y - 5 && y <= d.y + 85) {
         return d;
       }
     }
@@ -181,9 +291,8 @@ class CanvasWorkspace {
       if (!devA || !devB) continue;
       const x1 = devA.x + 35, y1 = devA.y + 35;
       const x2 = devB.x + 35, y2 = devB.y + 35;
-      // Distance from point to line segment
       const dist = this.distToSegment({ x, y }, { x: x1, y: y1 }, { x: x2, y: y2 });
-      if (dist < 8) return cable;
+      if (dist < 10) return cable;
     }
     return null;
   }
@@ -201,6 +310,10 @@ class CanvasWorkspace {
     if (tool !== 'cable') {
       this.cabling.setCableType(null);
     }
+    if (tool !== 'place') {
+      this.placingDeviceSpec = null;
+    }
+    this.canvas.style.cursor = tool === 'delete' ? 'not-allowed' : 'default';
     this.render();
   }
 
@@ -244,7 +357,6 @@ class CanvasWorkspace {
   }
 
   drawGrid(ctx, screenW, screenH) {
-    // Subtle fine grid dots (Packet Tracer style)
     const gridSize = 30;
     const startX = Math.floor(-this.panX / this.scale / gridSize) * gridSize - gridSize;
     const endX = startX + (screenW / this.scale) + (gridSize * 2);
@@ -281,7 +393,6 @@ class CanvasWorkspace {
       ctx.lineTo(client.x + 35, client.y + 35);
       ctx.stroke();
 
-      // Radiating wave icon at midpoint
       const midX = (ap.x + client.x + 70) / 2;
       const midY = (ap.y + client.y + 70) / 2;
       ctx.fillStyle = "#0284c7";
@@ -307,30 +418,26 @@ class CanvasWorkspace {
 
       ctx.save();
 
-      // Cable style by type
       if (cable.type === 'crossover') {
         ctx.strokeStyle = '#1e293b';
         ctx.lineWidth = 2.5;
         ctx.setLineDash([6, 4]);
       } else if (cable.type === 'serial') {
-        ctx.strokeStyle = '#dc2626'; // Cisco Serial red
+        ctx.strokeStyle = '#dc2626';
         ctx.lineWidth = 2.5;
         ctx.setLineDash([]);
       } else if (cable.type === 'console') {
-        ctx.strokeStyle = '#0284c7'; // Cisco Console light blue
+        ctx.strokeStyle = '#0284c7';
         ctx.lineWidth = 2.5;
         ctx.setLineDash([]);
       } else {
-        // Straight-through
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 2.5;
         ctx.setLineDash([]);
       }
 
-      // Draw wire
       ctx.beginPath();
       if (cable.type === 'serial') {
-        // Draw zigzag lightning pattern for serial
         this.drawSerialLightning(ctx, x1, y1, x2, y2);
       } else {
         ctx.moveTo(x1, y1);
@@ -338,7 +445,6 @@ class CanvasWorkspace {
         ctx.stroke();
       }
 
-      // Draw Link Status LEDs at both ends
       const isUpA = sim.isLinkUp(devA.id, cable.fromPort);
       const isUpB = sim.isLinkUp(devB.id, cable.toPort);
 
@@ -381,7 +487,6 @@ class CanvasWorkspace {
     const x = fromX + (toX - fromX) * ratio;
     const y = fromY + (toY - fromY) * ratio;
 
-    // Outer glow / shadow
     ctx.save();
     ctx.beginPath();
     ctx.arc(x, y, 5.5, 0, Math.PI * 2);
@@ -390,13 +495,11 @@ class CanvasWorkspace {
     ctx.shadowBlur = 6;
     ctx.fill();
 
-    // Dark border
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 1.2;
     ctx.shadowBlur = 0;
     ctx.stroke();
 
-    // Port badge text
     if (this.scale >= 0.8) {
       ctx.font = '10px Inter, Arial, sans-serif';
       ctx.fillStyle = '#1e293b';
@@ -432,14 +535,16 @@ class CanvasWorkspace {
     for (const dev of Object.values(sim.devices)) {
       ctx.save();
 
-      // Selection box
+      // Selection Highlight Glow
       if (this.selectedDevice && this.selectedDevice.id === dev.id) {
         ctx.strokeStyle = '#0284c7';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(dev.x - 6, dev.y - 6, 82, 82);
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(dev.x - 4, dev.y - 4, 78, 78);
+        ctx.fillStyle = 'rgba(2, 132, 199, 0.08)';
+        ctx.fillRect(dev.x - 4, dev.y - 4, 78, 78);
       }
 
-      // Render Cisco Icon
+      // Render Device (SVG Image or Native Canvas Fallback)
       this.drawDeviceIcon(ctx, dev);
 
       // Power Indicator LED
@@ -468,6 +573,7 @@ class CanvasWorkspace {
 
   drawDeviceIcon(ctx, dev) {
     const key = `${dev.type}_${dev.model}`;
+
     if (!this.iconCache[key]) {
       const svgString = getCiscoDeviceIcon(dev.type, dev.model);
       const img = new Image();
@@ -481,8 +587,68 @@ class CanvasWorkspace {
     }
 
     const img = this.iconCache[key];
-    if (img && img.complete) {
+    if (img && img.complete && img.naturalWidth > 0) {
       ctx.drawImage(img, dev.x, dev.y, 70, 70);
+    } else {
+      // Robust Native Canvas Fallback Vector Graphics
+      this.drawNativeDeviceFallback(ctx, dev);
+    }
+  }
+
+  drawNativeDeviceFallback(ctx, dev) {
+    const x = dev.x;
+    const y = dev.y;
+
+    if (dev.type === 'router') {
+      // Cylinder
+      ctx.fillStyle = '#0284c7';
+      ctx.strokeStyle = '#0c4a6e';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x + 35, y + 35, 28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Arrows
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(x + 18, y + 35); ctx.lineTo(x + 28, y + 30); ctx.lineTo(x + 28, y + 40); ctx.fill();
+      ctx.moveTo(x + 52, y + 35); ctx.lineTo(x + 42, y + 30); ctx.lineTo(x + 42, y + 40); ctx.fill();
+      ctx.moveTo(x + 35, y + 18); ctx.lineTo(x + 30, y + 28); ctx.lineTo(x + 40, y + 28); ctx.fill();
+      ctx.moveTo(x + 35, y + 52); ctx.lineTo(x + 30, y + 42); ctx.lineTo(x + 40, y + 42); ctx.fill();
+    } else if (dev.type === 'switch') {
+      ctx.fillStyle = '#0284c7';
+      ctx.strokeStyle = '#0c4a6e';
+      ctx.lineWidth = 2;
+      ctx.fillRect(x + 8, y + 15, 54, 40);
+      ctx.strokeRect(x + 8, y + 15, 54, 40);
+
+      // Opposing arrows
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(x + 18, y + 25); ctx.lineTo(x + 36, y + 25); ctx.lineTo(x + 36, y + 22); ctx.lineTo(x + 42, y + 27); ctx.lineTo(x + 36, y + 32); ctx.lineTo(x + 36, y + 29); ctx.lineTo(x + 18, y + 29); ctx.fill();
+      ctx.moveTo(x + 52, y + 42); ctx.lineTo(x + 34, y + 42); ctx.lineTo(x + 34, y + 39); ctx.lineTo(x + 28, y + 44); ctx.lineTo(x + 34, y + 49); ctx.lineTo(x + 34, y + 46); ctx.lineTo(x + 52, y + 46); ctx.fill();
+    } else if (dev.type === 'pc' || dev.type === 'server') {
+      // Monitor + base
+      ctx.fillStyle = '#f8fafc';
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 2;
+      ctx.fillRect(x + 10, y + 12, 40, 30);
+      ctx.strokeRect(x + 10, y + 12, 40, 30);
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(x + 13, y + 15, 34, 24);
+      // Stand
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(x + 26, y + 42, 8, 8);
+      ctx.fillRect(x + 18, y + 50, 24, 4);
+    } else {
+      // Laptop / Default
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(x + 12, y + 15, 46, 30);
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(x + 15, y + 18, 40, 24);
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(x + 8, y + 45, 54, 8);
     }
   }
 }

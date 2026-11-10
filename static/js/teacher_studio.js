@@ -465,3 +465,4 @@ class TeacherStudio {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { TeacherStudio };
 }
+

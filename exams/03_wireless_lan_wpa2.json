@@ -19,3 +19,4 @@
     { "id": "w2", "category": "connectivity", "title": "Ping Test Laptop naar AP Gateway", "desc": "Laptop1 kan pingen naar 192.168.0.1", "points": 50, "enabled": true, "checkType": "ping_test", "condition": { "fromDevice": "LAP1", "targetIp": "192.168.0.1" } }
   ]
 }
+

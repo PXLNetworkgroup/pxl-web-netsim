@@ -95,7 +95,7 @@ class PXLNetSimApp {
             { id: 'SW1', type: 'switch', model: '2960-24TT', hostname: 'Switch', x: 500, y: 320 },
             { id: 'PCA', type: 'pc', model: 'Standard', hostname: 'PC1', x: 500, y: 480 }
           ],
-          cables: [] // No cables! Student must pull cables themselves
+          cables: []
         },
         rubric: [
           { id: 'cb1', category: 'cabling', title: 'Bekabeling PC naar Switch', desc: 'PCA Fa0 naar SW1 Fa0/1 via Straight-Through kabel', points: 15, enabled: true, checkType: 'cabling', condition: { fromDevice: 'PCA', fromPort: 'FastEthernet0', toDevice: 'SW1', toPort: 'FastEthernet0/1', cableType: 'straight' } },
@@ -199,20 +199,32 @@ class PXLNetSimApp {
     shelfItems.forEach(item => {
       const btn = document.createElement('button');
       btn.className = 'pt-shelf-btn';
+
       if (item.cableType) {
         btn.innerHTML = `<span class="pt-shelf-icon">${item.icon}</span><span class="pt-shelf-text">${item.label}</span>`;
         btn.onclick = () => {
           this.canvasWorkspace.setTool('cable');
           this.canvasWorkspace.cabling.setCableType(item.cableType);
           this.highlightActiveShelfBtn(btn);
-          this.showToast(`Kabel geselecteerd: ${item.label}. Klik op een apparaat om te verbinden.`);
+          this.showToast(`🔌 Kabel: ${item.label}. Klik op een apparaat om te verbinden.`);
         };
       } else {
+        btn.setAttribute('draggable', 'true');
         const svgIcon = getCiscoDeviceIcon(item.type, item.model);
         btn.innerHTML = `<div class="pt-shelf-svg">${svgIcon}</div><span class="pt-shelf-text">${item.label}</span>`;
+
+        // Click to enter Place Mode (Packet Tracer style)
         btn.onclick = () => {
-          this.addNewDeviceFromShelf(item.type, item.model);
+          this.canvasWorkspace.setPlacingDevice(item.type, item.model);
+          this.highlightActiveShelfBtn(btn);
+          this.showToast(`📍 Klik op het werkveld om ${item.label} te plaatsen.`);
         };
+
+        // Drag to drop on Canvas
+        btn.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('text/plain', JSON.stringify({ type: item.type, model: item.model }));
+          e.dataTransfer.effectAllowed = 'copy';
+        });
       }
       shelfContainer.appendChild(btn);
     });
@@ -221,30 +233,6 @@ class PXLNetSimApp {
   highlightActiveShelfBtn(activeBtn) {
     document.querySelectorAll('.pt-shelf-btn').forEach(b => b.classList.remove('active'));
     if (activeBtn) activeBtn.classList.add('active');
-  }
-
-  addNewDeviceFromShelf(type, model) {
-    const existing = Object.values(this.sim.devices).filter(d => d.type === type);
-    const count = existing.length + 1;
-    let prefix = 'Device';
-    if (type === 'router') prefix = 'Router';
-    if (type === 'switch') prefix = 'Switch';
-    if (type === 'pc') prefix = 'PC';
-    if (type === 'laptop') prefix = 'Laptop';
-    if (type === 'server') prefix = 'Server';
-    if (type === 'wireless_ap') prefix = 'WirelessRouter';
-
-    const id = `${prefix}${count}`;
-    const newDev = new CiscoDevice(id, type, id, {
-      model: model,
-      x: 200 + (existing.length * 50) % 600,
-      y: 200 + (existing.length * 40) % 350
-    });
-
-    this.sim.registerDevice(newDev);
-    this.canvasWorkspace.render();
-    this.showToast(`Nieuw apparaat geplaatst: ${newDev.hostname}`);
-    this.triggerScoreUpdate();
   }
 
   // --- EVENT LISTENERS ---
@@ -518,7 +506,6 @@ class PXLNetSimApp {
       }
     );
 
-    // Initial greeting if newly opened
     if (!dev.consoleReady) {
       screen.innerHTML = `\nPress RETURN to get started!\n\n`;
     }
@@ -549,7 +536,6 @@ class PXLNetSimApp {
         }
       } else if (e.key === 'Tab') {
         e.preventDefault();
-        // Simple tab expansion
         const val = input.value.trim();
         if (val === 'en') input.value = 'enable ';
         if (val === 'conf t') input.value = 'configure terminal ';
@@ -586,7 +572,6 @@ class PXLNetSimApp {
       <div id="pcAppContainer" class="pt-pc-app-viewport"></div>
     `;
 
-    // Open IP Configuration by default
     this.openPcApp('ipconfig');
   }
 

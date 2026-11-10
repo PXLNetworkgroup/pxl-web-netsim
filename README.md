@@ -151,3 +151,4 @@ Dit project is open-source en vrij herbruikbaar voor collega-docenten van Hogesc
 - **GitHub Repository:** [davidparren/pxl-web-netsim](https://github.com/davidparren/pxl-web-netsim)
 - **Licentie:** MIT License
 - **Vragen of suggesties?** Neem contact op met David Parren of Gert Van Waeyenberg.
+

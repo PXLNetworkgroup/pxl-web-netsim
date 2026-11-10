@@ -21,3 +21,4 @@
     { "id": "save1", "category": "saving", "title": "Configuratie Opgeslagen", "desc": "copy run start uitgevoerd", "points": 10, "enabled": true, "checkType": "copy_run_start", "condition": { "targetDevice": "R1" } }
   ]
 }
+
