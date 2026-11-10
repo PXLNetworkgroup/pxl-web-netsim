@@ -607,6 +607,7 @@ class PXLNetSimApp {
         this.activeTerminalParser.handleCommand(cmd);
         prompt.innerText = dev.getPrompt();
         screen.scrollTop = screen.scrollHeight;
+        this.triggerScoreUpdate();
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         if (dev.history.length > 0 && dev.historyIndex > 0) {
@@ -624,15 +625,13 @@ class PXLNetSimApp {
         }
       } else if (e.key === 'Tab') {
         e.preventDefault();
-        const val = input.value.trim();
-        if (val === 'en') input.value = 'enable ';
-        else if (val === 'conf t' || val === 'config t') input.value = 'configure terminal ';
-        else if (val === 'sh run') input.value = 'show running-config ';
-        else if (val === 'sh ip int br') input.value = 'show ip interface brief ';
-        else if (val === 'copy run start') input.value = 'copy running-config startup-config ';
-        else if (val === 'no sh') input.value = 'no shutdown ';
-        else if (val.startsWith('int g') || val.startsWith('int gi')) input.value = 'interface GigabitEthernet0/0/0 ';
-        else if (val.startsWith('int fa') || val.startsWith('int f')) input.value = 'interface FastEthernet0/1 ';
+        if (this.activeTerminalParser && typeof this.activeTerminalParser.tabComplete === 'function') {
+          const completed = this.activeTerminalParser.tabComplete(input.value);
+          if (completed && completed !== input.value) {
+            input.value = completed;
+            input.selectionStart = input.selectionEnd = completed.length;
+          }
+        }
       }
     };
   }
@@ -805,6 +804,17 @@ class PXLNetSimApp {
     dev.mask = document.getElementById('pcMaskInput').value.trim();
     dev.gateway = document.getElementById('pcGwInput').value.trim();
     dev.dns = document.getElementById('pcDnsInput').value.trim();
+
+    // Synchronize hardware FastEthernet0 port
+    if (dev.interfaces) {
+      if (!dev.interfaces['FastEthernet0']) {
+        dev.interfaces['FastEthernet0'] = { ip: "", mask: "", shutdown: false, description: "FastEthernet0" };
+      }
+      dev.interfaces['FastEthernet0'].ip = dev.ip;
+      dev.interfaces['FastEthernet0'].mask = dev.mask;
+      dev.interfaces['FastEthernet0'].shutdown = false;
+    }
+
     this.showToast('✅ IP configuratie opgeslagen');
     this.triggerScoreUpdate();
   }
@@ -1127,6 +1137,82 @@ class PXLNetSimApp {
     if (el) el.style.display = 'none';
   }
 
+  formatMarkdownInstructions(md) {
+    if (!md) return '';
+    if (md.includes('<table') || md.includes('<html')) {
+      return md;
+    }
+
+    const lines = md.split('\n');
+    let html = '';
+    let inTable = false;
+    let tableHeaders = [];
+    let tableRows = [];
+
+    const flushTable = () => {
+      if (!inTable) return;
+      html += '<table style="width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12px; background: #ffffff;">';
+      if (tableHeaders.length > 0) {
+        html += '<thead style="background: #0284c7; color: #ffffff;"><tr>';
+        for (const h of tableHeaders) {
+          html += `<th style="border: 1px solid #cbd5e1; padding: 7px 10px; text-align: left; font-weight: 700;">${h}</th>`;
+        }
+        html += '</tr></thead>';
+      }
+      html += '<tbody>';
+      for (const row of tableRows) {
+        html += '<tr style="border-bottom: 1px solid #e2e8f0;">';
+        for (const cell of row) {
+          html += `<td style="border: 1px solid #cbd5e1; padding: 6px 10px; color: #1e293b;">${cell}</td>`;
+        }
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+      inTable = false;
+      tableHeaders = [];
+      tableRows = [];
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+
+      if (line.startsWith('|') && line.endsWith('|')) {
+        const cells = line.slice(1, -1).split('|').map(c => c.trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'));
+        if (cells.every(c => /^:?-+:?$/.test(c))) {
+          continue;
+        }
+        if (!inTable) {
+          inTable = true;
+          tableHeaders = cells;
+        } else {
+          tableRows.push(cells);
+        }
+        continue;
+      } else if (inTable) {
+        flushTable();
+      }
+
+      if (!line) {
+        html += '<div style="height: 6px;"></div>';
+        continue;
+      }
+
+      if (line.startsWith('#### ')) {
+        html += `<h4 style="margin: 14px 0 6px; color: #0284c7; font-size: 13.5px; font-weight: 700;">${line.slice(5)}</h4>`;
+      } else if (line.startsWith('### ')) {
+        html += `<h3 style="margin: 16px 0 8px; color: #0f172a; font-size: 15px; font-weight: 700;">${line.slice(4)}</h3>`;
+      } else if (line.startsWith('* ') || line.startsWith('- ')) {
+        const text = line.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code style="background: #e2e8f0; color: #0f172a; padding: 2px 5px; border-radius: 4px; font-family: monospace; font-size: 11px;">$1</code>');
+        html += `<div style="margin-left: 18px; margin-bottom: 4px; line-height: 1.5;">• ${text}</div>`;
+      } else {
+        const text = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code style="background: #e2e8f0; color: #0f172a; padding: 2px 5px; border-radius: 4px; font-family: monospace; font-size: 11px;">$1</code>');
+        html += `<p style="margin: 4px 0; line-height: 1.5;">${text}</p>`;
+      }
+    }
+    if (inTable) flushTable();
+    return html;
+  }
+
   renderOpdrachtDropdown() {
     const exam = this.activeExam;
     const titleEl = document.getElementById('opdrachtDropdownTitle');
@@ -1141,23 +1227,23 @@ class PXLNetSimApp {
     let rubricHtml = '';
     if (objectives.length > 0) {
       rubricHtml = `
-        <h4 style="margin: 18px 0 8px; color: #0284c7;">🎯 Beoordelingscriteria & Live Punten (${evalRes.earnedPoints}/${evalRes.totalPoints} pt):</h4>
-        <table>
-          <thead>
+        <h4 style="margin: 20px 0 8px; color: #0284c7; font-size: 14px; font-weight: 700;">🎯 Beoordelingscriteria & Live Punten (${evalRes.earnedPoints}/${evalRes.totalPoints} pt):</h4>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; background: #ffffff;">
+          <thead style="background: #0f172a; color: #ffffff;">
             <tr>
-              <th>Criterium</th>
-              <th>Omschrijving</th>
-              <th style="width: 70px; text-align: center;">Punten</th>
-              <th style="width: 80px; text-align: center;">Status</th>
+              <th style="padding: 7px 10px; text-align: left; border: 1px solid #cbd5e1;">Criterium</th>
+              <th style="padding: 7px 10px; text-align: left; border: 1px solid #cbd5e1;">Omschrijving</th>
+              <th style="width: 70px; text-align: center; border: 1px solid #cbd5e1;">Punten</th>
+              <th style="width: 90px; text-align: center; border: 1px solid #cbd5e1;">Status</th>
             </tr>
           </thead>
           <tbody>
             ${objectives.map(obj => `
-              <tr>
-                <td style="font-weight: 600;">${obj.title}</td>
-                <td style="font-size: 11px; color: #475569;">${obj.desc || ''}</td>
-                <td style="text-align: center; font-weight: 700;">${obj.points} pt</td>
-                <td style="text-align: center; font-weight: 700; color: ${obj.passed ? '#16a34a' : '#94a3b8'};">
+              <tr style="border-bottom: 1px solid #e2e8f0; background: ${obj.passed ? '#f0fdf4' : '#ffffff'};">
+                <td style="font-weight: 600; padding: 6px 10px; border: 1px solid #cbd5e1; color: #1e293b;">${obj.title}</td>
+                <td style="font-size: 11px; color: #475569; padding: 6px 10px; border: 1px solid #cbd5e1;">${obj.desc || ''}</td>
+                <td style="text-align: center; font-weight: 700; padding: 6px 10px; border: 1px solid #cbd5e1;">${obj.points} pt</td>
+                <td style="text-align: center; font-weight: 700; padding: 6px 10px; border: 1px solid #cbd5e1; color: ${obj.passed ? '#16a34a' : '#94a3b8'};">
                   ${obj.passed ? '✅ GESLAAGD' : '⏳ NOG NIET'}
                 </td>
               </tr>
@@ -1167,11 +1253,13 @@ class PXLNetSimApp {
       `;
     }
 
+    const formattedInstructions = this.formatMarkdownInstructions(exam.instructions || '');
+
     bodyEl.innerHTML = `
-      <div style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 12px; margin-bottom: 15px; border-radius: 4px;">
-        <h4 style="margin: 0 0 6px;">Examen Opgave: ${exam.title}</h4>
-        <div style="font-size: 12px; color: #334155; line-height: 1.5;">
-          ${(exam.instructions || '').replace(/\n/g, '<br>')}
+      <div style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 14px 16px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <h4 style="margin: 0 0 8px; color: #0f172a; font-size: 15px; font-weight: 700;">Examen Opgave: ${exam.title}</h4>
+        <div style="font-size: 12px; color: #334155; line-height: 1.6;">
+          ${formattedInstructions}
         </div>
       </div>
       ${rubricHtml}

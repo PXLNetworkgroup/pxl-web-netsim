@@ -150,15 +150,11 @@ class CiscoDevice {
    * Initializes hardware ports according to device type and model
    */
   initDefaultInterfaces(customIntfs) {
-    if (customIntfs) {
-      this.interfaces = JSON.parse(JSON.stringify(customIntfs));
-      return;
-    }
-
     const genMac = (prefix) => `${prefix}.${Math.floor(Math.random() * 65535).toString(16).padStart(4, '0')}.${Math.floor(Math.random() * 65535).toString(16).padStart(4, '0')}`;
 
+    // 1. Always generate the full hardware interface set first based on device type and model!
     if (this.type === 'router') {
-      // Cisco 4331 Router standard ports: Gi0/0/0, Gi0/0/1, Gi0/0/2, Serial0/1/0, Serial0/1/1
+      // Cisco 4331 Router standard ports: Gi0/0/0, Gi0/0/1, Gi0/0/2, Serial0/1/0, Serial0/1/1, Vlan1
       this.interfaces = {
         'GigabitEthernet0/0/0': { ip: "", mask: "", shutdown: true, description: "", speed: 'auto', duplex: 'auto', mac: genMac('00d0.ba') },
         'GigabitEthernet0/0/1': { ip: "", mask: "", shutdown: true, description: "", speed: 'auto', duplex: 'auto', mac: genMac('00d0.ba') },
@@ -168,7 +164,7 @@ class CiscoDevice {
         'Vlan1': { ip: "", mask: "", shutdown: true, description: "", mac: genMac('00d0.ba') }
       };
     } else if (this.type === 'switch') {
-      // Cisco Catalyst 2960-24TT Switch: 24 Fa ports + 2 Gi ports + SVI Vlan1
+      // Cisco Catalyst 2960-24TT Switch: SVI Vlan1 + 24 Fa ports + 2 Gi ports
       this.interfaces = {
         'Vlan1': { ip: "", mask: "", shutdown: true, description: "", mac: genMac('0019.5e') }
       };
@@ -193,6 +189,18 @@ class CiscoDevice {
         'Ethernet2': { ip: "", mask: "", shutdown: false, description: "LAN Port 2", mac: genMac('0021.d8') },
         'Wireless0': { ip: "192.168.0.1", mask: "255.255.255.0", shutdown: false, description: "2.4GHz Wireless Radio", mac: genMac('0021.d8') }
       };
+    }
+
+    // 2. Overlay any custom interface configurations (excluding null / None keys)
+    if (customIntfs && typeof customIntfs === 'object') {
+      for (const [k, v] of Object.entries(customIntfs)) {
+        if (k && k !== 'null' && k !== 'None' && v && typeof v === 'object') {
+          if (!this.interfaces[k]) {
+            this.interfaces[k] = { ip: "", mask: "", shutdown: true, description: "", mac: genMac('0019.5e') };
+          }
+          Object.assign(this.interfaces[k], v);
+        }
+      }
     }
   }
 

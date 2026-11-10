@@ -573,6 +573,17 @@ class CiscoCLIParser {
       return;
     }
 
+    // no login
+    if (this.matchCmd(cmd0, 'no') && tokens.length >= 2 && this.matchCmd(tokens[1], 'login')) {
+      if (dev.currentLine && dev.currentLine.startsWith('con')) {
+        dev.consoleLoginRequired = false;
+      } else {
+        dev.vtyLoginMode = 'none';
+      }
+      dev.markModified();
+      return;
+    }
+
     // transport input ssh / telnet / all / none
     if (this.matchCmd(cmd0, 'transport')) {
       if (tokens.length >= 3 && this.matchCmd(tokens[1], 'input')) {
@@ -635,8 +646,18 @@ class CiscoCLIParser {
       }
     }
 
-    if (this.matchCmd(sub0, 'mac')) {
+    if (this.matchCmd(sub0, 'mac') || sub0.startsWith('mac')) {
       this.showMacAddressTable();
+      return;
+    }
+
+    if (this.matchCmd(sub0, 'vlan')) {
+      this.showVlanBrief();
+      return;
+    }
+
+    if (this.matchCmd(sub0, 'interfaces') || this.matchCmd(sub0, 'int')) {
+      this.showInterfaces();
       return;
     }
 
@@ -649,6 +670,40 @@ class CiscoCLIParser {
     }
 
     this.print("% Invalid show command.");
+  }
+
+  showVlanBrief() {
+    const lines = [
+      'VLAN Name                             Status    Ports',
+      '---- -------------------------------- --------- -------------------------------',
+      '1    default                          active    Fa0/1, Fa0/2, Fa0/3, Fa0/4',
+      '                                                Fa0/5, Fa0/6, Fa0/7, Fa0/8',
+      '                                                Fa0/9, Fa0/10, Fa0/11, Fa0/12',
+      '                                                Fa0/13, Fa0/14, Fa0/15, Fa0/16',
+      '                                                Fa0/17, Fa0/18, Fa0/19, Fa0/20',
+      '                                                Fa0/21, Fa0/22, Fa0/23, Fa0/24',
+      '                                                Gi0/1, Gi0/2',
+      '1002 fddi-default                     act/unsup',
+      '1003 token-ring-default               act/unsup',
+      '1004 fddinet-default                  act/unsup',
+      '1005 trnet-default                    act/unsup'
+    ];
+    this.print(lines.join('\n'));
+  }
+
+  showInterfaces() {
+    const dev = this.device;
+    const lines = [];
+    for (const [name, intf] of Object.entries(dev.interfaces)) {
+      lines.push(`${name} is ${intf.shutdown ? 'administratively down' : 'up'}, line protocol is ${intf.shutdown ? 'down' : 'up'}`);
+      lines.push(`  Hardware is ${dev.model}, address is ${intf.mac || '0000.0000.0000'}`);
+      if (intf.ip) {
+        lines.push(`  Internet address is ${intf.ip}/${intf.mask || '24'}`);
+      }
+      lines.push(`  MTU 1500 bytes, BW 100000 Kbit/sec, DLY 100 usec`);
+      lines.push('');
+    }
+    this.print(lines.join('\n'));
   }
 
   showIpInterfaceBrief() {
@@ -889,6 +944,20 @@ class CiscoCLIParser {
             return realName;
           }
         }
+
+        // Auto-instantiate SVI Vlan interface on switch/router if requested
+        if (canonicalPrefix === 'Vlan' && (this.device.type === 'switch' || this.device.type === 'router')) {
+          const genMac = `0019.5e.${Math.floor(Math.random() * 65535).toString(16).padStart(4, '0')}.${Math.floor(Math.random() * 65535).toString(16).padStart(4, '0')}`;
+          const sviName = `Vlan${portNum}`;
+          this.device.interfaces[sviName] = {
+            ip: "",
+            mask: "",
+            shutdown: true,
+            description: `${sviName} SVI`,
+            mac: genMac
+          };
+          return sviName;
+        }
       }
     }
 
@@ -900,6 +969,162 @@ class CiscoCLIParser {
     }
 
     return null;
+  }
+
+  /**
+   * Authentic Cisco IOS Context-Aware Tab Completer
+   * Expands abbreviations and command prefixes according to the active CLI mode.
+   */
+  tabComplete(inputLine) {
+    if (!inputLine) return "";
+    const raw = inputLine;
+    const dev = this.device;
+    const mode = dev.mode || 'USER_EXEC';
+
+    const inTokens = raw.trim().split(/\s+/);
+    if (inTokens.length === 0 || !inTokens[0]) return raw;
+
+    // 1. Interface completion in CONFIG mode (e.g. 'int fa0/1', 'int vlan 1')
+    if (mode === 'CONFIG' && (inTokens[0].toLowerCase() === 'int' || inTokens[0].toLowerCase() === 'interface')) {
+      if (inTokens.length >= 2) {
+        const rawPort = inTokens.slice(1).join(' ');
+        const resolved = this.resolveInterfaceName(rawPort);
+        if (resolved) {
+          return `interface ${resolved} `;
+        }
+      }
+      return `interface `;
+    }
+
+    // 2. Grammar dictionary by active mode
+    const modeGrammar = {
+      USER_EXEC: [
+        'enable',
+        'exit',
+        'ping',
+        'show interfaces',
+        'show ip interface brief',
+        'show mac-address-table',
+        'show version',
+        'show vlan brief'
+      ],
+      PRIV_EXEC: [
+        'configure terminal',
+        'copy running-config startup-config',
+        'disable',
+        'erase startup-config',
+        'exit',
+        'ping',
+        'reload',
+        'show interfaces',
+        'show ip interface brief',
+        'show ip route',
+        'show mac-address-table',
+        'show running-config',
+        'show startup-config',
+        'show version',
+        'show vlan brief',
+        'write memory',
+        'write erase'
+      ],
+      CONFIG: [
+        'banner motd',
+        'crypto key generate rsa',
+        'do show ip interface brief',
+        'do show running-config',
+        'do show startup-config',
+        'enable secret',
+        'enable password',
+        'end',
+        'exit',
+        'hostname',
+        'interface',
+        'ip address',
+        'ip default-gateway',
+        'ip domain-name',
+        'ip route',
+        'ip ssh version 2',
+        'line console 0',
+        'line vty 0 4',
+        'no service password-encryption',
+        'no shutdown',
+        'service password-encryption',
+        'username'
+      ],
+      CONFIG_IF: [
+        'description',
+        'do show ip interface brief',
+        'do show running-config',
+        'duplex auto',
+        'end',
+        'exit',
+        'ip address',
+        'no description',
+        'no ip address',
+        'no shutdown',
+        'shutdown',
+        'speed auto'
+      ],
+      CONFIG_LINE: [
+        'do show running-config',
+        'end',
+        'exit',
+        'login',
+        'login local',
+        'no login',
+        'password',
+        'transport input all',
+        'transport input none',
+        'transport input ssh',
+        'transport input telnet'
+      ]
+    };
+
+    const templates = modeGrammar[mode] || modeGrammar.USER_EXEC;
+
+    // Filter templates where each typed token matches the template's token prefix
+    const matches = templates.filter(tmpl => {
+      const tmplTokens = tmpl.split(/\s+/);
+      if (inTokens.length > tmplTokens.length) return false;
+      for (let i = 0; i < inTokens.length; i++) {
+        if (!tmplTokens[i].toLowerCase().startsWith(inTokens[i].toLowerCase())) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    if (matches.length >= 1) {
+      const chosenTmpl = matches[0];
+      const tmplTokens = chosenTmpl.split(/\s+/);
+      const completedTokens = inTokens.map((t, i) => tmplTokens[i]);
+
+      if (matches.length === 1) {
+        for (let i = inTokens.length; i < tmplTokens.length; i++) {
+          completedTokens.push(tmplTokens[i]);
+        }
+        let result = completedTokens.join(' ') + ' ';
+        if (result.trim() === 'banner motd') {
+          result = 'banner motd # ';
+        }
+        return result;
+      } else {
+        const shared = [];
+        for (let i = 0; i < inTokens.length; i++) {
+          const val = tmplTokens[i];
+          if (matches.every(m => m.split(/\s+/)[i].toLowerCase() === val.toLowerCase())) {
+            shared.push(val);
+          } else {
+            break;
+          }
+        }
+        if (shared.length === inTokens.length) {
+          return shared.join(' ') + ' ';
+        }
+      }
+    }
+
+    return raw;
   }
 
   showModeHelp(prefix) {

@@ -1,4 +1,4 @@
-﻿# deploy_gcloud.ps1 - Google Cloud Run One-Click Deployment for PXL Web NetSim
+# deploy_gcloud.ps1 - Google Cloud Run One-Click Deployment for PXL Web NetSim
 # © Parren, Van Waeyenberg, Frissaer, Jean, Hombroeks • Hogeschool PXL
 
 $ErrorActionPreference = "Continue"

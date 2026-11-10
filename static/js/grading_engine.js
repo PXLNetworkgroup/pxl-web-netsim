@@ -173,12 +173,33 @@ class GradingEngine {
 
   checkConsolePassword(cond, sim) {
     const devs = cond.targetDevice ? [sim.devices[cond.targetDevice]].filter(Boolean) : Object.values(sim.devices).filter(d => d.type === 'router' || d.type === 'switch');
-    const ok = devs.length > 0 && devs.every(d => Boolean(d.consolePassword && d.consoleLoginRequired));
-    return { passed: ok, detail: ok ? 'Console wachtwoord & login actief' : 'Console wachtwoord ontbreekt of login niet vereist' };
+    if (devs.length === 0) return { passed: false, detail: 'Apparaat niet gevonden' };
+
+    if (cond.checkLoginOnly) {
+      const ok = devs.every(d => Boolean(d.consoleLoginRequired));
+      return { passed: ok, detail: ok ? 'Console login ingeschakeld' : 'Login nog niet geactiveerd op line con 0' };
+    }
+
+    if (cond.expected) {
+      const exp = cond.expected.trim().toLowerCase();
+      const ok = devs.every(d => d.consolePassword && d.consolePassword.trim().toLowerCase() === exp);
+      return { passed: ok, detail: ok ? `Console wachtwoord correct ingesteld (${cond.expected})` : `Wachtwoord komt niet overeen met '${cond.expected}'` };
+    }
+
+    const ok = devs.every(d => Boolean(d.consolePassword));
+    return { passed: ok, detail: ok ? 'Console wachtwoord ingesteld' : 'Console wachtwoord ontbreekt' };
   }
 
   checkBannerMotd(cond, sim) {
     const devs = cond.targetDevice ? [sim.devices[cond.targetDevice]].filter(Boolean) : Object.values(sim.devices).filter(d => d.type === 'router' || d.type === 'switch');
+    if (devs.length === 0) return { passed: false, detail: 'Apparaat niet gevonden' };
+
+    if (cond.expected) {
+      const exp = cond.expected.trim().toLowerCase();
+      const ok = devs.every(d => d.bannerMotd && d.bannerMotd.toLowerCase().includes(exp));
+      return { passed: ok, detail: ok ? `Banner MOTD correct ingesteld` : `Banner '${cond.expected}' ontbreekt of komt niet overeen` };
+    }
+
     const ok = devs.length > 0 && devs.every(d => Boolean(d.bannerMotd && d.bannerMotd.length > 2));
     return { passed: ok, detail: ok ? 'Banner MOTD aanwezig' : 'Banner MOTD niet geconfigureerd' };
   }
@@ -195,25 +216,28 @@ class GradingEngine {
     if (!dev) return { passed: false, detail: `Apparaat ${cond.deviceId} niet gevonden` };
 
     const intf = dev.interfaces[cond.portName];
-    if (!intf) return { passed: false, detail: `Poort ${cond.portName} niet gevonden` };
+    // Check both interface object and device-level IP settings (for PCs/laptops)
+    const currentIp = (intf && intf.ip) || dev.ip || '';
+    const currentMask = (intf && intf.mask) || dev.mask || '';
+    const isShutdown = (intf && intf.shutdown !== undefined) ? intf.shutdown : false;
 
-    const ipOk = cond.expectedIp ? intf.ip === cond.expectedIp : true;
-    const maskOk = cond.expectedMask ? intf.mask === cond.expectedMask : true;
-    const shutOk = cond.checkNoShutdown !== false ? !intf.shutdown : true;
-    const descOk = cond.checkDescription ? Boolean(intf.description) : true;
+    const ipOk = cond.expectedIp ? currentIp === cond.expectedIp : true;
+    const maskOk = cond.expectedMask ? currentMask === cond.expectedMask : true;
+    const shutOk = cond.checkNoShutdown ? !isShutdown : true;
+    const descOk = cond.checkDescription ? Boolean(intf && intf.description) : true;
 
     const passed = ipOk && maskOk && shutOk && descOk;
     let detail = "";
     if (passed) {
-      detail = `${cond.portName}: ${intf.ip}/${intf.mask} UP`;
+      detail = `${cond.portName}: ${currentIp}/${currentMask} UP`;
     } else {
-      detail = `${cond.portName}: IP=${intf.ip || 'geen'}, Mask=${intf.mask || 'geen'}, Status=${intf.shutdown ? 'Down' : 'Up'}`;
+      detail = `${cond.portName}: IP=${currentIp || 'geen'}, Mask=${currentMask || 'geen'}, Status=${isShutdown ? 'Down' : 'Up'}`;
     }
     return { passed, detail };
   }
 
   checkSwitchSvi(cond, sim) {
-    // cond: { switchId, expectedIp, expectedMask, expectedGateway }
+    // cond: { switchId, expectedIp, expectedMask, expectedGateway, checkNoShutdown }
     const sw = sim.devices[cond.switchId];
     if (!sw) return { passed: false, detail: `Switch ${cond.switchId} niet gevonden` };
 
@@ -222,13 +246,13 @@ class GradingEngine {
 
     const ipOk = cond.expectedIp ? vlan.ip === cond.expectedIp : true;
     const maskOk = cond.expectedMask ? vlan.mask === cond.expectedMask : true;
-    const shutOk = !vlan.shutdown;
-    const gwOk = cond.expectedGateway ? sw.defaultGateway === cond.expectedGateway : true;
+    const shutOk = cond.checkNoShutdown ? !vlan.shutdown : true;
+    const gwOk = cond.expectedGateway ? (sw.defaultGateway === cond.expectedGateway || sw.gateway === cond.expectedGateway) : true;
 
     const passed = ipOk && maskOk && shutOk && gwOk;
     return {
       passed,
-      detail: passed ? `Vlan1 ${vlan.ip} UP, Default-GW: ${sw.defaultGateway}` : `Vlan1: ${vlan.ip || 'geen IP'} (${vlan.shutdown ? 'Down' : 'Up'}), GW: ${sw.defaultGateway || 'geen'}`
+      detail: passed ? `Vlan1 ${vlan.ip} UP, Default-GW: ${sw.defaultGateway || '-'}` : `Vlan1: ${vlan.ip || 'geen IP'} (${vlan.shutdown ? 'Down' : 'Up'}), GW: ${sw.defaultGateway || 'geen'}`
     };
   }
 
