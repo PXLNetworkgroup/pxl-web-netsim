@@ -1,4 +1,4 @@
-﻿param(
+param(
     [Parameter(Mandatory=$false)]
     [string]$Token = ""
 )
@@ -73,3 +73,4 @@ Write-Host "==========================================================" -Foregro
 Write-Host "   Code succesvol gepubliceerd op GitHub!               " -ForegroundColor Green
 Write-Host "   URL: https://github.com/$githubUser/$repoName         " -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Green
+

@@ -400,3 +400,4 @@ class OpenWrtCLIParser {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { OpenWrtCLIParser };
 }
+

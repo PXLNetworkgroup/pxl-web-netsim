@@ -180,3 +180,4 @@ Dit script voert automatisch de volgende stappen uit:
 Voor vragen over het platform, feature requests of ondersteuning bij examens:
 - **E-mail:** David Parren (`david.parren@pxl.be`)
 - **Departement:** Hogeschool PXL — Toegepaste Informatica / SNE (Hasselt)
+
