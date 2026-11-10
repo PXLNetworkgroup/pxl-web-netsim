@@ -281,11 +281,26 @@ class TeacherStudio {
   }
 
   populateStudioFields() {
-    const draft = this.app.activeExam || this.examDraft;
-    document.getElementById('studioExamTitle').value = draft.title || '';
-    document.getElementById('studioExamTimer').value = draft.timeLimitMinutes || 80;
-    document.getElementById('studioShowScore').value = draft.showLiveScore !== false ? 'true' : 'false';
-    document.getElementById('studioExamInstructions').value = draft.instructions || '';
+    const draft = this.examDraft || this.app.activeExam || {};
+    const titleEl = document.getElementById('studioExamTitle');
+    const timerEl = document.getElementById('studioExamTimer');
+    const scoreEl = document.getElementById('studioShowScore');
+    const instrEl = document.getElementById('studioExamInstructions');
+
+    if (titleEl) titleEl.value = draft.title || '';
+    if (timerEl) timerEl.value = draft.timeLimitMinutes || 80;
+    if (scoreEl) scoreEl.value = draft.showLiveScore !== false ? 'true' : 'false';
+    if (instrEl) instrEl.value = draft.instructions || '';
+
+    const topo = draft.initialTopology || draft.topology || { devices: [], cables: [] };
+    const numDevs = (topo.devices || []).length;
+    const numCables = (topo.cables || []).length;
+    const summary = document.getElementById('studioTopologySummary');
+    if (summary && numDevs > 0) {
+      summary.innerHTML = `<strong>Startsituatie:</strong> ${numDevs} apparaten en ${numCables} kabels vastgelegd.`;
+      summary.style.borderColor = '#22c55e';
+    }
+
     this.renderRubricList();
   }
 
@@ -568,9 +583,30 @@ class TeacherStudio {
       }
       const examData = await response.json();
       this.examDraft = examData;
+      if (!this.examDraft.initialTopology && examData.topology) {
+        this.examDraft.initialTopology = examData.topology;
+      }
       this.populateStudioFields();
-      statusEl.innerText = `✅ Succesvol gedecodeerd! ${examData.rubric.length} beoordelingscriteria geladen.`;
-      statusEl.style.color = '#22c55e';
+
+      const devs = examData.initialTopology?.devices || [];
+      const cables = examData.initialTopology?.cables || [];
+      const devNames = devs.map(d => d.name || d.id).join(', ');
+
+      statusEl.innerHTML = `
+        <div style="margin-top: 12px; padding: 14px; background: #f0fdf4; border: 1.5px solid #22c55e; border-radius: 8px; text-align: left;">
+          <div style="font-weight: 700; color: #15803d; font-size: 14px; margin-bottom: 6px;">
+            ✅ Succesvol Geconverteerd uit Packet Tracer!
+          </div>
+          <div style="font-size: 12px; color: #334155; line-height: 1.6;">
+            • <strong>${devs.length} Apparaten:</strong> ${devNames || 'Geen'}<br>
+            • <strong>${cables.length} Bekabelde Verbindingen:</strong> hersteld tussen poorten<br>
+            • <strong>${examData.rubric.length} Beoordelingscriteria:</strong> live geëxtraheerd uit Answer Tree
+          </div>
+          <button class="pt-btn pt-btn-primary" style="margin-top: 10px; width: 100%; font-weight: 700; font-size: 13px; padding: 8px;" onclick="window.PXLApp.teacherStudio.applyExamToSession()">
+            🚀 Nu Toepassen & Direct Laden op Werkveld
+          </button>
+        </div>
+      `;
     } catch (err) {
       statusEl.innerText = `❌ Fout bij converteren: ${err.message}. (Draait de backend server?)`;
       statusEl.style.color = '#ef4444';

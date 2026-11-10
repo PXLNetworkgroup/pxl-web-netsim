@@ -14,3 +14,5 @@ Thumbs.db
 
 data/*.db
 screenshot_*.png
+sample_decrypted.xml
+test_*.py

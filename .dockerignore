@@ -10,3 +10,4 @@ screenshot_*.png
 dist
 build
 *.spec
+

@@ -150,17 +150,21 @@ class PXLNetSimApp {
     // Reset simulator
     this.sim.clear();
 
+    const topo = exam.initialTopology || exam.topology || {};
+
     // Load initial devices
-    if (exam.initialTopology && exam.initialTopology.devices) {
-      exam.initialTopology.devices.forEach(d => {
-        const dev = new CiscoDevice(d.id, d.type, d.hostname, d);
+    if (topo.devices) {
+      topo.devices.forEach(d => {
+        const devId = d.id || d.name;
+        const devHostname = d.hostname || d.name || devId;
+        const dev = new CiscoDevice(devId, d.type, devHostname, d);
         this.sim.registerDevice(dev);
       });
     }
 
     // Load initial cables
-    if (exam.initialTopology && exam.initialTopology.cables) {
-      exam.initialTopology.cables.forEach(c => {
+    if (topo.cables) {
+      topo.cables.forEach(c => {
         this.sim.addCable(c);
       });
     }
@@ -168,9 +172,14 @@ class PXLNetSimApp {
     // Set rubric
     this.gradingEngine.setExam(exam);
 
-    // Update UI headers
+    // Update UI headers & Opdracht dropdown
     const titleEl = document.getElementById('examTitleLabel');
     if (titleEl) titleEl.innerText = exam.title;
+
+    const opgTitle = document.getElementById('opdrachtDropdownTitle');
+    if (opgTitle) opgTitle.innerText = exam.title;
+
+    this.renderOpdrachtDropdown();
 
     this.canvasWorkspace.render();
     this.triggerScoreUpdate();

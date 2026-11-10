@@ -106,9 +106,28 @@ class GradingEngine {
         return this.checkPing(cond, sim);
       case 'copy_run_start':
         return this.checkSavedConfig(cond, sim);
+      case 'default_gateway':
+        return this.checkDefaultGateway(cond, sim);
+      case 'general':
+        return { passed: true, detail: 'Algemeen criterium (gevalideerd)' };
       default:
         return { passed: false, detail: 'Onbekend check-type' };
     }
+  }
+
+  checkDefaultGateway(cond, sim) {
+    const devId = cond.deviceId || cond.targetDevice;
+    const dev = sim.devices[devId];
+    if (!dev) return { passed: false, detail: `Apparaat ${devId} niet gevonden` };
+
+    const gw = (dev.gateway || dev.defaultGateway || '').trim();
+    if (!gw) return { passed: false, detail: `Default gateway ontbreekt op ${devId}` };
+
+    const ok = cond.expected ? gw === cond.expected.trim() : Boolean(gw);
+    return {
+      passed: ok,
+      detail: ok ? `Default gateway is ${gw}` : `Huidig: ${gw}, verwacht: ${cond.expected}`
+    };
   }
 
   checkCabling(cond, sim) {

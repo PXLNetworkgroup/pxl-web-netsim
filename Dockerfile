@@ -28,3 +28,4 @@ EXPOSE 8080
 
 # Launch with Gunicorn (4 worker threads, production WSGI)
 CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 server:app
+
