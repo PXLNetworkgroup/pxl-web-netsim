@@ -30,10 +30,14 @@ class CiscoCLIParser {
       return;
     }
 
-    // Uninitialized console connection
-    if (dev.type !== 'pc' && dev.type !== 'laptop' && dev.type !== 'server' && !dev.consoleReady) {
-      this.startConsoleSession();
-      return;
+    // Wake up console session if needed
+    if (!dev.consoleReady) {
+      dev.consoleReady = true;
+      if (!line) {
+        this.print("");
+        this.updatePrompt();
+        return;
+      }
     }
 
     // Pending multi-step interactive prompt (e.g., reload confirm, copy run start, crypto key bits)
@@ -121,17 +125,21 @@ class CiscoCLIParser {
     const dev = this.device;
     const cmd = tokens[0].toLowerCase();
 
-    // Universal navigation: 'exit' and 'end'
-    if (this.matchCmd(cmd, 'exit')) {
+    // Universal navigation: 'exit', 'ex', 'quit', 'logout'
+    if (cmd === 'exit' || cmd === 'ex' || cmd === 'quit' || (dev.mode === 'USER_EXEC' && (cmd === 'logout' || cmd === 'log'))) {
       this.handleExit();
       return;
     }
-    if (this.matchCmd(cmd, 'end')) {
-      if (dev.mode !== 'USER_EXEC' && dev.mode !== 'PRIV_EXEC') {
+
+    // 'end' is strictly 'end' (or Ctrl+Z) and is ONLY valid in CONFIG* modes to return to PRIV_EXEC
+    if (cmd === 'end') {
+      if (dev.mode.startsWith('CONFIG')) {
         dev.mode = 'PRIV_EXEC';
         dev.currentInterface = null;
         dev.currentLine = null;
         this.print("");
+      } else {
+        this.print("% Invalid input detected at '^' marker.");
       }
       return;
     }
@@ -175,7 +183,7 @@ class CiscoCLIParser {
       dev.mode = 'USER_EXEC';
     } else if (dev.mode === 'USER_EXEC') {
       dev.consoleReady = false;
-      this.print(`\n[Connection to ${dev.hostname} closed]`);
+      this.print(`\n[Connection to ${dev.hostname} closed. Press RETURN to re-open]`);
     }
   }
 
@@ -196,6 +204,11 @@ class CiscoCLIParser {
       return;
     }
 
+    if (this.matchCmd(cmd0, 'configure')) {
+      this.print("% Type 'enable' (or 'en') first to enter privileged EXEC mode before configuring.");
+      return;
+    }
+
     if (this.matchCmd(cmd0, 'show')) {
       this.handleShowCommands(tokens.slice(1));
       return;
@@ -209,6 +222,15 @@ class CiscoCLIParser {
     const dev = this.device;
     const cmd0 = tokens[0].toLowerCase();
 
+    if (this.matchCmd(cmd0, 'enable')) {
+      return; // Already in privileged EXEC mode
+    }
+
+    if (this.matchCmd(cmd0, 'ping')) {
+      this.handlePing(tokens);
+      return;
+    }
+
     if (this.matchCmd(cmd0, 'disable')) {
       dev.mode = 'USER_EXEC';
       return;
@@ -219,7 +241,7 @@ class CiscoCLIParser {
         dev.mode = 'CONFIG';
         this.print("Enter configuration commands, one per line.  End with CNTL/Z.");
       } else {
-        this.print("% Incomplete command. Use 'configure terminal'");
+        this.print("% Incomplete command. Use 'configure terminal' or 'conf t'");
       }
       return;
     }
@@ -231,7 +253,7 @@ class CiscoCLIParser {
           promptText: 'Destination filename [startup-config]? '
         };
       } else {
-        this.print("% Incomplete command. Syntax: copy running-config startup-config");
+        this.print("% Incomplete command. Syntax: copy running-config startup-config (or copy run start)");
       }
       return;
     }
@@ -276,13 +298,15 @@ class CiscoCLIParser {
       return;
     }
 
-    // enable secret <pass>
+    // enable secret <pass> / enable password <pass>
     if (this.matchCmd(cmd0, 'enable')) {
       if (tokens.length >= 3 && this.matchCmd(tokens[1], 'secret')) {
-        dev.enableSecret = CiscoCrypto.hashType5(tokens[2]);
+        const pass = tokens.slice(2).filter(t => t !== '5').join(' ');
+        dev.enableSecret = CiscoCrypto.hashType5(pass);
         dev.markModified();
       } else if (tokens.length >= 3 && this.matchCmd(tokens[1], 'password')) {
-        dev.enablePassword = tokens[2];
+        const pass = tokens.slice(2).filter(t => t !== '7').join(' ');
+        dev.enablePassword = pass;
         dev.markModified();
       } else {
         this.print("% Incomplete command. Use: enable secret <password>");
@@ -319,7 +343,7 @@ class CiscoCLIParser {
       return;
     }
 
-    // no service password-encryption
+    // no service password-encryption / no ip domain-name
     if (this.matchCmd(cmd0, 'no')) {
       if (tokens.length >= 3 && this.matchCmd(tokens[1], 'service') && this.matchCmd(tokens[2], 'password-encryption')) {
         dev.servicePasswordEncryption = false;
@@ -333,10 +357,10 @@ class CiscoCLIParser {
       }
     }
 
-    // ip domain-name <domain> / ip default-gateway <gw> / ip route ...
+    // ip domain-name / ip default-gateway / ip route ...
     if (this.matchCmd(cmd0, 'ip')) {
-      if (tokens.length >= 3 && this.matchCmd(tokens[1], 'domain-name')) {
-        dev.domainName = tokens[2];
+      if (tokens.length >= 3 && (this.matchCmd(tokens[1], 'domain-name') || this.matchCmd(tokens[1], 'domain'))) {
+        dev.domainName = tokens.slice(2).join('');
         dev.markModified();
         return;
       }
@@ -345,7 +369,7 @@ class CiscoCLIParser {
         dev.markModified();
         return;
       }
-      if (tokens.length >= 3 && this.matchCmd(tokens[1], 'ssh') && this.matchCmd(tokens[2], 'version')) {
+      if (tokens.length >= 4 && this.matchCmd(tokens[1], 'ssh') && this.matchCmd(tokens[2], 'version')) {
         dev.sshVersion = tokens[3] === '2' ? 2 : 1;
         dev.markModified();
         return;
@@ -354,7 +378,13 @@ class CiscoCLIParser {
         const net = tokens[2];
         const mask = tokens[3];
         const next = tokens[4];
-        const routeObj = IPUtils.isValidIp(next) ? { network: net, mask: mask, nextHop: next } : { network: net, mask: mask, interface: next };
+        const isIp = IPUtils.isValidIp(next);
+        const resolvedIntf = !isIp ? this.resolveInterfaceName(next) : null;
+
+        const routeObj = isIp
+          ? { network: net, mask: mask, nextHop: next }
+          : { network: net, mask: mask, interface: resolvedIntf || next };
+
         dev.staticRoutes = dev.staticRoutes.filter(r => !(r.network === net && r.mask === mask));
         dev.staticRoutes.push(routeObj);
         dev.markModified();
@@ -392,10 +422,10 @@ class CiscoCLIParser {
       return;
     }
 
-    // interface <name>
+    // interface <name> (or int <name>)
     if (this.matchCmd(cmd0, 'interface')) {
       if (tokens.length >= 2) {
-        const rawName = tokens.slice(1).join('');
+        const rawName = tokens.slice(1).join(' ');
         const resolved = this.resolveInterfaceName(rawName);
         if (resolved) {
           dev.currentInterface = resolved;
@@ -404,21 +434,21 @@ class CiscoCLIParser {
           this.print(`% Invalid interface name '${rawName}'`);
         }
       } else {
-        this.print("% Incomplete command: interface <port>");
+        this.print("% Incomplete command: interface <port> (e.g. int g0/0/0 or int fa0/1)");
       }
       return;
     }
 
-    // line <con/vty> <start> [end]
+    // line console 0 / line vty 0 4
     if (this.matchCmd(cmd0, 'line')) {
-      if (tokens.length >= 3) {
+      if (tokens.length >= 2) {
         const lineType = tokens[1].toLowerCase();
         if (this.matchCmd(lineType, 'console')) {
           dev.currentLine = 'con 0';
           dev.mode = 'CONFIG_LINE';
         } else if (this.matchCmd(lineType, 'vty')) {
-          const start = parseInt(tokens[2], 10);
-          const end = tokens[3] ? parseInt(tokens[3], 10) : start;
+          const start = tokens[2] ? parseInt(tokens[2], 10) : 0;
+          const end = tokens[3] ? parseInt(tokens[3], 10) : (tokens[2] ? start : 4);
           dev.currentLine = `vty ${start} ${end}`;
           dev.maxConfiguredVty = Math.max(dev.maxConfiguredVty || 4, end);
           dev.mode = 'CONFIG_LINE';
@@ -428,7 +458,6 @@ class CiscoCLIParser {
     }
 
     if (this.matchCmd(cmd0, 'do')) {
-      // Execute privileged command from config mode
       this.handlePrivExec(tokens.slice(1), fullLine.replace(/^\s*do\s+/i, ''));
       return;
     }
@@ -447,7 +476,25 @@ class CiscoCLIParser {
 
     const cmd0 = tokens[0].toLowerCase();
 
-    // ip address <ip> <mask>
+    // Direct interface / line switching
+    if (this.matchCmd(cmd0, 'interface')) {
+      if (tokens.length >= 2) {
+        const rawName = tokens.slice(1).join(' ');
+        const resolved = this.resolveInterfaceName(rawName);
+        if (resolved) {
+          dev.currentInterface = resolved;
+        } else {
+          this.print(`% Invalid interface name '${rawName}'`);
+        }
+      }
+      return;
+    }
+    if (this.matchCmd(cmd0, 'line')) {
+      this.handleConfigGlobal(tokens, fullLine);
+      return;
+    }
+
+    // ip address <ip> <mask> (or ip add <ip> <mask>)
     if (this.matchCmd(cmd0, 'ip')) {
       if (tokens.length >= 4 && this.matchCmd(tokens[1], 'address')) {
         const ip = tokens[2];
@@ -463,22 +510,22 @@ class CiscoCLIParser {
       }
     }
 
-    // description <text>
+    // description <text> (or desc <text>)
     if (this.matchCmd(cmd0, 'description')) {
       intf.description = tokens.slice(1).join(' ');
       dev.markModified();
       return;
     }
 
-    // shutdown / no shutdown
-    if (this.matchCmd(cmd0, 'shutdown')) {
+    // shutdown / shut (or no shutdown / no shut / no sh)
+    if (cmd0 === 'shutdown' || cmd0 === 'shut') {
       intf.shutdown = true;
       dev.markModified();
       this.print(`%LINK-5-CHANGED: Interface ${dev.currentInterface}, changed state to administratively down`);
       return;
     }
     if (this.matchCmd(cmd0, 'no')) {
-      if (tokens.length >= 2 && this.matchCmd(tokens[1], 'shutdown')) {
+      if (tokens.length >= 2 && (this.matchCmd(tokens[1], 'shutdown') || tokens[1].toLowerCase() === 'sh')) {
         intf.shutdown = false;
         dev.markModified();
         this.print(`%LINK-3-UPDOWN: Interface ${dev.currentInterface}, changed state to up`);
@@ -510,11 +557,17 @@ class CiscoCLIParser {
     const dev = this.device;
     const cmd0 = tokens[0].toLowerCase();
 
+    // Direct navigation to interface or another line
+    if (this.matchCmd(cmd0, 'line') || this.matchCmd(cmd0, 'interface')) {
+      this.handleConfigGlobal(tokens, fullLine);
+      return;
+    }
+
     // password <pw>
     if (this.matchCmd(cmd0, 'password')) {
       if (tokens.length >= 2) {
         const pw = tokens[1];
-        if (dev.currentLine.startsWith('con')) {
+        if (dev.currentLine && dev.currentLine.startsWith('con')) {
           dev.consolePassword = pw;
         } else {
           dev.vtyPassword = pw;
@@ -530,13 +583,13 @@ class CiscoCLIParser {
     // login / login local
     if (this.matchCmd(cmd0, 'login')) {
       if (tokens.length >= 2 && this.matchCmd(tokens[1], 'local')) {
-        if (dev.currentLine.startsWith('con')) {
+        if (dev.currentLine && dev.currentLine.startsWith('con')) {
           dev.consoleLoginRequired = true;
         } else {
           dev.vtyLoginMode = 'local';
         }
       } else {
-        if (dev.currentLine.startsWith('con')) {
+        if (dev.currentLine && dev.currentLine.startsWith('con')) {
           dev.consoleLoginRequired = true;
         } else {
           dev.vtyLoginMode = 'login';
@@ -546,7 +599,7 @@ class CiscoCLIParser {
       return;
     }
 
-    // transport input ssh / telnet / all
+    // transport input ssh / telnet / all / none
     if (this.matchCmd(cmd0, 'transport')) {
       if (tokens.length >= 3 && this.matchCmd(tokens[1], 'input')) {
         const mode = tokens[2].toLowerCase();
@@ -646,7 +699,6 @@ class CiscoCLIParser {
       'Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP',
       'Gateway of last resort is not set\n'
     ];
-    // Connected routes
     for (const [name, intf] of Object.entries(dev.interfaces)) {
       if (intf.ip && intf.mask && !intf.shutdown) {
         const net = IPUtils.getNetwork(intf.ip, intf.mask);
@@ -655,7 +707,6 @@ class CiscoCLIParser {
         lines.push(`L    ${intf.ip}/32 is directly connected, ${name}`);
       }
     }
-    // Static routes
     for (const r of dev.staticRoutes) {
       const prefix = IPUtils.maskToPrefix(r.mask);
       if (r.nextHop) {
@@ -753,7 +804,6 @@ class CiscoCLIParser {
 
     if (st.type === 'ENABLE_PASSWORD') {
       if (dev.enableSecret) {
-        // Match simulated hash
         if (CiscoCrypto.hashType5(line) === dev.enableSecret || line === 'cisco' || line === 'class') {
           dev.mode = 'PRIV_EXEC';
         } else {
@@ -799,25 +849,48 @@ class CiscoCLIParser {
     dev.promptState = null;
   }
 
-  startConsoleSession() {
-    const dev = this.device;
-    if (dev.bannerMotd) {
-      this.print(`\n${dev.bannerMotd}\n`);
-    }
-    dev.consoleReady = true;
-    this.print("");
-    this.updatePrompt();
-  }
-
+  /**
+   * Resolves ANY Cisco interface abbreviation to canonical hardware name
+   * Supports: g0/0/0, gi0/0/0, gig0/0/0, fa0/1, f0/1, se0/1/0, s0/1/0, vlan1, vl1
+   */
   resolveInterfaceName(input) {
-    const clean = input.toLowerCase().replace(/\s+/g, '');
-    for (const name of Object.keys(this.device.interfaces)) {
-      const cand = name.toLowerCase().replace(/\s+/g, '');
-      if (cand === clean || cand.startsWith(clean)) return name;
-      // Abbreviation shortcuts (e.g. g0/0/0 -> gigabitethernet0/0/0, fa0/1 -> fastethernet0/1)
-      const shortCand = cand.replace('gigabitethernet', 'g').replace('fastethernet', 'fa').replace('serial', 's');
-      if (shortCand === clean || shortCand.startsWith(clean)) return name;
+    if (!input) return null;
+    const clean = input.toLowerCase().trim().replace(/\s+/g, '');
+
+    // Match prefix + port number (e.g. gi0/0/0 or fa0/1 or se0/1/0 or vl1)
+    const match = clean.match(/^([a-z]+)\s*([0-9\/\.]+)$/);
+    if (match) {
+      const typePrefix = match[1];
+      const portNum = match[2];
+
+      let canonicalPrefix = '';
+      if (typePrefix.startsWith('gi') || typePrefix.startsWith('g')) {
+        canonicalPrefix = 'GigabitEthernet';
+      } else if (typePrefix.startsWith('fa') || typePrefix === 'f') {
+        canonicalPrefix = 'FastEthernet';
+      } else if (typePrefix.startsWith('se') || typePrefix === 's') {
+        canonicalPrefix = 'Serial';
+      } else if (typePrefix.startsWith('vl')) {
+        canonicalPrefix = 'Vlan';
+      }
+
+      if (canonicalPrefix) {
+        const candidate = `${canonicalPrefix}${portNum}`.toLowerCase();
+        for (const realName of Object.keys(this.device.interfaces)) {
+          if (realName.toLowerCase() === candidate) {
+            return realName;
+          }
+        }
+      }
     }
+
+    // Direct / Prefix search
+    for (const realName of Object.keys(this.device.interfaces)) {
+      const realClean = realName.toLowerCase();
+      if (realClean === clean) return realName;
+      if (realClean.startsWith(clean)) return realName;
+    }
+
     return null;
   }
 
@@ -831,44 +904,44 @@ class CiscoCLIParser {
         ['exit', 'Exit from the EXEC']
       ],
       PRIV_EXEC: [
-        ['configure', 'Enter configuration mode'],
-        ['copy', 'Copy from one file to another (e.g. copy run start)'],
+        ['configure', 'Enter configuration mode (conf t)'],
+        ['copy', 'Copy from one file to another (copy run start)'],
         ['disable', 'Turn off privileged commands'],
         ['ping', 'Send ICMP echo messages'],
         ['reload', 'Halt and perform a cold restart'],
         ['show', 'Show running system information'],
-        ['write', 'Write running configuration to memory'],
+        ['write', 'Write running configuration to memory (wr)'],
         ['exit', 'Exit from the EXEC']
       ],
       CONFIG: [
-        ['banner', 'Define a login banner'],
-        ['crypto', 'Encryption related commands'],
+        ['banner', 'Define a login banner (banner motd # msg #)'],
+        ['crypto', 'Encryption related commands (crypto key generate rsa)'],
         ['do', 'To run an EXEC command in config mode'],
-        ['enable', 'Modify enable password parameters'],
+        ['enable', 'Modify enable password parameters (enable secret <pw>)'],
         ['end', 'Exit to privileged EXEC mode'],
         ['exit', 'Exit from configure mode'],
-        ['hostname', 'Set system network name'],
-        ['interface', 'Select an interface to configure'],
-        ['ip', 'Global IP configuration subcommands'],
-        ['line', 'Configure a terminal line'],
+        ['hostname', 'Set system network name (hostname <name>)'],
+        ['interface', 'Select an interface to configure (int <port>)'],
+        ['ip', 'Global IP configuration subcommands (ip route ...)'],
+        ['line', 'Configure a terminal line (line con 0 / line vty 0 4)'],
         ['no', 'Negate a command or set its defaults'],
-        ['service', 'Modify use of network based services'],
+        ['service', 'Modify use of network based services (service password-encryption)'],
         ['username', 'Establish User Name Authentication']
       ],
       CONFIG_IF: [
-        ['description', 'Interface specific description'],
+        ['description', 'Interface specific description (desc <text>)'],
         ['do', 'To run an EXEC command in config mode'],
         ['exit', 'Exit from interface configuration mode'],
-        ['ip', 'Interface Internet Protocol config subcommands'],
-        ['no', 'Negate a command or set its defaults'],
-        ['shutdown', 'Shutdown the selected interface']
+        ['ip', 'Interface IP config (ip address <ip> <mask>)'],
+        ['no', 'Negate a command (no shutdown, no ip address)'],
+        ['shutdown', 'Shutdown the selected interface (shut / no shut)']
       ],
       CONFIG_LINE: [
         ['do', 'To run an EXEC command in config mode'],
         ['exit', 'Exit from line configuration mode'],
-        ['login', 'Enable password checking'],
+        ['login', 'Enable password checking (login / login local)'],
         ['password', 'Assign a password to this line'],
-        ['transport', 'Define transport protocols for line']
+        ['transport', 'Define transport protocols for line (transport input ssh)']
       ]
     };
 
@@ -886,4 +959,3 @@ class CiscoCLIParser {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { CiscoCLIParser };
 }
-

@@ -478,12 +478,16 @@ class PXLNetSimApp {
     const container = document.getElementById('modalPaneCli');
     if (!dev || !container) return;
 
+    if (!dev.terminalBuffer) {
+      dev.terminalBuffer = `Cisco IOS Software, ${dev.model} Software (X86_64_LINUX_IOSD-UNIVERSALK9-M), Version 15.4(3)M2\nTechnical Support: http://www.cisco.com/techsupport\nCopyright (c) 1986-2026 by Cisco Systems, Inc.\n\n`;
+    }
+
     container.innerHTML = `
-      <div class="pt-terminal-wrapper">
-        <div class="pt-terminal-screen" id="cliTerminalScreen"></div>
+      <div class="pt-terminal-wrapper" style="cursor: text;">
+        <pre class="pt-terminal-screen" id="cliTerminalScreen"></pre>
         <div class="pt-terminal-input-bar">
           <span class="pt-terminal-prompt" id="cliTerminalPrompt">${dev.getPrompt()}</span>
-          <input type="text" class="pt-terminal-input" id="cliTerminalInput" autocomplete="off" spellcheck="false">
+          <input type="text" class="pt-terminal-input" id="cliTerminalInput" autocomplete="off" spellcheck="false" autofocus>
         </div>
       </div>
     `;
@@ -491,11 +495,23 @@ class PXLNetSimApp {
     const screen = document.getElementById('cliTerminalScreen');
     const prompt = document.getElementById('cliTerminalPrompt');
     const input = document.getElementById('cliTerminalInput');
+    const wrapper = container.querySelector('.pt-terminal-wrapper');
+
+    screen.textContent = dev.terminalBuffer;
+    screen.scrollTop = screen.scrollHeight;
+
+    // Clicking anywhere in the terminal focuses the input
+    if (wrapper) {
+      wrapper.onclick = () => {
+        if (input) input.focus();
+      };
+    }
 
     this.activeTerminalParser = new CiscoCLIParser(
       dev,
       (text) => {
-        screen.innerHTML += `${text}\n`;
+        dev.terminalBuffer += `${text}\n`;
+        screen.textContent = dev.terminalBuffer;
         screen.scrollTop = screen.scrollHeight;
       },
       () => {
@@ -506,15 +522,17 @@ class PXLNetSimApp {
       }
     );
 
-    if (!dev.consoleReady) {
-      screen.innerHTML = `\nPress RETURN to get started!\n\n`;
-    }
+    prompt.innerText = dev.getPrompt();
+    setTimeout(() => {
+      if (input) input.focus();
+    }, 50);
 
-    input.focus();
     input.onkeydown = (e) => {
       if (e.key === 'Enter') {
         const cmd = input.value;
-        screen.innerHTML += `${dev.getPrompt()} ${cmd}\n`;
+        const currentPrompt = dev.getPrompt();
+        dev.terminalBuffer += `${currentPrompt} ${cmd}\n`;
+        screen.textContent = dev.terminalBuffer;
         input.value = '';
         this.activeTerminalParser.handleCommand(cmd);
         prompt.innerText = dev.getPrompt();
@@ -538,10 +556,13 @@ class PXLNetSimApp {
         e.preventDefault();
         const val = input.value.trim();
         if (val === 'en') input.value = 'enable ';
-        if (val === 'conf t') input.value = 'configure terminal ';
-        if (val === 'sh run') input.value = 'show running-config ';
-        if (val === 'sh ip int br') input.value = 'show ip interface brief ';
-        if (val === 'copy run start') input.value = 'copy running-config startup-config ';
+        else if (val === 'conf t' || val === 'config t') input.value = 'configure terminal ';
+        else if (val === 'sh run') input.value = 'show running-config ';
+        else if (val === 'sh ip int br') input.value = 'show ip interface brief ';
+        else if (val === 'copy run start') input.value = 'copy running-config startup-config ';
+        else if (val === 'no sh') input.value = 'no shutdown ';
+        else if (val.startsWith('int g') || val.startsWith('int gi')) input.value = 'interface GigabitEthernet0/0/0 ';
+        else if (val.startsWith('int fa') || val.startsWith('int f')) input.value = 'interface FastEthernet0/1 ';
       }
     };
   }

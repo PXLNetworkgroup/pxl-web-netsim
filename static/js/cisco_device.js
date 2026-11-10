@@ -29,10 +29,10 @@ class CiscoDevice {
     this.sshVersion = null; // null (1.99) or 2
     this.users = {}; // username -> { secret, password, priv }
 
-    // Line Configuration
+    // Line Configuration - consoleReady is TRUE by default like real Packet Tracer
     this.consolePassword = "";
     this.consoleLoginRequired = false;
-    this.consoleReady = false;
+    this.consoleReady = true;
     this.vtyLines = Array.from({ length: 16 }, () => ({
       password: "",
       loginMode: (this.type === 'pc' || this.type === 'laptop') ? 'none' : 'login',
@@ -86,9 +86,10 @@ class CiscoDevice {
     this.isModified = false;
     this.changeCount = 0;
 
-    // Terminal History
+    // Terminal History & Persistent Screen Buffer
     this.history = [];
     this.historyIndex = -1;
+    this.terminalBuffer = `Cisco IOS Software, ${this.model} Software (X86_64_LINUX_IOSD-UNIVERSALK9-M), Version 15.4(3)M2\nTechnical Support: http://www.cisco.com/techsupport\nCopyright (c) 1986-2026 by Cisco Systems, Inc.\n\n`;
 
     // Snapshot factory state for clean reboots
     this.factoryState = this.snapshotConfig();
@@ -146,9 +147,6 @@ class CiscoDevice {
 
   getPrompt() {
     if (!this.powerOn) return '[Device is Powered Off]';
-    if (this.type !== 'pc' && this.type !== 'laptop' && this.type !== 'server' && !this.consoleReady) {
-      return '';
-    }
     if (this.promptState && this.promptState.promptText) {
       return this.promptState.promptText;
     }
@@ -203,7 +201,7 @@ class CiscoDevice {
     this.currentInterface = null;
     this.currentLine = null;
     this.promptState = null;
-    this.consoleReady = false;
+    this.consoleReady = true;
     this.isModified = false;
   }
 
@@ -212,6 +210,7 @@ class CiscoDevice {
     this.restoreConfig(this.savedStartupConfig ? JSON.parse(this.savedStartupConfig) : this.factoryState);
     this.arpTable = {};
     this.macTable = {};
+    this.terminalBuffer = `Cisco IOS Software, ${this.model} Software (X86_64_LINUX_IOSD-UNIVERSALK9-M), Version 15.4(3)M2\nTechnical Support: http://www.cisco.com/techsupport\nCopyright (c) 1986-2026 by Cisco Systems, Inc.\n\n`;
   }
 
   saveStartupConfig() {
@@ -344,4 +343,3 @@ class CiscoDevice {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { CiscoDevice };
 }
-

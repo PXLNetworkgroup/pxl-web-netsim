@@ -68,13 +68,12 @@ class CanvasWorkspace {
     this.canvas.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
     this.canvas.addEventListener('dblclick', (e) => this.handleDoubleClick(e));
 
-    // HTML5 Drag-and-Drop from Shelf onto Canvas
-    this.container.addEventListener('dragover', (e) => {
+    // HTML5 Drag-and-Drop from Shelf onto Canvas (bound to container and canvas)
+    const handleDragOver = (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
-    });
-
-    this.container.addEventListener('drop', (e) => {
+    };
+    const handleDrop = (e) => {
       e.preventDefault();
       try {
         const raw = e.dataTransfer.getData('text/plain');
@@ -88,7 +87,11 @@ class CanvasWorkspace {
       } catch (err) {
         console.error('Drop error:', err);
       }
-    });
+    };
+    this.container.addEventListener('dragover', handleDragOver);
+    this.container.addEventListener('drop', handleDrop);
+    this.canvas.addEventListener('dragover', handleDragOver);
+    this.canvas.addEventListener('drop', handleDrop);
 
     // Keyboard shortcuts (Delete key removes selected device)
     window.addEventListener('keydown', (e) => {
@@ -202,6 +205,9 @@ class CanvasWorkspace {
       this.dragOffsetX = pos.x - clickedDev.x;
       this.dragOffsetY = pos.y - clickedDev.y;
       this.canvas.style.cursor = 'grabbing';
+      this.dragStartScreenX = e.clientX;
+      this.dragStartScreenY = e.clientY;
+      this.hasMovedDevice = false;
     } else {
       this.selectedDevice = null;
       // Start canvas panning
@@ -218,6 +224,9 @@ class CanvasWorkspace {
     this.mouseCanvasPos = pos;
 
     if (this.draggedDevice) {
+      if (Math.hypot(e.clientX - this.dragStartScreenX, e.clientY - this.dragStartScreenY) > 5) {
+        this.hasMovedDevice = true;
+      }
       this.draggedDevice.x = Math.round(pos.x - this.dragOffsetX);
       this.draggedDevice.y = Math.round(pos.y - this.dragOffsetY);
       this.render();
@@ -235,8 +244,16 @@ class CanvasWorkspace {
 
   handleMouseUp(e) {
     if (this.draggedDevice) {
+      const dev = this.draggedDevice;
       this.draggedDevice = null;
-      if (window.PXLApp) window.PXLApp.triggerScoreUpdate();
+      if (!this.hasMovedDevice) {
+        // Single click without dragging opens device modal (Packet Tracer standard)
+        if (window.PXLApp) {
+          window.PXLApp.openDeviceModal(dev);
+        }
+      } else {
+        if (window.PXLApp) window.PXLApp.triggerScoreUpdate();
+      }
     }
     this.isPanning = false;
     if (this.activeTool === 'select') {
