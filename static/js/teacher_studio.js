@@ -452,13 +452,21 @@ class TeacherStudio {
   }
 
   switchTab(tabKey) {
+    if (tabKey === 'examMgmt' || tabKey === 'opdrachten') tabKey = 'exam_mgmt';
     this.activeSubtab = tabKey;
-    const tabs = ['users', 'scores', 'exam_mgmt', 'general', 'topology', 'rubric'];
-    tabs.forEach(t => {
-      const pane = document.getElementById(`studioTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
-      if (pane) pane.style.display = (t === tabKey) ? 'block' : 'none';
-      const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
-      if (btn) btn.classList.toggle('active', t === tabKey);
+    const tabMap = {
+      'users': { pane: 'studioTabUsers', btn: 'tabBtnUsers' },
+      'scores': { pane: 'studioTabScores', btn: 'tabBtnScores' },
+      'exam_mgmt': { pane: 'studioTabExamMgmt', btn: 'tabBtnExamMgmt' },
+      'general': { pane: 'studioTabGeneral', btn: 'tabBtnGeneral' },
+      'topology': { pane: 'studioTabTopology', btn: 'tabBtnTopology' },
+      'rubric': { pane: 'studioTabRubric', btn: 'tabBtnRubric' }
+    };
+    Object.keys(tabMap).forEach(k => {
+      const pane = document.getElementById(tabMap[k].pane);
+      if (pane) pane.style.display = (k === tabKey) ? 'block' : 'none';
+      const btn = document.getElementById(tabMap[k].btn);
+      if (btn) btn.classList.toggle('active', k === tabKey);
     });
 
     if (this.scoresRefreshTimer) {
