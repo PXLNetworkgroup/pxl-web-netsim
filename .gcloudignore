@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git/
+.gitignore
+.env
+tests/
+screenshot_*.png
+dist/
+build/
+*.spec
+test_*.py
+check_*.py
+verify_*.py
+find_*.py
+read_*.py
+
+# Explicitly KEEP SQLite database and seeds
+!data/netsim.db
+!data/seeds/*.csv

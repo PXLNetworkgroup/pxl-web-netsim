@@ -151,6 +151,22 @@ def init_db():
             )
 
     conn.commit()
+
+    # Auto-seed from data/seeds/*.csv if database has fewer than 10 students
+    cursor.execute("SELECT count(*) FROM users WHERE role = 'student'")
+    st_count = cursor.fetchone()[0]
+    if st_count < 10:
+        seeds_dir = os.path.join(DB_DIR, 'seeds')
+        if os.path.isdir(seeds_dir):
+            for fname in sorted(os.listdir(seeds_dir)):
+                if fname.lower().endswith('.csv'):
+                    cpath = os.path.join(seeds_dir, fname)
+                    try:
+                        with open(cpath, 'r', encoding='utf-8-sig', errors='replace') as f:
+                            import_blackboard_csv(f.read(), default_password='PXL2026!')
+                    except Exception as e:
+                        print(f"Error auto-seeding {fname}: {e}")
+
     conn.close()
 
 def authenticate_user(username, password):
