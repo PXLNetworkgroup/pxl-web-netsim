@@ -611,6 +611,17 @@ class CiscoCLIParser {
     if (this.matchCmd(cmd0, 'clock') && tokens.length >= 3 && this.matchCmd(tokens[1], 'rate')) {
       intf.clockRate = tokens[2];
       dev.markModified();
+      if (typeof window !== 'undefined' && window.PXLApp?.canvasWorkspace) {
+        window.PXLApp.canvasWorkspace.render();
+      }
+      return;
+    }
+    if (this.matchCmd(cmd0, 'no') && tokens.length >= 2 && this.matchCmd(tokens[1], 'clock')) {
+      delete intf.clockRate;
+      dev.markModified();
+      if (typeof window !== 'undefined' && window.PXLApp?.canvasWorkspace) {
+        window.PXLApp.canvasWorkspace.render();
+      }
       return;
     }
 
@@ -766,6 +777,12 @@ class CiscoCLIParser {
       return;
     }
 
+    // show controllers / sh controllers serial 0/1/0 / sh contr
+    if (this.matchCmd(sub0, 'controllers') || sub0.startsWith('contr')) {
+      this.showControllers(subtokens.slice(1));
+      return;
+    }
+
     // show version / sh ver
     if (this.matchCmd(sub0, 'version') || sub0 === 'ver') {
       this.print(`Cisco IOS Software, ${dev.model} Software (X86_64_LINUX_IOSD-UNIVERSALK9-M), Version 15.4(3)M2, RELEASE SOFTWARE (fc2)`);
@@ -776,6 +793,36 @@ class CiscoCLIParser {
     }
 
     this.print("% Invalid show command.");
+  }
+
+  showControllers(subtokens) {
+    const dev = this.device;
+    let targetIntfName = null;
+    if (subtokens.length > 0) {
+      const query = subtokens.join('').toLowerCase().replace(/[^a-z0-9]/g, '');
+      targetIntfName = Object.keys(dev.interfaces).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(query));
+    }
+    if (!targetIntfName) {
+      targetIntfName = Object.keys(dev.interfaces).find(k => k.toLowerCase().startsWith('serial')) || 'Serial0/1/0';
+    }
+    const intf = dev.interfaces[targetIntfName];
+    const clockRate = intf ? intf.clockRate : null;
+    const isDce = Boolean(clockRate);
+
+    this.print(`Interface ${targetIntfName}`);
+    this.print(`Hardware is PowerQUICC MPC860`);
+    if (isDce) {
+      this.print(`DCE V.35, clock rate ${clockRate}`);
+      this.print(`idb at 0x647000, driver data structure at 0x647800`);
+      this.print(`txb_ptr: 0x0780, tx_stat: 0x0000`);
+      this.print(`rxb_ptr: 0x07A0, rx_stat: 0x0000`);
+      this.print(`rx_buffer_size: 1524, tx_buffer_size: 1524`);
+    } else {
+      this.print(`DTE V.35, no clock`);
+      this.print(`idb at 0x647000, driver data structure at 0x647800`);
+      this.print(`txb_ptr: 0x0780, tx_stat: 0x0000`);
+      this.print(`rxb_ptr: 0x07A0, rx_stat: 0x0000`);
+    }
   }
 
   showVlanBrief() {
@@ -1648,6 +1695,7 @@ class CiscoCLIParser {
         ['username', 'Establish User Name Authentication']
       ],
       CONFIG_IF: [
+        ['clock', 'Configure serial interface clock rate (clock rate <rate>)'],
         ['description', 'Interface specific description (desc <text>)'],
         ['do', 'To run an EXEC command in config mode'],
         ['duplex', 'Configure duplex operational mode'],
@@ -1686,6 +1734,9 @@ class CiscoCLIParser {
   }
 }
 
+if (typeof window !== 'undefined') {
+  window.CiscoCLIParser = CiscoCLIParser;
+}
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { CiscoCLIParser };
 }

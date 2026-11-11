@@ -139,11 +139,32 @@ class GradingEngine {
         return this.checkSavedConfig(cond, sim, runningConfigs);
       case 'default_gateway':
         return this.checkDefaultGateway(cond, sim, runningConfigs);
+      case 'clock_rate':
+      case 'serial_clock':
+        return this.checkClockRate(cond, sim, runningConfigs);
       case 'general':
         return { passed: true, detail: 'Algemeen criterium (gevalideerd)' };
       default:
         return { passed: true, detail: `${item.title || item.description || 'Criterium'} (voltooid)` };
     }
+  }
+
+  checkClockRate(cond, sim, runningConfigs = {}) {
+    const devId = cond.deviceId || cond.targetDevice;
+    const dev = devId ? sim.devices[devId] : Object.values(sim.devices).find(d => d.type === 'router');
+    if (!dev) return { passed: false, detail: 'Router niet gevonden' };
+
+    const intfName = cond.interface || Object.keys(dev.interfaces).find(k => k.toLowerCase().startsWith('serial')) || 'Serial0/1/0';
+    const intf = dev.interfaces[intfName];
+    if (!intf) return { passed: false, detail: `Interface ${intfName} niet gevonden` };
+
+    const rate = intf.clockRate;
+    const expected = cond.expected || '64000';
+    const ok = rate && (String(rate) === String(expected) || !cond.expected);
+    return {
+      passed: Boolean(ok),
+      detail: ok ? `Clock rate op ${intfName} is ${rate}` : `Clock rate ontbreekt of is niet ${expected}`
+    };
   }
 
   checkIpSubnet(cond, sim) {

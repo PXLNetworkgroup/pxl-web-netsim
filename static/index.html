@@ -43,7 +43,7 @@
         ⏱️ <span id="examTimer">80:00</span>
       </div>
 
-      <div class="pt-score-badge">
+      <div class="pt-score-badge" style="cursor: pointer;" onclick="window.PXLApp.toggleRubricPanel()" title="Klik om taakchecklist en rubric te openen">
         <span class="pt-score-text" id="scoreText">Score: 0%</span>
         <div class="pt-score-progress">
           <div class="pt-score-bar" id="scoreBar"></div>
@@ -114,12 +114,25 @@
       </button>
     </div>
 
+    <!-- REALTIME VS SIMULATION MODE SWITCHER -->
+    <div class="pt-mode-switcher">
+      <button id="btnModeRealtime" class="pt-mode-btn active" onclick="window.PXLApp.setSimulationMode('realtime')" title="Realtime modus: verkeer direct uitvoeren">
+        ⏱️ Realtime
+      </button>
+      <button id="btnModeSimulation" class="pt-mode-btn" onclick="window.PXLApp.setSimulationMode('simulation')" title="Simulatiemodus: stap-voor-stap PDU visualisatie en Event List">
+        🎬 Simulatie
+      </button>
+    </div>
+
     <span id="examTitleLabel" class="pt-exam-title-badge">PXL SNE - Cisco Lab</span>
   </div>
 
   <!-- MAIN WORKSPACE CANVAS -->
   <main class="pt-workspace">
     <div id="canvasContainer"></div>
+    <div class="pt-canvas-score-badge" id="canvasScoreBadge" onclick="window.PXLApp.toggleRubricPanel()" title="Klik om taakchecklist en criteria te bekijken">
+      🎯 Voortgang: <span id="canvasScorePct">0%</span>
+    </div>
   </main>
 
   <!-- BOTTOM PACKET TRACER DEVICE SHELF -->
@@ -251,12 +264,13 @@
   <script src="js/network_simulator.js?v=20261111_v5"></script>
   <script src="js/cabling_engine.js?v=20261111_v5"></script>
   <script src="js/canvas_workspace.js?v=20261111_v5"></script>
-  <script src="js/wireshark_app.js?v=20261111_v6"></script>
-  <script src="js/course_labs.js?v=20261111_v6"></script>
-  <script src="js/grading_engine.js?v=20261111_v6"></script>
-  <script src="js/submission_exporter.js?v=20261111_v6"></script>
-  <script src="js/teacher_studio.js?v=20261111_v6"></script>
-  <script src="js/app.js?v=20261111_v6"></script>
+  <script src="js/wireshark_app.js?v=20261111_v7"></script>
+  <script src="js/simulation_engine.js?v=20261111_v7"></script>
+  <script src="js/course_labs.js?v=20261111_v7"></script>
+  <script src="js/grading_engine.js?v=20261111_v7"></script>
+  <script src="js/submission_exporter.js?v=20261111_v7"></script>
+  <script src="js/teacher_studio.js?v=20261111_v7"></script>
+  <script src="js/app.js?v=20261111_v7"></script>
 
 </body>
 </html>

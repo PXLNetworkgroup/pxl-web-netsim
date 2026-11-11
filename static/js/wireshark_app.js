@@ -242,6 +242,11 @@
   // --- WIRESHARK APP CONTROLLER ---
   class WiresharkApp {
     constructor(activeDevice = null, options = {}) {
+      if (typeof options === 'string') {
+        options = { containerId: options };
+      } else if (!options || typeof options !== 'object') {
+        options = {};
+      }
       this.device = activeDevice;
       this.isGlobal = !activeDevice || options.isGlobal === true;
       this.activeTab = 'tree'; // 'tree' or 'osi'
@@ -1047,6 +1052,85 @@
       downloadAnchor.remove();
     }
   }
+
+  // --- STATIC MODAL INSPECTOR: PACKET TRACER PDU INFORMATION ---
+  WiresharkApp.showPduInspectorModal = function (pkt) {
+    if (!pkt) return;
+
+    let modal = document.getElementById('pduInspectorModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'pduInspectorModal';
+      modal.className = 'pt-modal-overlay';
+      modal.style.zIndex = '3500';
+      document.body.appendChild(modal);
+    }
+
+    // Build raw bytes if missing
+    if (!pkt.rawBytes) {
+      pkt.rawBytes = buildPacketBytes(pkt);
+    }
+
+    const dummyApp = new WiresharkApp(null, null);
+
+    modal.innerHTML = `
+      <div class="pt-device-dialog" style="width: 860px; max-width: 95vw; height: 600px; max-height: 90vh; display: flex; flex-direction: column; background: #0f172a; border: 2px solid #38bdf8; border-radius: 8px; box-shadow: 0 20px 45px rgba(0,0,0,0.6); overflow: hidden; color: #f8fafc;">
+        <div style="background: #1e293b; border-bottom: 2px solid #334155; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">✉️</span>
+            <div>
+              <h3 style="margin: 0; font-size: 15px; color: #38bdf8; font-weight: 700;">Packet Tracer PDU Informatie • ${pkt.protocol || 'PDU'}</h3>
+              <p style="margin: 0; font-size: 11px; color: #94a3b8;">${pkt.srcDevName || pkt.srcDevId || 'Bron'} → ${pkt.dstDevName || pkt.dstDevId || 'Bestemming'} | ${pkt.srcIp || '0.0.0.0'} → ${pkt.dstIp || '0.0.0.0'}</p>
+            </div>
+          </div>
+          <button class="pt-btn-close" style="color: #94a3b8; background: transparent; border: none; font-size: 20px; cursor: pointer;" onclick="document.getElementById('pduInspectorModal').style.display='none'">✕</button>
+        </div>
+
+        <div style="background: #1e293b; border-bottom: 1px solid #334155; padding: 0 16px; display: flex; gap: 8px;">
+          <button id="pduTabOsiBtn" class="ws-tab-btn active" onclick="window.switchPduInspectorTab('osi')">
+            📦 Packet Tracer OSI Model &amp; PDU Details (In/Out Layers)
+          </button>
+          <button id="pduTabTreeBtn" class="ws-tab-btn" onclick="window.switchPduInspectorTab('tree')">
+            🌲 Wireshark Protocol Tree
+          </button>
+          <button id="pduTabHexBtn" class="ws-tab-btn" onclick="window.switchPduInspectorTab('hex')">
+            🔢 Hex Dump &amp; ASCII Bytes
+          </button>
+        </div>
+
+        <div id="pduInspectorContent" style="flex: 1; overflow-y: auto; padding: 14px 18px; background: #0b1120;">
+          ${dummyApp.renderPacketTracerOsiView(pkt)}
+        </div>
+
+        <div style="background: #1e293b; border-top: 1px solid #334155; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #94a3b8;">
+          <div>Lengte: <strong>${pkt.length || 74} Bytes</strong> | FCS CRC-32: <code style="color: #fda4af;">${pkt.l2?.fcs || '0x4a3b1c2d'}</code></div>
+          <button class="pt-btn pt-btn-secondary" style="padding: 4px 12px; font-size: 11px;" onclick="document.getElementById('pduInspectorModal').style.display='none'">Sluiten</button>
+        </div>
+      </div>
+    `;
+
+    window.switchPduInspectorTab = function (tab) {
+      const btnOsi = document.getElementById('pduTabOsiBtn');
+      const btnTree = document.getElementById('pduTabTreeBtn');
+      const btnHex = document.getElementById('pduTabHexBtn');
+      const content = document.getElementById('pduInspectorContent');
+      if (!content) return;
+
+      if (btnOsi) btnOsi.classList.toggle('active', tab === 'osi');
+      if (btnTree) btnTree.classList.toggle('active', tab === 'tree');
+      if (btnHex) btnHex.classList.toggle('active', tab === 'hex');
+
+      if (tab === 'osi') {
+        content.innerHTML = dummyApp.renderPacketTracerOsiView(pkt);
+      } else if (tab === 'tree') {
+        content.innerHTML = dummyApp.renderProtocolTree(pkt);
+      } else if (tab === 'hex') {
+        content.innerHTML = `<pre style="margin: 0; padding: 10px; font-family: 'Consolas', monospace; font-size: 11px; line-height: 1.4; color: #cbd5e1; white-space: pre;">${formatHexDump(pkt.rawBytes)}</pre>`;
+      }
+    };
+
+    modal.style.display = 'flex';
+  };
 
   // Export globally
   window.WiresharkApp = WiresharkApp;

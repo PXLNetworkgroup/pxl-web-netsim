@@ -15,6 +15,7 @@ class PXLNetSimApp {
     this.sim = window.PXLNetworkSim;
     this.gradingEngine = new GradingEngine();
     this.canvasWorkspace = new CanvasWorkspace('canvasContainer');
+    this.simulationEngine = (typeof SimulationEngine !== 'undefined') ? new SimulationEngine(this.sim, this.canvasWorkspace) : null;
     this.teacherStudio = new TeacherStudio(this);
     this.currentUser = null;
     this.autoSaveInterval = null;
@@ -208,7 +209,16 @@ class PXLNetSimApp {
     }
 
     this.canvasWorkspace.render();
+    if (this.simulationEngine) {
+      this.simulationEngine.resetSimulation();
+    }
     this.triggerScoreUpdate();
+  }
+
+  setSimulationMode(mode) {
+    if (this.simulationEngine) {
+      this.simulationEngine.setMode(mode);
+    }
   }
 
   // --- DEVICE SHELF (BOTTOM DOCK) ---
@@ -1431,6 +1441,16 @@ Type 'help', 'ip a', or 'python3' to get started.
         scoreBar.style.width = `${evalResult.percentage}%`;
         scoreBar.style.backgroundColor = evalResult.percentage >= 50 ? '#22c55e' : '#f59e0b';
       }
+    }
+
+    const canvasScorePct = document.getElementById('canvasScorePct');
+    if (canvasScorePct) {
+      canvasScorePct.innerText = `${evalResult.percentage}%`;
+    }
+
+    const panel = document.getElementById('rubricSidePanel');
+    if (panel && panel.classList.contains('open')) {
+      this.renderRubricSidePanel();
     }
   }
 

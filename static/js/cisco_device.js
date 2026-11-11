@@ -475,6 +475,9 @@ class CiscoDevice {
       } else {
         lines.push(' no ip address');
       }
+      if (intf.clockRate && name.toLowerCase().startsWith('serial')) {
+        lines.push(` clock rate ${intf.clockRate}`);
+      }
       if (intf.shutdown) {
         lines.push(' shutdown');
       } else {
@@ -529,6 +532,9 @@ class CiscoDevice {
   }
 }
 
+if (typeof window !== 'undefined') {
+  window.CiscoDevice = CiscoDevice;
+}
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { CiscoDevice };
 }

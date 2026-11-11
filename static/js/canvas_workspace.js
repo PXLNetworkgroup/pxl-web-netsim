@@ -163,6 +163,33 @@ class CanvasWorkspace {
     if (e.button !== 0) return;
 
     const pos = this.screenToCanvas(e.clientX, e.clientY);
+
+    // 0. CHECK FLYING ENVELOPES CLICK (Inspect PDU on Click)
+    if (this.flyingPackets && this.flyingPackets.length > 0) {
+      const sim = window.PXLNetworkSim;
+      for (const fp of this.flyingPackets) {
+        const devA = sim?.devices[fp.fromDevId];
+        const devB = sim?.devices[fp.toDevId];
+        if (!devA || !devB) continue;
+        const curX = (devA.x + 35) + ((devB.x + 35) - (devA.x + 35)) * fp.progress;
+        const curY = (devA.y + 35) + ((devB.y + 35) - (devA.y + 35)) * fp.progress;
+        if (Math.hypot(pos.x - curX, pos.y - curY) <= 18) {
+          if (window.WiresharkApp && typeof window.WiresharkApp.showPduInspectorModal === 'function') {
+            window.WiresharkApp.showPduInspectorModal(fp.packet || {
+              protocol: fp.protocol,
+              srcDevName: devA.hostname,
+              dstDevName: devB.hostname,
+              srcIp: devA.ip || '192.168.1.10',
+              dstIp: devB.ip || '192.168.1.1',
+              info: `${fp.protocol} Packet Flow`,
+              length: 74
+            });
+            return;
+          }
+        }
+      }
+    }
+
     const clickedDev = this.getDeviceAt(pos.x, pos.y);
 
     // 1. PLACE TOOL (User clicked a device in shelf and now clicks canvas)
@@ -247,7 +274,30 @@ class CanvasWorkspace {
       this.render();
     } else if (this.activeTool === 'select') {
       const hoverDev = this.getDeviceAt(pos.x, pos.y);
-      this.canvas.style.cursor = hoverDev ? 'grab' : 'default';
+
+      // Check hover over flying envelope
+      let hoverEnvelope = false;
+      if (this.flyingPackets && this.flyingPackets.length > 0) {
+        const sim = window.PXLNetworkSim;
+        for (const fp of this.flyingPackets) {
+          const devA = sim?.devices[fp.fromDevId];
+          const devB = sim?.devices[fp.toDevId];
+          if (!devA || !devB) continue;
+          const curX = (devA.x + 35) + ((devB.x + 35) - (devA.x + 35)) * fp.progress;
+          const curY = (devA.y + 35) + ((devB.y + 35) - (devA.y + 35)) * fp.progress;
+          if (Math.hypot(pos.x - curX, pos.y - curY) <= 18) {
+            hoverEnvelope = true;
+            break;
+          }
+        }
+      }
+
+      if (hoverEnvelope) {
+        this.canvas.style.cursor = 'pointer';
+      } else {
+        this.canvas.style.cursor = hoverDev ? 'grab' : 'default';
+      }
+
       if (this.hoveredDevice !== hoverDev) {
         this.hoveredDevice = hoverDev;
         this.render();
@@ -494,8 +544,53 @@ class CanvasWorkspace {
       this.drawLinkLed(ctx, x1, y1, x2, y2, 0.22, colorA, cable.fromPort);
       this.drawLinkLed(ctx, x2, y2, x1, y1, 0.22, colorB, cable.toPort);
 
+      // Draw Packet Tracer clock icon on DCE end of serial cable
+      if (cable.type === 'serial') {
+        const isDceA = Boolean(intfA && intfA.clockRate) || cable.dceDevice === devA.id || (!cable.dceDevice && !intfB?.clockRate);
+        if (isDceA) {
+          this.drawSerialClockIcon(ctx, x1, y1, x2, y2, 0.28);
+        } else {
+          this.drawSerialClockIcon(ctx, x2, y2, x1, y1, 0.28);
+        }
+      }
+
       ctx.restore();
     }
+  }
+
+  drawSerialClockIcon(ctx, fromX, fromY, toX, toY, ratio) {
+    const x = fromX + (toX - fromX) * ratio;
+    const y = fromY + (toY - fromY) * ratio;
+
+    ctx.save();
+    // Circular clock face
+    ctx.beginPath();
+    ctx.arc(x, y, 7.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+    ctx.shadowBlur = 4;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#dc2626';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+
+    // Center pivot dot
+    ctx.beginPath();
+    ctx.arc(x, y, 1.2, 0, Math.PI * 2);
+    ctx.fillStyle = '#0f172a';
+    ctx.fill();
+
+    // Clock hands pointing at 3 o'clock (authentic Packet Tracer DCE clock)
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y - 4); // 12 o'clock hand
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 3.8, y); // 3 o'clock hand
+    ctx.stroke();
+    ctx.restore();
   }
 
   drawSerialLightning(ctx, x1, y1, x2, y2) {
@@ -797,7 +892,7 @@ class CanvasWorkspace {
 
   // --- PACKET TRACER FLYING ENVELOPES ANIMATION ---
 
-  enqueueFlyingPacket(fromDevId, toDevId, protocol = 'ICMP', label = 'ICMP') {
+  enqueueFlyingPacket(fromDevId, toDevId, protocol = 'ICMP', label = 'ICMP', packet = null) {
     if (!this.flyingPackets) this.flyingPackets = [];
     let borderColor = '#0284c7';
     let bgColor = '#ffffff';
@@ -834,6 +929,7 @@ class CanvasWorkspace {
       toDevId,
       protocol,
       label,
+      packet,
       progress: 0.0,
       speed: 0.022,
       borderColor,

@@ -44,6 +44,10 @@ class NetworkSimulator {
     this.devices[device.id] = device;
   }
 
+  addDevice(device) {
+    this.registerDevice(device);
+  }
+
   removeDevice(deviceId) {
     // Remove connected cables
     this.cables = this.cables.filter(c => c.fromDevice !== deviceId && c.toDevice !== deviceId);
@@ -729,19 +733,26 @@ class NetworkSimulator {
       this.packetCaptureLog.shift();
     }
 
-    // Trigger visual packet animation on canvas workspace (Packet Tracer Envelope Flow)
-    if (typeof window !== 'undefined' && window.PXLApp?.canvasWorkspace && packet.srcDevId) {
+    // Register packet event with Simulation Engine (Realtime vs Simulation Mode)
+    if (typeof window !== 'undefined' && window.PXLApp?.simulationEngine) {
+      window.PXLApp.simulationEngine.addPacketEvent(packet);
+    }
+
+    const isSimulationMode = Boolean(typeof window !== 'undefined' && window.PXLApp?.simulationEngine?.mode === 'simulation');
+
+    // In Realtime mode, trigger visual packet animation on canvas workspace immediately
+    if (!isSimulationMode && typeof window !== 'undefined' && window.PXLApp?.canvasWorkspace && packet.srcDevId) {
       const cw = window.PXLApp.canvasWorkspace;
       if (packet.dstDevId === 'broadcast') {
         for (const cable of this.cables) {
           if (cable.fromDevice === packet.srcDevId) {
-            cw.enqueueFlyingPacket(packet.srcDevId, cable.toDevice, packet.protocol, packet.protocol);
+            cw.enqueueFlyingPacket(packet.srcDevId, cable.toDevice, packet.protocol, packet.protocol, packet);
           } else if (cable.toDevice === packet.srcDevId) {
-            cw.enqueueFlyingPacket(packet.srcDevId, cable.fromDevice, packet.protocol, packet.protocol);
+            cw.enqueueFlyingPacket(packet.srcDevId, cable.fromDevice, packet.protocol, packet.protocol, packet);
           }
         }
       } else if (packet.dstDevId && packet.dstDevId !== packet.srcDevId && this.devices[packet.dstDevId]) {
-        cw.enqueueFlyingPacket(packet.srcDevId, packet.dstDevId, packet.protocol, packet.protocol);
+        cw.enqueueFlyingPacket(packet.srcDevId, packet.dstDevId, packet.protocol, packet.protocol, packet);
       }
     }
 

@@ -524,3 +524,328 @@ body {
   opacity: 1;
 }
 
+/* REALTIME VS SIMULATION MODE SWITCHER */
+.pt-mode-switcher {
+  display: flex;
+  background: #0f172a;
+  border-radius: 6px;
+  padding: 2px;
+  border: 1px solid #334155;
+  gap: 2px;
+}
+
+.pt-mode-btn {
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.pt-mode-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pt-mode-btn.active {
+  background: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* CANVAS FLOATING COMPLETION BADGE */
+.pt-canvas-score-badge {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #0284c7;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 10;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.pt-canvas-score-badge:hover {
+  transform: scale(1.05);
+  background: #1e293b;
+  border-color: #38bdf8;
+}
+
+/* SIMULATION MODE EVENT LIST DOCK */
+.pt-sim-dock {
+  position: absolute;
+  right: 18px;
+  bottom: 8px;
+  width: 480px;
+  max-width: calc(100vw - 40px);
+  max-height: 380px;
+  background: #0f172a;
+  border: 2px solid #0284c7;
+  border-radius: 8px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  overflow: hidden;
+  color: #f8fafc;
+  animation: ptSlideUp 0.2s ease-out;
+}
+
+@keyframes ptSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pt-sim-dock-header {
+  background: #1e293b;
+  border-bottom: 2px solid #334155;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  user-select: none;
+}
+
+.pt-sim-time-badge {
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  background: #0284c7;
+  color: #ffffff;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.pt-sim-btn-icon {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.pt-sim-btn-icon:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.pt-sim-dock-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.pt-sim-controls-bar {
+  background: #131d2e;
+  border-bottom: 1px solid #1e293b;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pt-sim-ctrl-btn {
+  border: none;
+  border-radius: 5px;
+  padding: 5px 11px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.12s ease;
+}
+
+.pt-sim-btn-play {
+  background: #059669;
+  color: #ffffff;
+}
+
+.pt-sim-btn-play:hover {
+  background: #10b981;
+}
+
+.pt-sim-btn-play.playing {
+  background: #d97706;
+}
+
+.pt-sim-btn-step {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.pt-sim-btn-step:hover {
+  background: #0ea5e9;
+}
+
+.pt-sim-btn-reset {
+  background: #334155;
+  color: #f8fafc;
+}
+
+.pt-sim-btn-reset:hover {
+  background: #475569;
+}
+
+.pt-sim-speed-box {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-left: auto;
+}
+
+.pt-sim-select {
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.pt-sim-filters-bar {
+  background: #090e17;
+  border-bottom: 1px solid #1e293b;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  color: #cbd5e1;
+}
+
+.pt-sim-filter-lbl {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.pt-sim-table-wrap {
+  flex: 1;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #050b14;
+}
+
+.pt-sim-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  text-align: left;
+}
+
+.pt-sim-table th {
+  background: #0f172a;
+  color: #38bdf8;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-bottom: 1px solid #1e293b;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.pt-sim-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  white-space: nowrap;
+}
+
+.pt-sim-row {
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.pt-sim-row:hover {
+  background: rgba(56, 189, 248, 0.1) !important;
+}
+
+.pt-sim-row.current {
+  background: rgba(2, 132, 199, 0.28) !important;
+  border-left: 3px solid #38bdf8;
+}
+
+.pt-sim-pdu-btn {
+  background: transparent;
+  border: 1px solid #334155;
+  border-radius: 3px;
+  color: #38bdf8;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 11px;
+  line-height: 1;
+  transition: all 0.1s;
+}
+
+.pt-sim-pdu-btn:hover {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+  transform: scale(1.15);
+}
+
+.pt-sim-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.sim-badge-icmp { background: #065f46; color: #a7f3d0; border: 1px solid #10b981; }
+.sim-badge-arp { background: #78350f; color: #fde68a; border: 1px solid #f59e0b; }
+.sim-badge-tcp { background: #1e3a8a; color: #bfdbfe; border: 1px solid #3b82f6; }
+.sim-badge-http { background: #14532d; color: #bbf7d0; border: 1px solid #22c55e; }
+.sim-badge-dns { background: #312e81; color: #c7d2fe; border: 1px solid #6366f1; }
+.sim-badge-dhcp { background: #831843; color: #fbcfe8; border: 1px solid #f43f5e; }
+.sim-badge-default { background: #334155; color: #cbd5e1; }
+
+.pt-sim-info-cell {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #cbd5e1;
+}
+
+.pt-sim-dock-footer {
+  background: #1e293b;
+  border-top: 1px solid #334155;
+  padding: 5px 12px;
+  font-size: 10px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+
