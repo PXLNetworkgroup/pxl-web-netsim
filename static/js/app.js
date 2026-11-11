@@ -776,6 +776,7 @@ class PXLNetSimApp {
         dev,
         (text) => {
           screen.innerHTML += `${text}\n`;
+          dev.terminalBuffer = (dev.terminalBuffer || '') + `${text}\n`;
           screen.scrollTop = screen.scrollHeight;
         },
         () => {
@@ -785,9 +786,11 @@ class PXLNetSimApp {
           this.triggerScoreUpdate();
         }
       );
-      if (!dev.history || dev.history.length === 0) {
-        screen.innerHTML = `Cisco IOS Software, ${dev.model} Software (X86_64_LINUX_IOSD-UNIVERSALK9-M), Version 15.4(3)M2\nTechnical Support: http://www.cisco.com/techsupport\nCopyright (c) 1986-2026 by Cisco Systems, Inc.\n\n`;
+      if (!dev.terminalBuffer) {
+        dev.terminalBuffer = `Cisco IOS Software, ${dev.model} Software (X86_64_LINUX_IOSD-UNIVERSALK9-M), Version 15.4(3)M2\nTechnical Support: http://www.cisco.com/techsupport\nCopyright (c) 1986-2026 by Cisco Systems, Inc.\n\n`;
       }
+      screen.innerHTML = dev.terminalBuffer;
+      screen.scrollTop = screen.scrollHeight;
     }
 
     prompt.innerText = dev.getPrompt();
@@ -819,10 +822,30 @@ class PXLNetSimApp {
         }
       }
 
+      // Immediate Cisco Inline Help on '?' (no Enter key required, preserves input buffer)
+      if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+        e.preventDefault();
+        const currentVal = input.value;
+        const currentPrompt = dev.getPrompt();
+        screen.innerHTML += `${currentPrompt} ${currentVal}?\n`;
+        dev.terminalBuffer = (dev.terminalBuffer || '') + `${currentPrompt} ${currentVal}?\n`;
+        if (this.activeTerminalParser && typeof this.activeTerminalParser.handleInlineHelp === 'function') {
+          this.activeTerminalParser.handleInlineHelp(currentVal);
+        } else if (this.activeTerminalParser && typeof this.activeTerminalParser.showModeHelp === 'function') {
+          this.activeTerminalParser.showModeHelp(currentVal.trim());
+        }
+        screen.scrollTop = screen.scrollHeight;
+        input.value = currentVal;
+        input.selectionStart = input.selectionEnd = currentVal.length;
+        input.focus();
+        return;
+      }
+
       if (e.key === 'Enter') {
         const cmd = input.value;
         const currentPrompt = dev.getPrompt();
         screen.innerHTML += `${currentPrompt} ${cmd}\n`;
+        dev.terminalBuffer = (dev.terminalBuffer || '') + `${currentPrompt} ${cmd}\n`;
         input.value = '';
         this.activeTerminalParser.handleCommand(cmd);
         prompt.innerText = dev.getPrompt();
@@ -843,7 +866,7 @@ class PXLNetSimApp {
           dev.historyIndex = dev.history.length;
           input.value = '';
         }
-      } else if (e.key === 'Tab') {
+      } else if (e.key === 'Tab' || e.keyCode === 9) {
         e.preventDefault();
         if (this.activeTerminalParser && typeof this.activeTerminalParser.tabComplete === 'function') {
           const completed = this.activeTerminalParser.tabComplete(input.value);
@@ -852,6 +875,7 @@ class PXLNetSimApp {
             input.selectionStart = input.selectionEnd = completed.length;
           }
         }
+        return;
       }
     };
   }

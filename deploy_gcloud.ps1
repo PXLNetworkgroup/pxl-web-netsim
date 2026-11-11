@@ -10,6 +10,7 @@ Write-Host "  Hogeschool PXL (Toegepaste Informatica / SNE)" -ForegroundColor Cy
 Write-Host "============================================================" -ForegroundColor Cyan
 
 # 1. Check gcloud installation
+$env:CLOUDSDK_PYTHON = "C:\Users\PXL\AppData\Local\Programs\Python\Python312\python.exe"
 $gcloudPath = "C:\Users\PXL\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd"
 if (-not (Test-Path $gcloudPath)) {
     $gcloudCmd = Get-Command gcloud -ErrorAction SilentlyContinue
