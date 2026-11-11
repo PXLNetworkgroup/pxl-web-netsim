@@ -2469,6 +2469,303 @@ window.PXL_COURSE_LABS = [
         }
       }
     ]
+  },
+  {
+    "id": "h08_wifi_standalone_ap",
+    "code": "H08-Labo1",
+    "chapter": "Hoofdstuk 08 - Draadloze Netwerken (Wi-Fi)",
+    "title": "Les 08 Labo 1: Standalone AP, WMP300N Wi-Fi Kaart & Signaalsterkte (PXL Golden Rule)",
+    "timeLimitMinutes": 45,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## Les 08 Labo 1: Standalone Access Point & PC Wireless (PXL Golden Rule)\n**Cursus:** PXL Network Essentials • Hoofdstuk 8 (Wi-Fi)\n\n### Doel van het labo:\nIn dit labo leer je een standalone Cisco Aironet / EAP320 Access Point (`AP1`) integreren in een bedraad switch-netwerk en draadloze clients (`PC0` en `Laptop0`) verbinden via WPA2-PSK.\n\n### Belangrijke PXL Wi-Fi Theorie:\n- **Gouden Regel voor Enterprise Wi-Fi:** Voor VoIP (bellen/Teams) en videostreaming is een minimale signaalsterkte van **-67 dBm** vereist (SNR ≥ 25 dB).\n- **Afstand & Demping (Path Loss):** Verplaats de apparaten op het canvas om te zien hoe de RF-straal visueel verandert:\n  - Dichtbij (<100px): Donkergroen (> -52 dBm, 4 bars, 433.3 Mbps)\n  - PXL VoIP-zone (100-180px): Blauw (≥ -67 dBm, 3 bars, 173.3 Mbps)\n  - Roaming alert (180-270px): Geel (-76 dBm, 2 bars, 72.2 Mbps)\n  - Grenszone (270-380px): Lichter/fauver rood (-88 dBm, 1 bar, 14.4 Mbps)\n  - Buiten bereik (>380px): Verbinding verbreekt automatisch!\n\n### Opdrachten:\n1. **WMP300N Kaart Installeren op PC0:** Open `PC0` (tabblad Physical of Desktop) en installeer de draadloze `WMP300N` netwerkkaart.\n2. **Access Point Configureren:**\n   - Open `AP1` en controleer de SSID (`PXL-Klas-AP`) en WPA2-PSK wachtwoord (`PXL_Geheim2026!`).\n3. **Verbinding maken via PC Wireless:**\n   - Open op `Laptop0` de **PC Wireless** app, ga naar **Site Survey**, klik op **Vernieuwen / Scan**, selecteer `PXL-Klas-AP` en verbind met wachtwoord `PXL_Geheim2026!`.\n   - Doe hetzelfde op `PC0` via de geïnstalleerde PC Wireless app.\n4. **Connectiviteitstest:** Ping vanaf `PC0` over Wi-Fi naar `SRV1` (`192.168.1.10`).",
+    "initialTopology": {
+      "devices": [
+        {
+          "id": "SRV1",
+          "name": "SRV1",
+          "type": "server",
+          "x": 140,
+          "y": 180,
+          "ip": "192.168.1.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.1",
+          "dns": "192.168.1.10"
+        },
+        {
+          "id": "SW1",
+          "name": "SW1",
+          "type": "switch",
+          "model": "2960",
+          "x": 340,
+          "y": 180
+        },
+        {
+          "id": "AP1",
+          "name": "AP1",
+          "type": "wireless_ap",
+          "model": "Aironet-3702",
+          "x": 540,
+          "y": 180,
+          "ssid": "PXL-Klas-AP",
+          "authMode": "WPA2-PSK",
+          "passphrase": "PXL_Geheim2026!",
+          "channel": 6,
+          "band": "2.4GHz"
+        },
+        {
+          "id": "PC0",
+          "name": "PC0",
+          "type": "pc",
+          "x": 500,
+          "y": 300,
+          "dhcpEnabled": true,
+          "ip": "192.168.1.105",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.1",
+          "hasWireless": false
+        },
+        {
+          "id": "Laptop0",
+          "name": "Laptop0",
+          "type": "laptop",
+          "x": 680,
+          "y": 240,
+          "dhcpEnabled": true,
+          "ip": "192.168.1.106",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.1"
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "SRV1",
+          "fromPort": "FastEthernet0",
+          "toDevice": "SW1",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "SW1",
+          "fromPort": "FastEthernet0/2",
+          "toDevice": "AP1",
+          "toPort": "GigabitEthernet0",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "pc0_wifi_card",
+        "category": "wireless",
+        "title": "WMP300N Kaart Installeren",
+        "desc": "WMP300N Wi-Fi adapter is geïnstalleerd in PC0",
+        "type": "wireless_adapter",
+        "checkType": "wireless_adapter",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC0",
+          "checkCardInstalled": true
+        }
+      },
+      {
+        "id": "pc0_wifi_connect",
+        "category": "wireless",
+        "title": "PC0 Draadloze Koppeling",
+        "desc": "PC0 is verbonden met SSID PXL-Klas-AP via AP1",
+        "type": "wireless_associated",
+        "checkType": "wireless_associated",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "clientId": "PC0",
+          "expectedAp": "AP1",
+          "expectedSsid": "PXL-Klas-AP"
+        }
+      },
+      {
+        "id": "laptop0_wifi_connect",
+        "category": "wireless",
+        "title": "Laptop0 Draadloze Koppeling",
+        "desc": "Laptop0 is verbonden met SSID PXL-Klas-AP via AP1",
+        "type": "wireless_associated",
+        "checkType": "wireless_associated",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "clientId": "Laptop0",
+          "expectedAp": "AP1",
+          "expectedSsid": "PXL-Klas-AP"
+        }
+      },
+      {
+        "id": "ping_pc0_server",
+        "category": "connectivity",
+        "title": "ICMP Connectiviteit over Wi-Fi",
+        "desc": "Succesvolle ping vanaf PC0 naar SRV1 (192.168.1.10)",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC0",
+          "targetIp": "192.168.1.10"
+        }
+      }
+    ]
+  },
+  {
+    "id": "h08_wifi_enterprise_wlc",
+    "code": "H08-Labo2",
+    "chapter": "Hoofdstuk 08 - Draadloze Netwerken (Wi-Fi)",
+    "title": "Les 08 Labo 2: Cisco 3504 WLC Multi-SSID & VLAN Segmentatie (Staff & Guest)",
+    "timeLimitMinutes": 50,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## Les 08 Labo 2: Cisco 3504 WLC Multi-SSID & VLAN Segmentatie\n**Cursus:** PXL Network Essentials • Hoofdstuk 8 (Enterprise WLAN Controller)\n\n### Doel van het labo:\nIn dit enterprise labo beheer je een centrale Cisco 3504 Wireless LAN Controller (WLC). De WLC beheert het Lightweight Access Point (`LAP1`) via CAPWAP-tunnels en scheidt het netwerkverkeer over verschillende VLAN's:\n- **Management:** VLAN 10 (10.10.0.0/24, WLC IP: 10.10.0.254)\n- **WLAN 1 (PXL-Staff):** VLAN 20 (10.20.0.0/24, WPA2-PSK CiscoStaff123!)\n- **WLAN 2 (PXL-Guest):** VLAN 30 (10.30.0.0/24, Open met Captive Portal)\n\n### Opdrachten:\n1. **WLC WebGUI Inspectie:**\n   - Open `WLC1` en bekijk het tabblad **Cisco WLC 3504 WebGUI**.\n   - Controleer onder **Controller Interfaces** de toewijzing van VLAN 20 (`int_staff`) en VLAN 30 (`int_guest`).\n   - Controleer onder **WLANs** dat zowel `PXL-Staff` als `PXL-Guest` zijn ingeschakeld.\n2. **Laptop-Staff Verbinden:**\n   - Open `Laptop-Staff` -> **PC Wireless** app.\n   - Ga naar **Site Survey** of **Connect**, kies SSID `PXL-Staff`, beveiliging `WPA2-PSK` en wachtwoord `CiscoStaff123!`.\n   - Controleer dat de laptop een IP-adres krijgt in `10.20.0.x`.\n3. **Laptop-Guest Verbinden:**\n   - Open `Laptop-Guest` -> **PC Wireless** app.\n   - Verbind met het open gastnetwerk `PXL-Guest`.\n   - Controleer dat de laptop een IP-adres krijgt in `10.30.0.x`.\n4. **Connectiviteitstest:**\n   - Ping vanaf `Laptop-Staff` naar de WLC management interface (`10.10.0.254`).",
+    "initialTopology": {
+      "devices": [
+        {
+          "id": "R1",
+          "name": "R1",
+          "type": "router",
+          "model": "1941",
+          "x": 160,
+          "y": 140,
+          "interfaces": {
+            "GigabitEthernet0/0": { "ip": "10.10.0.1", "mask": "255.255.255.0", "shutdown": false }
+          }
+        },
+        {
+          "id": "SW1",
+          "name": "SW1",
+          "type": "switch",
+          "model": "2960",
+          "x": 380,
+          "y": 140
+        },
+        {
+          "id": "WLC1",
+          "name": "WLC1",
+          "type": "wlc",
+          "model": "3504",
+          "x": 380,
+          "y": 280,
+          "mgmtIp": "10.10.0.254",
+          "mgmtMask": "255.255.255.0",
+          "mgmtGateway": "10.10.0.1"
+        },
+        {
+          "id": "LAP1",
+          "name": "LAP1",
+          "type": "wireless_ap",
+          "model": "LAP-PT",
+          "x": 600,
+          "y": 140
+        },
+        {
+          "id": "Laptop-Staff",
+          "name": "Laptop-Staff",
+          "type": "laptop",
+          "x": 600,
+          "y": 280,
+          "dhcpEnabled": true
+        },
+        {
+          "id": "Laptop-Guest",
+          "name": "Laptop-Guest",
+          "type": "laptop",
+          "x": 750,
+          "y": 200,
+          "dhcpEnabled": true
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "R1",
+          "fromPort": "GigabitEthernet0/0",
+          "toDevice": "SW1",
+          "toPort": "GigabitEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "SW1",
+          "fromPort": "GigabitEthernet0/2",
+          "toDevice": "WLC1",
+          "toPort": "GigabitEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "SW1",
+          "fromPort": "GigabitEthernet0/3",
+          "toDevice": "LAP1",
+          "toPort": "GigabitEthernet0",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "wlc_staff_wlan",
+        "category": "wireless",
+        "title": "WLC WLAN Staff Configuratie",
+        "desc": "WLC1 heeft WLAN PXL-Staff actief op VLAN 20",
+        "type": "wlc_wlan",
+        "checkType": "wlc_wlan",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "wlcId": "WLC1",
+          "expectedSsid": "PXL-Staff",
+          "expectedVlan": 20
+        }
+      },
+      {
+        "id": "staff_associated",
+        "category": "wireless",
+        "title": "Laptop-Staff Verbonden (VLAN 20)",
+        "desc": "Laptop-Staff is verbonden met PXL-Staff en heeft een 10.20.0.x IP-adres",
+        "type": "wireless_associated",
+        "checkType": "wireless_associated",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "clientId": "Laptop-Staff",
+          "expectedSsid": "PXL-Staff",
+          "subnetPrefix": "10.20.0."
+        }
+      },
+      {
+        "id": "guest_associated",
+        "category": "wireless",
+        "title": "Laptop-Guest Verbonden (VLAN 30)",
+        "desc": "Laptop-Guest is verbonden met PXL-Guest en heeft een 10.30.0.x IP-adres",
+        "type": "wireless_associated",
+        "checkType": "wireless_associated",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "clientId": "Laptop-Guest",
+          "expectedSsid": "PXL-Guest",
+          "subnetPrefix": "10.30.0."
+        }
+      },
+      {
+        "id": "ping_staff_mgmt",
+        "category": "connectivity",
+        "title": "ICMP Connectiviteit Staff naar WLC",
+        "desc": "Succesvolle ping vanaf Laptop-Staff naar WLC Management (10.10.0.254)",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "Laptop-Staff",
+          "targetIp": "10.10.0.254"
+        }
+      }
+    ]
   }
 ];
 

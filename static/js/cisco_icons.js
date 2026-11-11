@@ -67,30 +67,91 @@ const CiscoIcons = {
       <path d="M 38 42 L 33 35 L 43 35 Z" fill="#ffffff"/>
     </svg>`,
 
-  // Cisco Wireless Access Point / Home Router (WRT300N)
-  wireless_ap: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 70" width="70" height="70">
+  // Cisco Wireless Router (Linksys WRT300N Home Gateway)
+  wireless_router: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 70" width="70" height="70">
       <defs>
-        <linearGradient id="apGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#64748b"/>
-          <stop offset="100%" stop-color="#334155"/>
+        <linearGradient id="wrtGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#0284c7"/>
+          <stop offset="100%" stop-color="#0369a1"/>
         </linearGradient>
       </defs>
       <!-- Dual Antennas -->
-      <line x1="20" y1="36" x2="14" y2="12" stroke="#1e293b" stroke-width="3" stroke-linecap="round"/>
-      <line x1="50" y1="36" x2="56" y2="12" stroke="#1e293b" stroke-width="3" stroke-linecap="round"/>
+      <line x1="18" y1="36" x2="12" y2="12" stroke="#0f172a" stroke-width="3.5" stroke-linecap="round"/>
+      <line x1="52" y1="36" x2="58" y2="12" stroke="#0f172a" stroke-width="3.5" stroke-linecap="round"/>
       
       <!-- Radiating Wireless Waves -->
-      <path d="M 26 18 A 12 12 0 0 1 44 18" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
-      <path d="M 21 12 A 18 18 0 0 1 49 12" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round"/>
+      <path d="M 26 18 A 12 12 0 0 1 44 18" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M 20 12 A 19 19 0 0 1 50 12" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round"/>
       
-      <!-- AP Base Unit -->
-      <rect x="10" y="36" width="50" height="24" rx="4" fill="url(#apGrad)" stroke="#1e293b" stroke-width="2"/>
-      <line x1="14" y1="48" x2="56" y2="48" stroke="#0ea5e9" stroke-width="3"/>
-      <!-- LED indicators -->
-      <circle cx="20" cy="54" r="1.5" fill="#22c55e"/>
-      <circle cx="26" cy="54" r="1.5" fill="#22c55e"/>
-      <circle cx="32" cy="54" r="1.5" fill="#22c55e"/>
-      <circle cx="38" cy="54" r="1.5" fill="#38bdf8"/>
+      <!-- WRT300N Base Unit (Black Body & Classic Blue Faceplate) -->
+      <rect x="8" y="34" width="54" height="26" rx="4" fill="#0f172a" stroke="#0284c7" stroke-width="2"/>
+      <rect x="12" y="38" width="46" height="10" rx="2" fill="url(#wrtGrad)"/>
+      <text x="35" y="46" font-family="Arial, sans-serif" font-weight="900" font-size="7" fill="#ffffff" text-anchor="middle">WRT300N</text>
+      <!-- Activity LEDs -->
+      <circle cx="16" cy="53" r="1.5" fill="#22c55e"/>
+      <circle cx="23" cy="53" r="1.5" fill="#22c55e"/>
+      <circle cx="30" cy="53" r="1.5" fill="#22c55e"/>
+      <circle cx="37" cy="53" r="1.5" fill="#22c55e"/>
+      <circle cx="44" cy="53" r="1.5" fill="#38bdf8"/>
+      <circle cx="51" cy="53" r="1.5" fill="#22c55e"/>
+    </svg>`,
+
+  // Cisco Lightweight Access Point (LAP-PT / Aironet 3702i Ceiling Dome)
+  wireless_ap: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 70" width="70" height="70">
+      <defs>
+        <radialGradient id="apDomeGrad" cx="45%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="75%" stop-color="#e2e8f0"/>
+          <stop offset="100%" stop-color="#94a3b8"/>
+        </radialGradient>
+      </defs>
+      <!-- Concentric Radiating RF Waves -->
+      <path d="M 22 18 A 18 18 0 0 1 48 18" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 3"/>
+      <path d="M 16 12 A 25 25 0 0 1 54 12" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+      <!-- Ceiling Mount AP Round Disc/Dome -->
+      <circle cx="35" cy="40" r="23" fill="url(#apDomeGrad)" stroke="#475569" stroke-width="2"/>
+      <circle cx="35" cy="40" r="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+      <!-- Cisco Multi-color Status LED Ring -->
+      <circle cx="35" cy="40" r="4.5" fill="#22c55e" stroke="#16a34a" stroke-width="1.5"/>
+      <text x="35" y="58" font-family="Arial, sans-serif" font-weight="bold" font-size="6.5" fill="#334155" text-anchor="middle">AIR-AP</text>
+    </svg>`,
+
+  // Cisco 3504 Wireless LAN Controller (WLC)
+  wlc: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 56" width="76" height="56">
+      <defs>
+        <linearGradient id="wlcGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#0f172a"/>
+          <stop offset="100%" stop-color="#1e293b"/>
+        </linearGradient>
+      </defs>
+      <!-- 1U Rackmount Chassis -->
+      <rect x="4" y="12" width="68" height="34" rx="3" fill="url(#wlcGrad)" stroke="#0284c7" stroke-width="2"/>
+      <!-- Mounting Ears -->
+      <rect x="2" y="14" width="4" height="30" fill="#475569" rx="1"/>
+      <circle cx="4" cy="18" r="1" fill="#cbd5e1"/>
+      <circle cx="4" cy="40" r="1" fill="#cbd5e1"/>
+      <rect x="70" y="14" width="4" height="30" fill="#475569" rx="1"/>
+      <circle cx="72" cy="18" r="1" fill="#cbd5e1"/>
+      <circle cx="72" cy="40" r="1" fill="#cbd5e1"/>
+      <!-- LCD Screen / Brand -->
+      <rect x="10" y="17" width="22" height="10" rx="1" fill="#082f49" stroke="#0284c7" stroke-width="0.75"/>
+      <text x="21" y="24" font-family="monospace" font-weight="bold" font-size="5" fill="#38bdf8" text-anchor="middle">WLC 3504</text>
+      <!-- Controller Emblem / Cross-arrows -->
+      <circle cx="42" cy="22" r="5" fill="#0284c7"/>
+      <path d="M 40 22 L 44 22 M 42 20 L 42 24" stroke="#ffffff" stroke-width="1.2"/>
+      <!-- 4x Gigabit Port Array -->
+      <rect x="52" y="18" width="16" height="8" rx="1" fill="#020617" stroke="#64748b" stroke-width="0.5"/>
+      <rect x="54" y="20" width="3" height="4" fill="#38bdf8"/>
+      <rect x="58" y="20" width="3" height="4" fill="#38bdf8"/>
+      <rect x="62" y="20" width="3" height="4" fill="#38bdf8"/>
+      <!-- Radiating Controller Waves -->
+      <path d="M 12 38 A 12 12 0 0 1 30 38" fill="none" stroke="#22c55e" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M 8 42 A 18 18 0 0 1 34 42" fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/>
+      <!-- Status LEDs -->
+      <circle cx="46" cy="38" r="1.5" fill="#22c55e"/>
+      <circle cx="52" cy="38" r="1.5" fill="#22c55e"/>
+      <circle cx="58" cy="38" r="1.5" fill="#38bdf8"/>
+      <circle cx="64" cy="38" r="1.5" fill="#22c55e"/>
     </svg>`,
 
   // Cisco PC Workstation
@@ -279,7 +340,13 @@ function getCiscoDeviceIcon(type, model = "") {
     }
     return CiscoIcons.switch;
   }
-  if (t === 'wireless_ap' || t === 'ap' || t === 'wireless' || m.includes('wrt300n')) {
+  if (t === 'wlc' || m.includes('3504') || m.includes('wlc')) {
+    return CiscoIcons.wlc;
+  }
+  if (t === 'wireless_router' || m.includes('wrt300n') || m.includes('home gateway') || m.includes('router-wireless')) {
+    return CiscoIcons.wireless_router;
+  }
+  if (t === 'wireless_ap' || t === 'ap' || t === 'access_point' || m.includes('aironet') || m.includes('lap') || m.includes('eap')) {
     return CiscoIcons.wireless_ap;
   }
   if (t === 'laptop') return CiscoIcons.laptop;

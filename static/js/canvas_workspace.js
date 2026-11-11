@@ -29,6 +29,7 @@ class CanvasWorkspace {
     this.dragOffsetY = 0;
     this.mouseCanvasPos = { x: 0, y: 0 };
     this.showPortLabels = true;
+    this.showWifiSignals = true;
     this.flyingPackets = [];
     this.animating = false;
     this.hoveredDevice = null;
@@ -460,32 +461,185 @@ class CanvasWorkspace {
     }
   }
 
+  toggleWifiSignals() {
+    this.showWifiSignals = !this.showWifiSignals;
+    const txt = document.getElementById('wifiSignalsToggleText');
+    if (txt) {
+      txt.innerText = `📶 Wi-Fi Golven: ${this.showWifiSignals ? 'Aan' : 'Uit'}`;
+    }
+    this.render();
+  }
+
   drawWirelessWaves(ctx) {
+    if (!this.showWifiSignals) return;
     const sim = window.PXLNetworkSim;
     if (!sim) return;
     sim.updateWirelessAssociations();
 
+    const aps = Object.values(sim.devices).filter(d => 
+      (d.type === 'wireless_ap' || d.type === 'wireless_router' || d.type === 'wlc') && d.powerOn
+    );
+
+    // 1. Draw Concentric RF Propagation Zones around each active AP / Wireless Router
+    for (const ap of aps) {
+      const cx = ap.x + 35;
+      const cy = ap.y + 35;
+
+      ctx.save();
+
+      // Zone 1: Direct High-Speed Core (< 100px / > -52 dBm)
+      ctx.beginPath();
+      ctx.arc(cx, cy, 100, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(16, 185, 129, 0.04)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(16, 185, 129, 0.35)";
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+
+      // Zone 2: Enterprise VoIP Norm Boundary (180px / -67 dBm)
+      ctx.beginPath();
+      ctx.arc(cx, cy, 180, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(14, 165, 233, 0.03)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(14, 165, 233, 0.50)";
+      ctx.lineWidth = 1.4;
+      ctx.setLineDash([6, 4]);
+      ctx.stroke();
+
+      // Zone 2 Boundary Label
+      ctx.fillStyle = "rgba(14, 165, 233, 0.85)";
+      ctx.font = "bold 9px -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("-67 dBm (VoIP Norm)", cx, cy - 184);
+
+      // Zone 3: Roaming Warning Boundary (270px / -76 dBm)
+      ctx.beginPath();
+      ctx.arc(cx, cy, 270, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(245, 158, 11, 0.35)";
+      ctx.lineWidth = 1.0;
+      ctx.setLineDash([4, 6]);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(245, 158, 11, 0.70)";
+      ctx.fillText("-76 dBm (Roaming)", cx, cy - 274);
+
+      // Zone 4: Drop Threshold Outer Boundary (380px / -88 dBm)
+      ctx.beginPath();
+      ctx.arc(cx, cy, 380, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(239, 68, 68, 0.25)";
+      ctx.lineWidth = 1.0;
+      ctx.setLineDash([2, 5]);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(239, 68, 68, 0.60)";
+      ctx.fillText("-88 dBm (Drop Drempel)", cx, cy - 384);
+
+      // Subtle Pulsing Expanding Wave Animation
+      const pulseTime = Date.now() / 35;
+      const pulseR1 = (pulseTime % 360) + 15;
+      const pulseR2 = ((pulseTime + 180) % 360) + 15;
+      const alpha1 = Math.max(0, 0.28 * (1 - pulseR1 / 380));
+      const alpha2 = Math.max(0, 0.28 * (1 - pulseR2 / 380));
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, pulseR1, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(56, 189, 248, ${alpha1})`;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([]);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, pulseR2, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(56, 189, 248, ${alpha2})`;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // 2. Draw Dynamic Rays Connecting Associated Clients & APs (Distance Attenuation)
     for (const [clientId, apId] of Object.entries(sim.wirelessAssociations)) {
       const client = sim.devices[clientId];
       const ap = sim.devices[apId];
       if (!client || !ap || !client.powerOn || !ap.powerOn) continue;
 
+      const x1 = ap.x + 35, y1 = ap.y + 35;
+      const x2 = client.x + 35, y2 = client.y + 35;
+      const rssi = client.wireless?.rssi !== undefined ? client.wireless.rssi : -60;
+
+      // Dynamic color, opacity and thickness based on real RSSI (User Request: signal lighter and worse as distance increases)
+      let rayColor = '#10b981';
+      let rayAlpha = 0.90;
+      let rayWidth = 2.6;
+      let dashPattern = [6, 4];
+
+      if (rssi >= -55) {
+        rayColor = '#10b981'; // Vibrant Emerald Green
+        rayAlpha = 0.90;
+        rayWidth = 2.6;
+        dashPattern = [6, 4];
+      } else if (rssi >= -68) {
+        rayColor = '#0ea5e9'; // Sky Blue (VoIP compliant)
+        rayAlpha = 0.75;
+        rayWidth = 2.2;
+        dashPattern = [5, 4];
+      } else if (rssi >= -78) {
+        rayColor = '#f59e0b'; // Amber / Yellow (Degrading)
+        rayAlpha = 0.55;
+        rayWidth = 1.8;
+        dashPattern = [4, 5];
+      } else if (rssi >= -85) {
+        rayColor = '#ef4444'; // Light / Faded Red
+        rayAlpha = 0.32;       // Lighter and poorer signal!
+        rayWidth = 1.3;
+        dashPattern = [3, 6];
+      } else {
+        rayColor = '#ef4444'; // Marginal / Barely connected
+        rayAlpha = 0.16;       // Extremely faint!
+        rayWidth = 1.0;
+        dashPattern = [2, 8];
+      }
+
       ctx.save();
-      ctx.strokeStyle = "#38bdf8";
-      ctx.lineWidth = 1.8;
-      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = rayColor;
+      ctx.globalAlpha = rayAlpha;
+      ctx.lineWidth = rayWidth;
+      ctx.setLineDash(dashPattern);
+      ctx.lineDashOffset = -((Date.now() / 40) % 12);
 
       ctx.beginPath();
-      ctx.moveTo(ap.x + 35, ap.y + 35);
-      ctx.lineTo(client.x + 35, client.y + 35);
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
       ctx.stroke();
 
-      const midX = (ap.x + client.x + 70) / 2;
-      const midY = (ap.y + client.y + 70) / 2;
-      ctx.fillStyle = "#0284c7";
+      // Midpoint glowing data packet dot
+      const midX = (x1 + x2) / 2;
+      const midY = (y1 + y2) / 2;
+      ctx.fillStyle = rayColor;
+      ctx.globalAlpha = Math.min(1, rayAlpha + 0.2);
       ctx.beginPath();
-      ctx.arc(midX, midY, 4, 0, Math.PI * 2);
+      ctx.arc(midX, midY, rayWidth * 1.6, 0, Math.PI * 2);
       ctx.fill();
+
+      // Floating Live Signal Badge right next to the wireless client
+      const badgeX = client.x + 65;
+      const badgeY = client.y + 12;
+      const badgeText = `${rssi} dBm • ${client.wireless?.txRate || 0}M`;
+
+      ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+      ctx.strokeStyle = rayColor;
+      ctx.lineWidth = 1.2;
+      ctx.globalAlpha = Math.max(0.4, rayAlpha);
+      
+      const textWidth = ctx.measureText(badgeText).width + 18;
+      ctx.beginPath();
+      ctx.roundRect(badgeX, badgeY - 10, textWidth, 18, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 9px monospace";
+      ctx.textAlign = "left";
+      ctx.fillText(`📶 ${badgeText}`, badgeX + 4, badgeY + 3);
 
       ctx.restore();
     }
@@ -1128,6 +1282,31 @@ class CanvasWorkspace {
 
       ctx.fillStyle = '#94a3b8';
       ctx.fillText(r.mac, tooltipX + 215, curY);
+    }
+
+    // Wi-Fi Telemetry & Theory Badge in Tooltip
+    if (dev.wireless && dev.wireless.installed && dev.wireless.enabled) {
+      curY += 14;
+      ctx.strokeStyle = '#334155';
+      ctx.beginPath();
+      ctx.moveTo(tooltipX + 6, curY - 6);
+      ctx.lineTo(tooltipX + totalW - 6, curY - 6);
+      ctx.stroke();
+
+      if (dev.wireless.associatedAp) {
+        ctx.fillStyle = dev.wireless.rssi >= -67 ? '#34d399' : dev.wireless.rssi >= -78 ? '#fbbf24' : '#f87171';
+        ctx.font = 'bold 9px Consolas, monospace';
+        ctx.fillText(`📶 Wi-Fi: ${dev.wireless.ssid} (${dev.wireless.rssi} dBm, SNR +${dev.wireless.snr}dB, ${dev.wireless.txRate}M)`, tooltipX + 10, curY + 4);
+        ctx.fillStyle = dev.wireless.rssi >= -67 ? '#059669' : '#b45309';
+        ctx.fillText(dev.wireless.rssi >= -67 ? '✅ Voldoet aan -67 dBm VoIP norm' : '⚠️ Zwakker dan VoIP norm (-67 dBm)', tooltipX + 10, curY + 16);
+      } else if (dev.type === 'wireless_ap' || dev.type === 'wireless_router' || dev.type === 'wlc') {
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 9px Consolas, monospace';
+        const apSsid = dev.wireless.ssid || (dev.type === 'wireless_router' ? 'PXL-Wireless-Router' : 'PXL-Klas-AP');
+        ctx.fillText(`📶 Radio: ${apSsid} | Ch ${dev.wireless.channel || 6} (20MHz) | ${dev.wireless.authMode || 'WPA2'}`, tooltipX + 10, curY + 4);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(`Zendvermogen: 15 dBm | Ruisvloer: ${dev.wireless.noiseFloor || -90} dBm`, tooltipX + 10, curY + 16);
+      }
     }
 
     ctx.restore();

@@ -123,6 +123,9 @@ class GradingEngine {
       case 'ssh_configured':
         return this.checkSsh(cond, sim, runningConfigs);
       case 'wireless_associated':
+      case 'wireless':
+      case 'wireless_adapter':
+      case 'wlc_wlan':
         return this.checkWireless(cond, sim, runningConfigs);
       case 'ping_test':
       case 'ping':
@@ -423,13 +426,58 @@ class GradingEngine {
   }
 
   checkWireless(cond, sim) {
-    const client = sim.devices[cond.clientId];
-    if (!client) return { passed: false, detail: `Client ${cond.clientId} niet gevonden` };
+    const devId = cond.clientId || cond.deviceId || cond.targetDevice;
+    const client = devId ? sim.devices[devId] : null;
 
-    const ok = client.wireless && client.wireless.associatedAp === cond.expectedAp;
+    if (cond.wlcId) {
+      const wlc = sim.devices[cond.wlcId];
+      if (!wlc || !wlc.wlcConfig) return { passed: false, detail: `WLC ${cond.wlcId} niet gevonden` };
+      const wlan = (wlc.wlcConfig.wlans || []).find(w => w.ssid === cond.expectedSsid || w.profile === cond.expectedProfile);
+      const ok = Boolean(wlan && (!cond.expectedVlan || wlan.vlan === cond.expectedVlan));
+      return {
+        passed: ok,
+        detail: ok ? `WLAN ${wlan.profile} (${wlan.ssid}) actief op VLAN ${wlan.vlan}` : `WLAN configuratie ontbreekt op WLC`
+      };
+    }
+
+    if (!client) return { passed: false, detail: `Apparaat ${devId || 'onbekend'} niet gevonden` };
+
+    if (cond.checkCardInstalled) {
+      const hasCard = typeof client.hasWirelessCard === 'function' ? client.hasWirelessCard() : Boolean(client.wireless && client.wireless.installed);
+      return {
+        passed: hasCard,
+        detail: hasCard ? `WMP300N Wi-Fi netwerkkaart geïnstalleerd` : `WMP300N Wi-Fi adapter ontbreekt`
+      };
+    }
+
+    if (cond.expectedSsid) {
+      const ssidOk = client.wireless && client.wireless.ssid === cond.expectedSsid;
+      if (!ssidOk) return { passed: false, detail: `SSID niet ingesteld op '${cond.expectedSsid}' (huidig: ${client.wireless?.ssid || 'geen'})` };
+    }
+
+    if (cond.expectedAp) {
+      const apOk = client.wireless && client.wireless.associatedAp === cond.expectedAp;
+      if (!apOk) return { passed: false, detail: `Niet verbonden met AP ${cond.expectedAp}` };
+    }
+
+    if (cond.subnetPrefix) {
+      const ip = client.ip || (client.wireless && client.wireless.ip) || (client.interfaces && client.interfaces['Wireless0'] && client.interfaces['Wireless0'].ip) || '';
+      if (!ip.startsWith(cond.subnetPrefix)) {
+        return { passed: false, detail: `Geen IP in subnet ${cond.subnetPrefix}x (huidig: ${ip || 'geen'})` };
+      }
+    }
+
+    if (cond.minRssi) {
+      const rssi = (client.wireless && client.wireless.rssi) || -99;
+      if (rssi < cond.minRssi) {
+        return { passed: false, detail: `Signaal te zwak (${rssi} dBm < vereist ${cond.minRssi} dBm norm)` };
+      }
+    }
+
+    const isAssoc = Boolean(client.wireless && client.wireless.associatedAp);
     return {
-      passed: ok,
-      detail: ok ? `Verbonden met AP ${cond.expectedAp}` : 'Geen draadloze associatie met het vereiste AP'
+      passed: isAssoc,
+      detail: isAssoc ? `Draadloos verbonden met ${client.wireless.associatedAp} (${client.wireless.rssi} dBm, ${client.wireless.txRate} Mbps)` : 'Geen draadloze associatie met het vereiste AP'
     };
   }
 

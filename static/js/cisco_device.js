@@ -79,14 +79,69 @@ class CiscoDevice {
     this.dns = options.dns || "8.8.8.8";
     this.dhcpEnabled = options.dhcpEnabled || false;
 
-    // Wireless Settings (for Laptops, Smartphones, and APs)
+    // Wireless Router (Cisco Linksys WRT300N) Configuration
+    if (this.type === 'wireless_router') {
+      this.wrtConfig = {
+        model: 'WRT300N',
+        lanIp: options.lanIp || '192.168.0.1',
+        lanMask: options.lanMask || '255.255.255.0',
+        dhcpEnabled: options.dhcpEnabled !== undefined ? options.dhcpEnabled : true,
+        dhcpStartIp: options.dhcpStartIp || '192.168.0.100',
+        dhcpMaxUsers: options.dhcpMaxUsers || 50,
+        dns: options.dns || '8.8.8.8',
+        wanType: options.wanType || 'dhcp', // 'dhcp', 'static', 'pppoe'
+        wanIp: options.wanIp || '',
+        wanMask: options.wanMask || '',
+        wanGateway: options.wanGateway || '',
+        wanDns: options.wanDns || '8.8.8.8'
+      };
+      this.ip = this.wrtConfig.lanIp;
+      this.mask = this.wrtConfig.lanMask;
+    }
+
+    // Cisco 3504 Wireless LAN Controller (WLC) Configuration
+    if (this.type === 'wlc') {
+      this.wlcConfig = {
+        model: '3504',
+        mgmtIp: options.mgmtIp || '10.10.0.254',
+        mgmtMask: options.mgmtMask || '255.255.255.0',
+        mgmtGateway: options.mgmtGateway || '10.10.0.1',
+        interfaces: {
+          'management': { name: 'management', vlan: 10, ip: '10.10.0.254', mask: '255.255.255.0', gateway: '10.10.0.1', dhcpServer: '10.10.0.1' },
+          'int_staff': { name: 'int_staff', vlan: 20, ip: '10.20.0.254', mask: '255.255.255.0', gateway: '10.20.0.1', dhcpServer: '10.20.0.1' },
+          'int_guest': { name: 'int_guest', vlan: 30, ip: '10.30.0.254', mask: '255.255.255.0', gateway: '10.30.0.1', dhcpServer: '10.30.0.1' }
+        },
+        wlans: [
+          { id: 1, profile: 'WLAN-Staff', ssid: 'PXL-Staff', status: 'Enabled', intf: 'int_staff', vlan: 20, authMode: 'WPA2-PSK', passphrase: 'CiscoStaff123!' },
+          { id: 2, profile: 'WLAN-Guest', ssid: 'PXL-Guest', status: 'Enabled', intf: 'int_guest', vlan: 30, authMode: 'Open', passphrase: '' }
+        ]
+      };
+      this.ip = this.wlcConfig.mgmtIp;
+      this.mask = this.wlcConfig.mgmtMask;
+      this.defaultGateway = this.wlcConfig.mgmtGateway;
+    }
+
+    // Wireless Settings (for PCs, Laptops, Servers, Routers, and APs)
+    const isWifiDevice = (this.type === 'laptop' || this.type === 'wireless_ap' || this.type === 'wireless_router' || this.type === 'wlc' || options.hasWireless || options.wirelessInstalled);
     this.wireless = {
-      enabled: this.type === 'laptop' || this.type === 'wireless_ap',
-      ssid: options.ssid || (this.type === 'wireless_ap' ? 'PXL-Guest' : ''),
-      authMode: options.authMode || 'WPA2-PSK', // 'Open', 'WPA2-PSK'
-      passphrase: options.passphrase || (this.type === 'wireless_ap' ? 'PXL2026Net!' : ''),
+      installed: isWifiDevice,
+      enabled: isWifiDevice,
+      adapter: (this.type === 'laptop' ? 'WPC300N' : (this.type === 'pc' || this.type === 'server' ? 'WMP300N' : 'Internal')),
+      ssid: options.ssid || (this.type === 'wireless_ap' ? 'PXL-Klas-AP' : this.type === 'wireless_router' ? 'PXL-Wireless-Router' : ''),
+      authMode: options.authMode || 'WPA2-PSK', // 'Open', 'WEP', 'WPA2-PSK', 'WPA3-SAE', 'WPA2-Enterprise'
+      passphrase: options.passphrase || ((this.type === 'wireless_ap' || this.type === 'wireless_router') ? 'PXL2026Net!' : ''),
       associatedAp: null,
-      channel: options.channel || 6
+      channel: options.channel || 6,
+      band: options.band || '2.4GHz', // '2.4GHz' or '5GHz'
+      channelWidth: options.channelWidth || 20, // 20, 40, 80 MHz
+      txPower: options.txPower || 15, // dBm (PXL standard: 12-15 dBm)
+      rssi: -95,
+      snr: 0,
+      noiseFloor: (options.band === '5GHz') ? -95 : -90,
+      linkQuality: 0,
+      txRate: 0,
+      bars: 0,
+      dhcpEnabled: options.dhcpEnabled !== undefined ? options.dhcpEnabled : true
     };
 
     // Server Services (HTTP Web Server, DNS Server, FTP Server)
@@ -212,6 +267,9 @@ class CiscoDevice {
         'RS 232': { ip: "", mask: "", shutdown: false, description: "Serial RS-232 / COM1 Port", portType: 'serial_com' },
         'USB0': { ip: "", mask: "", shutdown: false, description: "USB Port (Console / Data)", portType: 'usb' }
       };
+      if (this.wireless && this.wireless.installed) {
+        this.interfaces['Wireless0'] = { ip: "", mask: "", shutdown: false, description: "WMP300N Wireless PCI Adapter", mac: genMac('0014.69') };
+      }
     } else if (this.type === 'laptop') {
       this.interfaces = {
         'FastEthernet0': { ip: "", mask: "", shutdown: false, description: "FastEthernet Network Adapter", mac: genMac('0050.79') },
@@ -219,12 +277,30 @@ class CiscoDevice {
         'RS 232': { ip: "", mask: "", shutdown: false, description: "Serial RS-232 / COM1 Port", portType: 'serial_com' },
         'USB0': { ip: "", mask: "", shutdown: false, description: "USB Port (Console / Data)", portType: 'usb' }
       };
-    } else if (this.type === 'wireless_ap') {
+    } else if (this.type === 'wireless_router') {
+      // Cisco Linksys WRT300N: 1 WAN (Internet) + 4 LAN FastEthernet Switch Ports + Dual-Band Wireless Radio
       this.interfaces = {
-        'Internet': { ip: "", mask: "", shutdown: false, description: "WAN/Internet", mac: genMac('0021.d8') },
-        'Ethernet1': { ip: "", mask: "", shutdown: false, description: "LAN Port 1", mac: genMac('0021.d8') },
-        'Ethernet2': { ip: "", mask: "", shutdown: false, description: "LAN Port 2", mac: genMac('0021.d8') },
-        'Wireless0': { ip: "192.168.0.1", mask: "255.255.255.0", shutdown: false, description: "2.4GHz Wireless Radio", mac: genMac('0021.d8') }
+        'Internet': { ip: "", mask: "", shutdown: false, description: "WAN / Internet Uplink", mac: genMac('0021.d8') },
+        'Ethernet1': { ip: "192.168.0.1", mask: "255.255.255.0", shutdown: false, description: "LAN Port 1 (Switch)", mac: genMac('0021.d8') },
+        'Ethernet2': { ip: "192.168.0.1", mask: "255.255.255.0", shutdown: false, description: "LAN Port 2 (Switch)", mac: genMac('0021.d8') },
+        'Ethernet3': { ip: "192.168.0.1", mask: "255.255.255.0", shutdown: false, description: "LAN Port 3 (Switch)", mac: genMac('0021.d8') },
+        'Ethernet4': { ip: "192.168.0.1", mask: "255.255.255.0", shutdown: false, description: "LAN Port 4 (Switch)", mac: genMac('0021.d8') },
+        'Wireless0': { ip: "192.168.0.1", mask: "255.255.255.0", shutdown: false, description: "Dual-Band 2.4/5GHz Radio", mac: genMac('0021.d8') }
+      };
+    } else if (this.type === 'wireless_ap') {
+      // Cisco LAP-PT / Standalone AP (EAP320 / Aironet 3702i): Gigabit Uplink + Wireless Radio
+      this.interfaces = {
+        'GigabitEthernet0': { ip: "10.10.0.100", mask: "255.255.255.0", shutdown: false, description: "PoE+ Gigabit Uplink (Trunk/Native VLAN 10)", nativeVlan: 10, trunk: true, mac: genMac('0021.d8') },
+        'Wireless0': { ip: "", mask: "", shutdown: false, description: "Omnidirectional Wireless Radio", mac: genMac('0021.d8') }
+      };
+    } else if (this.type === 'wlc') {
+      // Cisco 3504 Wireless LAN Controller: 4 Gigabit Ethernet Ports + Console
+      this.interfaces = {
+        'GigabitEthernet0/1': { ip: "10.10.0.254", mask: "255.255.255.0", shutdown: false, description: "Trunk Uplink to Switch (VLAN 10, 20, 30)", trunk: true, mac: genMac('0024.97') },
+        'GigabitEthernet0/2': { ip: "", mask: "", shutdown: false, description: "Gigabit Distribution Port 2", mac: genMac('0024.97') },
+        'GigabitEthernet0/3': { ip: "", mask: "", shutdown: false, description: "Gigabit Distribution Port 3", mac: genMac('0024.97') },
+        'GigabitEthernet0/4': { ip: "", mask: "", shutdown: false, description: "Gigabit Distribution Port 4", mac: genMac('0024.97') },
+        'Console': { ip: "", mask: "", shutdown: false, description: "RJ-45 Management Console Port", portType: 'console', mac: genMac('0024.97') }
       };
     } else if (this.type === 'mikrotik') {
       // MikroTik hEX lite (RB750r2): 5 FastEthernet ports + Console
@@ -533,6 +609,83 @@ class CiscoDevice {
     lines.push('end');
 
     return lines.join('\n');
+  }
+
+  // --- WIRELESS HARDWARE & NIC MANAGEMENT ---
+  hasWirelessCard() {
+    return !!(this.wireless && this.wireless.installed);
+  }
+
+  installWirelessCard(model = 'WMP300N') {
+    if (!this.wireless) {
+      this.wireless = {
+        installed: true,
+        enabled: true,
+        adapter: model,
+        ssid: '',
+        authMode: 'Open',
+        passphrase: '',
+        associatedAp: null,
+        channel: 6,
+        band: '2.4GHz',
+        channelWidth: 20,
+        txPower: 15,
+        rssi: -95,
+        snr: 0,
+        noiseFloor: -90,
+        linkQuality: 0,
+        txRate: 0,
+        bars: 0,
+        dhcpEnabled: true
+      };
+    } else {
+      this.wireless.installed = true;
+      this.wireless.enabled = true;
+      this.wireless.adapter = model;
+    }
+
+    if (!this.interfaces['Wireless0']) {
+      const genMac = (prefix) => `${prefix}.${Math.floor(Math.random() * 65535).toString(16).padStart(4, '0')}.${Math.floor(Math.random() * 65535).toString(16).padStart(4, '0')}`;
+      this.interfaces['Wireless0'] = {
+        ip: this.ip || "",
+        mask: this.mask || "",
+        shutdown: false,
+        description: `${model} Wireless Adapter`,
+        mac: genMac('0014.69')
+      };
+    } else {
+      this.interfaces['Wireless0'].shutdown = false;
+    }
+    return true;
+  }
+
+  removeWirelessCard() {
+    if (this.wireless) {
+      this.wireless.installed = false;
+      this.wireless.enabled = false;
+      this.wireless.associatedAp = null;
+      this.wireless.rssi = -95;
+      this.wireless.snr = 0;
+      this.wireless.linkQuality = 0;
+      this.wireless.txRate = 0;
+      this.wireless.bars = 0;
+    }
+    delete this.interfaces['Wireless0'];
+    return true;
+  }
+
+  toggleWirelessPower() {
+    if (!this.wireless || !this.wireless.installed) return false;
+    this.wireless.enabled = !this.wireless.enabled;
+    if (!this.wireless.enabled) {
+      this.wireless.associatedAp = null;
+      this.wireless.rssi = -95;
+      this.wireless.snr = 0;
+      this.wireless.linkQuality = 0;
+      this.wireless.txRate = 0;
+      this.wireless.bars = 0;
+    }
+    return this.wireless.enabled;
   }
 }
 

@@ -239,8 +239,10 @@ class PXLNetSimApp {
       { type: 'switch', model: '3560-24PS', label: '3560 Multilayer', category: 'switches' },
       { type: 'hpe_switch', model: 'Aruba-2530-24G', label: 'HPE Aruba 2530', category: 'switches' },
       { type: 'hpe_switch', model: 'Aruba-2930F-24G', label: 'HPE Aruba 2930F', category: 'switches' },
-      // Network Devices - Wireless
-      { type: 'wireless_ap', model: 'WRT300N', label: 'WRT300N Wireless', category: 'wireless' },
+      // Network Devices - Wireless (SNE Networks 1 Ch 8)
+      { type: 'wireless_router', model: 'WRT300N', label: 'WRT300N Router', category: 'wireless' },
+      { type: 'wireless_ap', model: 'AIR-LAP3702', label: 'Cisco LAP-PT (AP)', category: 'wireless' },
+      { type: 'wlc', model: '3504', label: 'Cisco 3504 WLC', category: 'wireless' },
       // End Devices
       { type: 'pc', model: 'Standard', label: 'PC-PT', category: 'end_devices' },
       { type: 'laptop', model: 'Standard', label: 'Laptop-PT', category: 'end_devices' },
@@ -417,20 +419,26 @@ class PXLNetSimApp {
     // Show/hide appropriate tabs
     const isHost = (device.type === 'pc' || device.type === 'laptop' || device.type === 'server');
     const isServer = (device.type === 'server');
+    const isWrt = (device.type === 'wireless_router');
+    const isWlc = (device.type === 'wlc');
     const cliTabBtn = document.getElementById('tabBtnCli');
     const desktopTabBtn = document.getElementById('tabBtnDesktop');
     const servicesTabBtn = document.getElementById('tabBtnServices');
     const webfigTabBtn = document.getElementById('tabBtnWebFig');
     const hpeWebTabBtn = document.getElementById('tabBtnHpeWeb');
+    const wrtWebTabBtn = document.getElementById('tabBtnWrtWeb');
+    const wlcWebTabBtn = document.getElementById('tabBtnWlcWeb');
 
     if (cliTabBtn) {
-      cliTabBtn.style.display = isHost ? 'none' : 'inline-block';
+      cliTabBtn.style.display = (isHost || isWrt) ? 'none' : 'inline-block';
       if (device.type === 'mikrotik') {
         cliTabBtn.innerText = 'CLI (RouterOS)';
       } else if (device.type === 'openwrt') {
         cliTabBtn.innerText = 'CLI (Ash Linux)';
       } else if (device.type === 'hpe_switch') {
         cliTabBtn.innerText = 'CLI (ArubaOS-S)';
+      } else if (device.type === 'wlc') {
+        cliTabBtn.innerText = 'CLI (Cisco WLC)';
       } else if (device.type === 'internet_cloud' || device.type === 'internet_simulated' || device.type === 'internet_public') {
         cliTabBtn.innerText = device.type === 'internet_public' ? 'Status (Internet Public NAT)' : 'Status (Het Internet)';
       } else {
@@ -441,12 +449,20 @@ class PXLNetSimApp {
     if (servicesTabBtn) servicesTabBtn.style.display = isServer ? 'inline-block' : 'none';
     if (webfigTabBtn) webfigTabBtn.style.display = (device.type === 'mikrotik') ? 'inline-block' : 'none';
     if (hpeWebTabBtn) hpeWebTabBtn.style.display = (device.type === 'hpe_switch') ? 'inline-block' : 'none';
+    if (wrtWebTabBtn) wrtWebTabBtn.style.display = isWrt ? 'inline-block' : 'none';
+    if (wlcWebTabBtn) wlcWebTabBtn.style.display = isWlc ? 'inline-block' : 'none';
 
     // Switch to primary operational tab
     if (isServer) {
       this.switchDeviceModalTab('services');
     } else if (isHost) {
       this.switchDeviceModalTab('desktop');
+    } else if (isWrt) {
+      this.switchDeviceModalTab('wrtweb');
+    } else if (isWlc) {
+      this.switchDeviceModalTab('wlcweb');
+    } else if (device.type === 'wireless_ap') {
+      this.switchDeviceModalTab('config');
     } else {
       this.switchDeviceModalTab('cli');
     }
@@ -461,7 +477,7 @@ class PXLNetSimApp {
   }
 
   switchDeviceModalTab(tabKey) {
-    const tabs = ['physical', 'config', 'cli', 'desktop', 'services', 'webfig', 'hpeweb'];
+    const tabs = ['physical', 'config', 'cli', 'desktop', 'services', 'webfig', 'hpeweb', 'wrtweb', 'wlcweb'];
     tabs.forEach(t => {
       const pane = document.getElementById(`modalPane${t.charAt(0).toUpperCase() + t.slice(1)}`);
       if (pane) pane.classList.remove('active');
@@ -481,6 +497,30 @@ class PXLNetSimApp {
     if (tabKey === 'services') this.renderServicesTab();
     if (tabKey === 'webfig') this.renderWebFigTab();
     if (tabKey === 'hpeweb') this.renderHpeWebTab();
+    if (tabKey === 'wrtweb') this.renderWrtWebTab();
+    if (tabKey === 'wlcweb') this.renderWlcWebTab();
+  }
+
+  renderWrtWebTab() {
+    const dev = this.activeDevice;
+    const container = document.getElementById('modalPaneWrtweb');
+    if (!dev || !container) return;
+    if (typeof window.renderWrtWebInterfaceHtml === 'function') {
+      container.innerHTML = window.renderWrtWebInterfaceHtml(dev, this.sim);
+    } else {
+      container.innerHTML = '<div style="padding:20px; color:#fff;">WRT300N Web GUI module niet geladen.</div>';
+    }
+  }
+
+  renderWlcWebTab() {
+    const dev = this.activeDevice;
+    const container = document.getElementById('modalPaneWlcweb');
+    if (!dev || !container) return;
+    if (typeof window.renderWlcWebInterfaceHtml === 'function') {
+      container.innerHTML = window.renderWlcWebInterfaceHtml(dev, this.sim);
+    } else {
+      container.innerHTML = '<div style="padding:20px; color:#fff;">Cisco WLC 3504 Web GUI module niet geladen.</div>';
+    }
   }
 
   renderWebFigTab() {
@@ -541,6 +581,42 @@ class PXLNetSimApp {
                 <span class="pt-port-name">${p.replace('GigabitEthernet', 'Gi').replace('FastEthernet', 'Fa').replace('Serial', 'Se')}</span>
               </div>
             `).join('')}
+          </div>
+        </div>
+
+        <div class="pt-physical-modules" style="margin-top: 15px; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px;">
+          <h4 style="margin: 0 0 8px 0; color: #38bdf8; font-size: 13px;">🔌 Interface Modules &amp; Uitbreidingsslots</h4>
+          <div style="font-size: 12px; color: #cbd5e1; line-height: 1.6;">
+            <div>• Vaste interface: <strong>${(dev.type === 'laptop' || dev.type === 'pc') ? 'FastEthernet0 (RJ45 100BASE-TX)' : 'GigabitEthernet'}</strong></div>
+            ${dev.type === 'laptop' ? `
+              <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between;">
+                <span>• Mini-PCIe Bay: <strong>Cisco-Linksys WPC300N Wireless Adapter</strong> (802.11a/b/g/n)</span>
+                <span style="color: #10b981; font-weight: bold;">● Geïntegreerd</span>
+              </div>
+            ` : (dev.type === 'pc' || dev.type === 'server') ? `
+              <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between;">
+                <span>• PCI Slot 1: <strong>${(dev.hasWirelessCard && dev.hasWirelessCard()) ? 'Linksys WMP300N Wireless PCI Adapter (802.11a/b/g/n)' : 'Leeg Slot (Geen Wi-Fi)'}</strong></span>
+                ${(dev.hasWirelessCard && dev.hasWirelessCard()) ? `
+                  <button class="pt-btn" style="padding: 3px 8px; font-size: 11px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="window.PXLApp.removePcWirelessCard()">
+                    ➖ Verwijderen
+                  </button>
+                ` : `
+                  <button class="pt-btn" style="padding: 3px 8px; font-size: 11px; background: #0284c7; color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="window.PXLApp.installPcWirelessCard()">
+                    ➕ WMP300N Kaart Installeren
+                  </button>
+                `}
+              </div>
+            ` : (dev.type === 'wireless_ap' || dev.type === 'wireless_router') ? `
+              <div style="margin-top: 6px;">
+                <span>• Radio Modules: <strong>Dual-Band 802.11a/b/g/n/ac MIMO Antenne Array</strong></span>
+                <span style="color: #10b981; font-weight: bold; margin-left: 10px;">● Zendvermogen 15 dBm</span>
+              </div>
+            ` : (dev.type === 'wlc') ? `
+              <div style="margin-top: 6px;">
+                <span>• WLC Controller Ports: <strong>4x GigabitEthernet PoE + 1x RJ45 Console</strong></span>
+                <span style="color: #38bdf8; font-weight: bold; margin-left: 10px;">● AireOS / IOS-XE</span>
+              </div>
+            ` : ''}
           </div>
         </div>
       </div>
@@ -655,6 +731,49 @@ class PXLNetSimApp {
     const editor = document.getElementById('configPortEditor');
     if (!dev || !intf || !editor) return;
 
+    if (portName.startsWith('Wireless')) {
+      const w = dev.wireless || {};
+      editor.innerHTML = `
+        <h4>Draadloze Interface: ${portName}</h4>
+        <div class="pt-form-group">
+          <label>Poort Status:</label>
+          <label class="pt-checkbox-label">
+            <input type="checkbox" ${!intf.shutdown ? 'checked' : ''} onchange="window.PXLApp.updatePortShutdown('${portName}', !this.checked)">
+            Poort Inschakelen (no shutdown)
+          </label>
+        </div>
+        <div class="pt-form-group">
+          <label>SSID (Netwerknaam):</label>
+          <input type="text" class="pt-input" id="cfgPortWifiSsid" value="${w.ssid || ''}" onchange="window.PXLApp.updateWirelessParam('ssid', this.value)">
+        </div>
+        <div class="pt-form-group">
+          <label>Beveiligingsmodus:</label>
+          <select class="pt-input" id="cfgPortWifiAuth" onchange="window.PXLApp.updateWirelessParam('authMode', this.value)">
+            <option value="Open" ${w.authMode === 'Open' ? 'selected' : ''}>Open (Geen beveiliging)</option>
+            <option value="WPA2-PSK" ${w.authMode === 'WPA2-PSK' ? 'selected' : ''}>WPA2-PSK (AES-CCMP)</option>
+            <option value="WPA3-SAE" ${w.authMode === 'WPA3-SAE' ? 'selected' : ''}>WPA3-SAE</option>
+          </select>
+        </div>
+        <div class="pt-form-group" id="cfgPortWifiPassGroup" style="${w.authMode === 'Open' ? 'display:none;' : ''}">
+          <label>WPA Preshared Key (Wachtwoord):</label>
+          <input type="text" class="pt-input" id="cfgPortWifiPass" value="${w.passphrase || ''}" onchange="window.PXLApp.updateWirelessParam('passphrase', this.value)">
+        </div>
+        <div class="pt-form-group">
+          <label>IP Adres:</label>
+          <input type="text" class="pt-input" value="${intf.ip || dev.ip || ''}" onchange="window.PXLApp.updatePortIp('${portName}', this.value)">
+        </div>
+        <div class="pt-form-group">
+          <label>Subnet Masker:</label>
+          <input type="text" class="pt-input" value="${intf.mask || dev.mask || ''}" onchange="window.PXLApp.updatePortMask('${portName}', this.value)">
+        </div>
+        <div style="margin-top: 12px; padding: 10px; background: #0f172a; border-radius: 6px; font-size: 12px; border: 1px solid #334155;">
+          <div>Status: <strong>${w.associatedAp ? 'Verbonden met ' + w.associatedAp : 'Niet verbonden'}</strong></div>
+          ${w.associatedAp ? `<div>Signaal: <strong>${w.rssi} dBm</strong> | Snelheid: <strong>${w.txRate} Mbps</strong></div>` : ''}
+        </div>
+      `;
+      return;
+    }
+
     editor.innerHTML = `
       <h4>Interface: ${portName}</h4>
       <div class="pt-form-group">
@@ -677,6 +796,50 @@ class PXLNetSimApp {
         <input type="text" class="pt-input" value="${intf.description || ''}" onchange="window.PXLApp.updatePortDesc('${portName}', this.value)">
       </div>
     `;
+  }
+
+  updateWirelessParam(key, val) {
+    if (this.activeDevice && this.activeDevice.wireless) {
+      this.activeDevice.wireless[key] = val;
+      if (key === 'authMode') {
+        const passGroup = document.getElementById('cfgPortWifiPassGroup');
+        if (passGroup) passGroup.style.display = (val === 'Open') ? 'none' : 'block';
+      }
+      this.sim.updateWirelessAssociations();
+      this.canvasWorkspace.render();
+      this.triggerScoreUpdate();
+    }
+  }
+
+  installPcWirelessCard() {
+    if (this.activeDevice) {
+      this.activeDevice.installWirelessCard('WMP300N');
+      this.showToast(`✅ WMP300N Wi-Fi netwerkkaart geïnstalleerd in ${this.activeDevice.hostname}`);
+      this.renderPhysicalTab();
+      this.renderConfigTab();
+      this.renderDesktopTab();
+      this.openPcApp('wireless');
+      this.canvasWorkspace.render();
+      this.triggerScoreUpdate();
+    }
+  }
+
+  removePcWirelessCard() {
+    if (this.activeDevice) {
+      this.activeDevice.removeWirelessCard();
+      this.showToast(`➖ Wi-Fi netwerkkaart verwijderd uit ${this.activeDevice.hostname}`);
+      this.renderPhysicalTab();
+      this.renderConfigTab();
+      this.renderDesktopTab();
+      this.canvasWorkspace.render();
+      this.triggerScoreUpdate();
+    }
+  }
+
+  savePcWireless() {
+    if (this.activeDevice && window.PXLWirelessApp) {
+      window.PXLWirelessApp.saveAndConnect(this.activeDevice.id);
+    }
   }
 
   updateDeviceHostname(val) {
@@ -1038,12 +1201,17 @@ class PXLNetSimApp {
           <div class="pt-desktop-app-icon" style="background: #0f172a; color: #38bdf8; font-weight: 900; font-size: 16px; border: 1px solid #0284c7; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">🦈</div>
           <span>Wireshark</span>
         </div>
-        ${dev.type === 'laptop' ? `
-          <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('wireless')">
-            <div class="pt-desktop-app-icon">📶</div>
+        ${(dev.hasWirelessCard && dev.hasWirelessCard()) || dev.type === 'laptop' ? `
+          <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('wireless')" title="PC Wireless Netwerkbeheer">
+            <div class="pt-desktop-app-icon" style="background: #0284c7; color: #fff; font-size: 16px;">📶</div>
             <span>PC Wireless</span>
           </div>
-        ` : ''}
+        ` : ((dev.type === 'pc' || dev.type === 'server') ? `
+          <div class="pt-desktop-icon" onclick="window.PXLApp.installPcWirelessCard()" title="WMP300N Wi-Fi Kaart installeren">
+            <div class="pt-desktop-app-icon" style="background: rgba(14, 165, 233, 0.12); border: 1px dashed #0284c7; color: #38bdf8; font-size: 15px;">➕📶</div>
+            <span style="color: #94a3b8;">Wi-Fi Installeren</span>
+          </div>
+        ` : '')}
         ${dev.type === 'server' ? `
           <div class="pt-desktop-icon" onclick="window.PXLApp.switchDeviceModalTab('services')">
             <div class="pt-desktop-app-icon">🖥️</div>
@@ -1255,21 +1423,11 @@ Type 'help', 'ip a', or 'python3' to get started.
         viewport.innerHTML = `<div style="padding:20px; color:#fff;">Python 3.12 IDE module niet geladen.</div>`;
       }
     } else if (appKey === 'wireless') {
-      viewport.innerHTML = `
-        <div class="pt-app-window">
-          <h4>PC Wireless Network Adapter (WPC300N)</h4>
-          <p>Status: <strong>${dev.wireless && dev.wireless.associatedAp ? 'Verbonden met ' + dev.wireless.associatedAp : 'Niet verbonden'}</strong></p>
-          <div class="pt-form-group">
-            <label>Wireless SSID:</label>
-            <input type="text" class="pt-input" id="pcWlanSsid" value="${(dev.wireless && dev.wireless.ssid) || ''}">
-          </div>
-          <div class="pt-form-group">
-            <label>WPA2-PSK Wachtwoord:</label>
-            <input type="password" class="pt-input" id="pcWlanPass" value="${(dev.wireless && dev.wireless.passphrase) || ''}">
-          </div>
-          <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.savePcWireless()">Verbinden</button>
-        </div>
-      `;
+      if (typeof window.renderPcWirelessAppHtml === 'function') {
+        viewport.innerHTML = window.renderPcWirelessAppHtml(dev, this.sim);
+      } else {
+        viewport.innerHTML = `<div style="padding:20px; color:#fff;">PC Wireless module niet geladen.</div>`;
+      }
     } else if (appKey === 'web') {
       viewport.innerHTML = `
         <div class="pt-app-window pt-browser-window">

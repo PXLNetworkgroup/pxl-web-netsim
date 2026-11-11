@@ -147,30 +147,251 @@ class NetworkSimulator {
   }
 
   // --- WIRELESS MANAGEMENT ---
+  // --- WIRELESS MANAGEMENT & RF PROPAGATION PHYSICS ---
+
+  /**
+   * Calculates log-distance path loss, RSSI, SNR, Link Quality, and Tx Rate
+   * according to PXL Network Essentials Wi-Fi guideline (Ch 8).
+   */
+  calculateWifiMetrics(client, ap) {
+    const dx = (client.x || 0) - (ap.x || 0);
+    const dy = (client.y || 0) - (ap.y || 0);
+    const distancePx = Math.sqrt(dx * dx + dy * dy);
+    // Calibration: ~8 pixels = 1 meter on workspace canvas
+    const distanceM = Math.max(0.5, distancePx / 8);
+
+    const txPower = ap.wireless?.txPower || 15; // dBm (PXL best practice: 12-15 dBm)
+    const gain = 3; // dBi omni antenna gain
+    
+    // Log-distance indoor path loss: PL(d) = PL0 + 10 * n * log10(d) with n=3.0
+    const pathLoss = 38 + 30 * Math.log10(distanceM);
+    let rssi = Math.round(txPower + gain - pathLoss);
+
+    // Edge attenuation penalty beyond 280px (simulating walls & fading near coverage boundary)
+    if (distancePx > 280) {
+      rssi -= Math.round(((distancePx - 280) / 10) * 1.8);
+    }
+
+    if (rssi > -28) rssi = -28;
+    if (rssi < -95) rssi = -95;
+
+    const band = ap.wireless?.band || '5GHz';
+    const noiseFloor = (band === '5GHz') ? -95 : -90; // dBm
+    const snr = Math.max(0, rssi - noiseFloor);
+
+    // Link Quality percentage (0 - 100%)
+    const linkQuality = Math.max(0, Math.min(100, Math.round(2 * (rssi + 100))));
+
+    // Signal Bars (0 - 4 bars)
+    let bars = 0;
+    if (rssi >= -60) bars = 4;
+    else if (rssi >= -68) bars = 3; // PXL VoIP minimum is -67 dBm
+    else if (rssi >= -78) bars = 2;
+    else if (rssi >= -85) bars = 1;
+    else bars = 0;
+
+    // Data Rate (Mbps) based on simulated 802.11ac / 802.11n MCS Index
+    let txRate = 0;
+    if (rssi >= -55) txRate = 433.3;
+    else if (rssi >= -65) txRate = 300.0;
+    else if (rssi >= -70) txRate = 173.3;
+    else if (rssi >= -78) txRate = 86.7;
+    else if (rssi >= -83) txRate = 43.3;
+    else if (rssi >= -88) txRate = 14.4;
+    else txRate = 0;
+
+    // Drop threshold: connection drops at -88 dBm or distance > 380px
+    const inRange = (distancePx <= 380 && rssi >= -88);
+
+    return {
+      distancePx: Math.round(distancePx),
+      distanceMeters: Math.round(distanceM * 10) / 10,
+      rssi,
+      snr,
+      noiseFloor,
+      linkQuality,
+      bars,
+      txRate,
+      inRange
+    };
+  }
+
+  /**
+   * Scans all visible APs, Routers, and WLC WLANs within physical range of a client.
+   * Used for the PC Wireless "Site Survey" tab.
+   */
+  getVisibleWirelessNetworks(client) {
+    if (!client || !client.powerOn) return [];
+    const networks = [];
+    const aps = Object.values(this.devices).filter(d => 
+      (d.type === 'wireless_ap' || d.type === 'wireless_router' || d.type === 'wlc') && d.powerOn
+    );
+
+    for (const ap of aps) {
+      const metrics = this.calculateWifiMetrics(client, ap);
+      if (!metrics.inRange) continue;
+
+      if (ap.type === 'wlc' && ap.wlcConfig && ap.wlcConfig.wlans) {
+        // Cisco WLC broadcasts its configured WLANs
+        for (const wlan of ap.wlcConfig.wlans) {
+          if (wlan.status !== 'Enabled') continue;
+          networks.push({
+            apId: ap.id,
+            apName: ap.hostname || ap.id,
+            bssid: ap.interfaces['GigabitEthernet0/1']?.mac || '0024.97.aa.01',
+            ssid: wlan.ssid,
+            channel: ap.wireless?.channel || 36,
+            band: ap.wireless?.band || '5GHz',
+            authMode: wlan.authMode || 'WPA2-PSK',
+            vlan: wlan.vlan,
+            ...metrics
+          });
+        }
+      } else {
+        const ssid = ap.wireless?.ssid || (ap.type === 'wireless_router' ? 'PXL-Wireless-Router' : 'PXL-Klas-AP');
+        const bssid = ap.interfaces['Wireless0']?.mac || '0021.d8.bb.01';
+        networks.push({
+          apId: ap.id,
+          apName: ap.hostname || ap.id,
+          bssid,
+          ssid,
+          channel: ap.wireless?.channel || (ap.type === 'wireless_router' ? 6 : 36),
+          band: ap.wireless?.band || (ap.type === 'wireless_router' ? '2.4GHz' : '5GHz'),
+          authMode: ap.wireless?.authMode || 'WPA2-PSK',
+          ...metrics
+        });
+      }
+    }
+
+    // Sort by signal strength (highest RSSI first)
+    networks.sort((a, b) => b.rssi - a.rssi);
+    return networks;
+  }
+
   updateWirelessAssociations() {
     this.wirelessAssociations = {};
-    const aps = Object.values(this.devices).filter(d => d.type === 'wireless_ap' && d.powerOn);
-    const wirelessClients = Object.values(this.devices).filter(d => (d.type === 'laptop' || d.type === 'pc') && d.wireless && d.wireless.enabled && d.powerOn);
+    const aps = Object.values(this.devices).filter(d => 
+      (d.type === 'wireless_ap' || d.type === 'wireless_router' || d.type === 'wlc') && d.powerOn
+    );
+    const wirelessClients = Object.values(this.devices).filter(d => 
+      (d.type === 'laptop' || d.type === 'pc' || d.type === 'server') && 
+      d.wireless && d.wireless.installed && d.wireless.enabled && d.powerOn
+    );
 
     for (const client of wirelessClients) {
+      if (!client.wireless.ssid) {
+        client.wireless.associatedAp = null;
+        client.wireless.rssi = -95;
+        client.wireless.snr = 0;
+        client.wireless.linkQuality = 0;
+        client.wireless.bars = 0;
+        client.wireless.txRate = 0;
+        continue;
+      }
+
+      let bestAp = null;
+      let bestMetrics = null;
+      let bestWlan = null;
+
       for (const ap of aps) {
-        if (client.wireless.ssid && client.wireless.ssid === ap.wireless.ssid) {
-          // Check passphrase if WPA2
-          if (ap.wireless.authMode === 'WPA2-PSK') {
-            if (client.wireless.passphrase === ap.wireless.passphrase) {
-              this.wirelessAssociations[client.id] = ap.id;
-              client.wireless.associatedAp = ap.id;
-              break;
+        const metrics = this.calculateWifiMetrics(client, ap);
+        if (!metrics.inRange) continue;
+
+        if (ap.type === 'wlc' && ap.wlcConfig && ap.wlcConfig.wlans) {
+          const matchingWlan = ap.wlcConfig.wlans.find(w => w.status === 'Enabled' && w.ssid === client.wireless.ssid);
+          if (matchingWlan) {
+            let authOk = true;
+            if (matchingWlan.authMode === 'WPA2-PSK' && client.wireless.passphrase !== matchingWlan.passphrase) {
+              authOk = false;
             }
-          } else {
-            this.wirelessAssociations[client.id] = ap.id;
-            client.wireless.associatedAp = ap.id;
-            break;
+            if (authOk && (!bestMetrics || metrics.rssi > bestMetrics.rssi)) {
+              bestAp = ap;
+              bestMetrics = metrics;
+              bestWlan = matchingWlan;
+            }
+          }
+        } else {
+          const apSsid = ap.wireless?.ssid || (ap.type === 'wireless_router' ? 'PXL-Wireless-Router' : 'PXL-Klas-AP');
+          if (client.wireless.ssid === apSsid) {
+            let authOk = true;
+            const apAuth = ap.wireless?.authMode || 'WPA2-PSK';
+            const apPass = ap.wireless?.passphrase || 'PXL2026Net!';
+            if (apAuth === 'WPA2-PSK' && client.wireless.passphrase !== apPass) {
+              authOk = false;
+            }
+            if (authOk && (!bestMetrics || metrics.rssi > bestMetrics.rssi)) {
+              bestAp = ap;
+              bestMetrics = metrics;
+              bestWlan = null;
+            }
           }
         }
       }
-      if (!this.wirelessAssociations[client.id]) {
+
+      if (bestAp && bestMetrics) {
+        this.wirelessAssociations[client.id] = bestAp.id;
+        client.wireless.associatedAp = bestAp.id;
+        client.wireless.rssi = bestMetrics.rssi;
+        client.wireless.snr = bestMetrics.snr;
+        client.wireless.noiseFloor = bestMetrics.noiseFloor;
+        client.wireless.linkQuality = bestMetrics.linkQuality;
+        client.wireless.bars = bestMetrics.bars;
+        client.wireless.txRate = bestMetrics.txRate;
+        client.wireless.distancePx = bestMetrics.distancePx;
+        client.wireless.distanceM = bestMetrics.distanceMeters;
+        client.wireless.channel = bestAp.wireless?.channel || 6;
+        client.wireless.band = bestAp.wireless?.band || '2.4GHz';
+
+        // Auto-DHCP lease resolution for associated wireless client
+        if (client.dhcpEnabled || client.wireless.dhcpEnabled) {
+          if (bestAp.type === 'wireless_router' && bestAp.wrtConfig?.dhcpEnabled) {
+            if (!client.ip || client.ip.startsWith('169.254') || !client.ip.startsWith('192.168.0.')) {
+              // Extract numeric host part or hash
+              const hostId = (client.id.charCodeAt(client.id.length - 1) % 40) + 100;
+              client.ip = `192.168.0.${hostId}`;
+              client.mask = "255.255.255.0";
+              client.gateway = bestAp.wrtConfig.lanIp || "192.168.0.1";
+              client.dns = bestAp.wrtConfig.dns || "8.8.8.8";
+              if (client.interfaces['Wireless0']) {
+                client.interfaces['Wireless0'].ip = client.ip;
+                client.interfaces['Wireless0'].mask = client.mask;
+              }
+            }
+          } else if (bestWlan && bestWlan.vlan === 20) {
+            // VLAN 20 Staff
+            if (!client.ip || !client.ip.startsWith('10.20.0.')) {
+              const hostId = (client.id.charCodeAt(client.id.length - 1) % 40) + 50;
+              client.ip = `10.20.0.${hostId}`;
+              client.mask = "255.255.255.0";
+              client.gateway = (bestAp.wlcConfig && bestAp.wlcConfig.interfaces?.int_staff?.ip) || "10.20.0.254";
+              client.dns = "8.8.8.8";
+              if (client.interfaces['Wireless0']) {
+                client.interfaces['Wireless0'].ip = client.ip;
+                client.interfaces['Wireless0'].mask = client.mask;
+              }
+            }
+          } else if (bestWlan && bestWlan.vlan === 30) {
+            // VLAN 30 Guest
+            if (!client.ip || !client.ip.startsWith('10.30.0.')) {
+              const hostId = (client.id.charCodeAt(client.id.length - 1) % 40) + 50;
+              client.ip = `10.30.0.${hostId}`;
+              client.mask = "255.255.255.0";
+              client.gateway = (bestAp.wlcConfig && bestAp.wlcConfig.interfaces?.int_guest?.ip) || "10.30.0.254";
+              client.dns = "8.8.8.8";
+              if (client.interfaces['Wireless0']) {
+                client.interfaces['Wireless0'].ip = client.ip;
+                client.interfaces['Wireless0'].mask = client.mask;
+              }
+            }
+          }
+        }
+      } else {
         client.wireless.associatedAp = null;
+        client.wireless.rssi = -95;
+        client.wireless.snr = 0;
+        client.wireless.linkQuality = 0;
+        client.wireless.bars = 0;
+        client.wireless.txRate = 0;
       }
     }
   }
@@ -194,14 +415,70 @@ class NetworkSimulator {
       if (!dev || !dev.powerOn) continue;
 
       // Handle wireless client/AP traversal
-      if (item.portName === 'Wireless0' && dev.type === 'wireless_ap') {
-        for (const [clientId, apId] of Object.entries(this.wirelessAssociations)) {
-          if (apId === dev.id) {
-            queue.push({ devId: clientId, portName: 'Wireless0' });
+      if (item.portName === 'Wireless0' || dev.type === 'wlc' || dev.type === 'wireless_ap' || dev.type === 'wireless_router') {
+        if (dev.type === 'wireless_ap' || dev.type === 'wireless_router' || dev.type === 'wlc') {
+          // Push all associated clients
+          for (const [clientId, apId] of Object.entries(this.wirelessAssociations)) {
+            if (apId === dev.id) {
+              queue.push({ devId: clientId, portName: 'Wireless0' });
+            }
+          }
+          // Also bridge Wireless0 to wired switch/Ethernet ports!
+          for (const [pName, pIntf] of Object.entries(dev.interfaces)) {
+            if (pName !== 'Wireless0' && pName !== 'Console' && !pIntf.shutdown) {
+              queue.push({ devId: dev.id, portName: pName });
+            }
+          }
+        } else if (dev.wireless && dev.wireless.associatedAp) {
+          queue.push({ devId: dev.wireless.associatedAp, portName: 'Wireless0' });
+        }
+      }
+
+      // Register host / end-device in domain if reachable
+      if (dev.type === 'pc' || dev.type === 'laptop' || dev.type === 'server') {
+        const devIp = dev.interfaces[item.portName]?.ip || dev.ip;
+        const devMask = dev.interfaces[item.portName]?.mask || dev.mask;
+        if (devIp) {
+          domain.push({
+            devId: dev.id,
+            portName: item.portName,
+            ip: devIp,
+            mask: devMask,
+            mac: dev.interfaces[item.portName]?.mac || dev.interfaces['FastEthernet0']?.mac
+          });
+        }
+      } else if (dev.type === 'wireless_router') {
+        const lanIp = dev.wrtConfig?.lanIp || dev.ip || '192.168.0.1';
+        const lanMask = dev.wrtConfig?.lanMask || dev.mask || '255.255.255.0';
+        domain.push({
+          devId: dev.id,
+          portName: item.portName,
+          ip: lanIp,
+          mask: lanMask,
+          mac: dev.interfaces['Wireless0']?.mac || '0021.d8.00.00.01'
+        });
+      } else if (dev.type === 'wlc' && dev.wlcConfig?.interfaces) {
+        for (const [intfKey, intf] of Object.entries(dev.wlcConfig.interfaces)) {
+          domain.push({
+            devId: dev.id,
+            portName: intfKey,
+            ip: intf.ip,
+            mask: intf.mask,
+            mac: dev.interfaces['GigabitEthernet0/1']?.mac || '0024.97.00.00.01'
+          });
+        }
+      }
+
+      // Handle bridging from wired ports to Wireless0 on AP and Wireless Router
+      if ((dev.type === 'wireless_ap' || dev.type === 'wireless_router') && item.portName !== 'Wireless0') {
+        queue.push({ devId: dev.id, portName: 'Wireless0' });
+        // On Wireless Router, bridge between LAN Ethernet ports
+        if (dev.type === 'wireless_router' && item.portName.startsWith('Ethernet')) {
+          for (let p = 1; p <= 4; p++) {
+            const pName = `Ethernet${p}`;
+            if (pName !== item.portName) queue.push({ devId: dev.id, portName: pName });
           }
         }
-      } else if (item.portName === 'Wireless0' && dev.wireless && dev.wireless.associatedAp) {
-        queue.push({ devId: dev.wireless.associatedAp, portName: 'Wireless0' });
       }
 
       // Handle switch SVI (Vlan1 or any VlanX) traversal: fan out across all physical switch ports in this VLAN
@@ -240,6 +517,9 @@ class NetworkSimulator {
                   mac: peerDev.interfaces['Vlan1']?.mac || '0019.5e.00.00.01'
                 });
               }
+            } else if (peerDev.type === 'wireless_ap' || peerDev.type === 'wireless_router') {
+              // Wireless AP & Router bridge wired Ethernet traffic to Wireless0 and wireless clients
+              queue.push({ devId: peerDev.id, portName: peer.portName });
             } else {
               // Non-switch end node or router interface
               const ip = (peerDev.type === 'pc' || peerDev.type === 'laptop' || peerDev.type === 'server') ? peerDev.ip : peerIntf.ip;
@@ -451,6 +731,20 @@ class NetworkSimulator {
       }
     }
 
+    // 3. Cisco Linksys WRT300N Web Management (HTTP Port 80)
+    if (dstDev.type === 'wireless_router') {
+      if (typeof renderWrtWebInterfaceHtml === 'function') {
+        return { success: true, targetIp, html: renderWrtWebInterfaceHtml(dstDev, this) };
+      }
+    }
+
+    // 4. Cisco 3504 Wireless LAN Controller (WLC) Web GUI (HTTPS / HTTP)
+    if (dstDev.type === 'wlc') {
+      if (typeof renderWlcWebInterfaceHtml === 'function') {
+        return { success: true, targetIp, html: renderWlcWebInterfaceHtml(dstDev, this) };
+      }
+    }
+
     if (!dstDev.services || !dstDev.services.http || !dstDev.services.http.enabled) {
       return { success: false, reason: `Connection Refused: HTTP web service inactive on ${targetIp}` };
     }
@@ -551,6 +845,21 @@ class NetworkSimulator {
       if (dev.hpeConfig && dev.hpeConfig.mgmtIp === targetIp) {
         return { device: dev, portName: 'Vlan1' };
       }
+      if (dev.wlcConfig && dev.wlcConfig.interfaces) {
+        for (const [intfKey, intf] of Object.entries(dev.wlcConfig.interfaces)) {
+          if (intf.ip === targetIp) {
+            return { device: dev, portName: intfKey };
+          }
+        }
+      }
+      if (dev.wrtConfig) {
+        if (dev.wrtConfig.lanIp === targetIp) {
+          return { device: dev, portName: 'Ethernet1' };
+        }
+        if (dev.wrtConfig.wanIp === targetIp) {
+          return { device: dev, portName: 'Internet' };
+        }
+      }
     }
     return null;
   }
@@ -575,6 +884,44 @@ class NetworkSimulator {
       return { success: true, hops, ingressIp: '193.190.173.1', isInternet: true };
     }
 
+    // WLC terminates all its management and dynamic interfaces, and routes directly to associated Wi-Fi clients
+    if (dev.type === 'wlc') {
+      if (dev.wlcConfig && dev.wlcConfig.interfaces) {
+        for (const [intfKey, intf] of Object.entries(dev.wlcConfig.interfaces)) {
+          if (intf.ip === targetIp) {
+            hops.push(targetIp);
+            return { success: true, hops, ingressIp: intf.ip };
+          }
+        }
+      }
+      for (const [clientId, apId] of Object.entries(this.wirelessAssociations)) {
+        if (apId === dev.id) {
+          const clientDev = this.devices[clientId];
+          if (clientDev && (clientDev.ip === targetIp || clientDev.interfaces['Wireless0']?.ip === targetIp)) {
+            hops.push(targetIp);
+            return { success: true, hops, ingressIp: dev.wlcConfig?.interfaces?.int_staff?.ip || dev.ip };
+          }
+        }
+      }
+    }
+
+    // Wireless Router terminates its LAN / WAN interfaces and routes directly to associated Wi-Fi clients
+    if (dev.type === 'wireless_router') {
+      if (dev.wrtConfig && (dev.wrtConfig.lanIp === targetIp || dev.wrtConfig.wanIp === targetIp)) {
+        hops.push(targetIp);
+        return { success: true, hops, ingressIp: targetIp };
+      }
+      for (const [clientId, apId] of Object.entries(this.wirelessAssociations)) {
+        if (apId === dev.id) {
+          const clientDev = this.devices[clientId];
+          if (clientDev && (clientDev.ip === targetIp || clientDev.interfaces['Wireless0']?.ip === targetIp)) {
+            hops.push(targetIp);
+            return { success: true, hops, ingressIp: dev.wrtConfig?.lanIp || dev.ip };
+          }
+        }
+      }
+    }
+
     // Check if any port on this device connects directly to Internet cloud gateway
     for (const [portName, intf] of Object.entries(dev.interfaces)) {
       if (intf.shutdown) continue;
@@ -589,6 +936,7 @@ class NetworkSimulator {
     }
 
     // Check all active interfaces on this device for local subnet match
+    const interfaceList = [];
     for (const [portName, intf] of Object.entries(dev.interfaces)) {
       let myIp = (dev.type === 'pc' || dev.type === 'laptop' || dev.type === 'server') ? dev.ip : intf.ip;
       let myMask = (dev.type === 'pc' || dev.type === 'laptop' || dev.type === 'server') ? dev.mask : intf.mask;
@@ -598,10 +946,30 @@ class NetworkSimulator {
         if (!myMask) myMask = dev.mask || (dev.hpeConfig && dev.hpeConfig.mgmtMask) || '255.255.255.0';
       }
 
-      if (!myIp || !myMask) continue;
-      if (intf.shutdown && portName !== 'Vlan1') continue;
+      if (myIp && myMask && (!intf.shutdown || portName === 'Vlan1')) {
+        interfaceList.push({ portName, myIp, myMask });
+      }
+    }
 
-      // Are target and this interface in the same subnet?
+    if (dev.wlcConfig && dev.wlcConfig.interfaces) {
+      for (const [intfKey, intf] of Object.entries(dev.wlcConfig.interfaces)) {
+        if (intf.ip && intf.mask) {
+          interfaceList.push({ portName: intfKey, myIp: intf.ip, myMask: intf.mask });
+        }
+      }
+    }
+
+    if (dev.wrtConfig) {
+      if (dev.wrtConfig.lanIp && dev.wrtConfig.lanMask) {
+        interfaceList.push({ portName: 'Ethernet1', myIp: dev.wrtConfig.lanIp, myMask: dev.wrtConfig.lanMask });
+      }
+      if (dev.wrtConfig.wanIp && dev.wrtConfig.wanMask) {
+        interfaceList.push({ portName: 'Internet', myIp: dev.wrtConfig.wanIp, myMask: dev.wrtConfig.wanMask });
+      }
+    }
+
+    for (const item of interfaceList) {
+      const { portName, myIp, myMask } = item;
       if (IPUtils.isSameSubnet(myIp, targetIp, myMask)) {
         // Direct delivery on local subnet
         const domain = this.getL2BroadcastDomain(dev.id, portName);
@@ -620,6 +988,10 @@ class NetworkSimulator {
       nextHopIp = dev.gateway;
     } else if (dev.type === 'switch' || dev.type === 'hpe_switch') {
       nextHopIp = dev.defaultGateway || (dev.hpeConfig && dev.hpeConfig.defaultGateway);
+    } else if (dev.type === 'wireless_router') {
+      nextHopIp = dev.wrtConfig?.wanGateway || dev.defaultGateway;
+    } else if (dev.type === 'wlc') {
+      nextHopIp = dev.wlcConfig?.mgmtGateway || dev.defaultGateway;
     } else if (dev.type === 'router' || dev.type === 'mikrotik' || dev.type === 'openwrt') {
       // Longest prefix match in static routes
       let bestMatch = null;
