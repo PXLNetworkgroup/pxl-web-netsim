@@ -101,6 +101,9 @@ class GradingEngine {
         return this.checkEnableSecret(cond, sim, runningConfigs);
       case 'console_password':
         return this.checkConsolePassword(cond, sim, runningConfigs);
+      case 'vty_password':
+      case 'line_vty_password':
+        return this.checkVtyPassword(cond, sim, runningConfigs);
       case 'banner_motd':
         return this.checkBannerMotd(cond, sim, runningConfigs);
       case 'password_encryption':
@@ -288,6 +291,27 @@ class GradingEngine {
 
     const ok = /^\s*password\s+/m.test(conBlock) || Boolean(dev.consolePassword);
     return { passed: ok, detail: ok ? 'Console wachtwoord aanwezig' : 'Console wachtwoord ontbreekt' };
+  }
+
+  checkVtyPassword(cond, sim, runningConfigs = {}) {
+    const devId = cond.targetDevice || cond.deviceId;
+    const dev = devId ? sim.devices[devId] : Object.values(sim.devices).find(d => d.type === 'router' || d.type === 'switch');
+    if (!dev) return { passed: false, detail: 'Apparaat niet gevonden' };
+
+    const cfg = runningConfigs[dev.id] || (typeof dev.generateRunningConfig === 'function' ? dev.generateRunningConfig() : '');
+    const vtyBlockMatch = cfg.match(/line\s+vty\s+0\s+\d+([\s\S]*?)(?:!|line|$)/i);
+    const vtyBlock = vtyBlockMatch ? vtyBlockMatch[1] : '';
+
+    if (cond.expected) {
+      const exp = cond.expected.trim().toLowerCase();
+      const inModel = dev.vtyPassword && dev.vtyPassword.trim().toLowerCase() === exp;
+      const inCfg = /^\s*password\s+/m.test(vtyBlock);
+      const ok = inModel || inCfg;
+      return { passed: ok, detail: ok ? `Line VTY wachtwoord '${cond.expected}' ingesteld` : `Line VTY wachtwoord '${cond.expected}' ontbreekt` };
+    }
+
+    const ok = /^\s*password\s+/m.test(vtyBlock) || Boolean(dev.vtyPassword);
+    return { passed: ok, detail: ok ? 'Line VTY wachtwoord aanwezig' : 'Line VTY wachtwoord ontbreekt' };
   }
 
   checkBannerMotd(cond, sim, runningConfigs = {}) {

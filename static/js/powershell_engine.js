@@ -69,8 +69,12 @@ class PowerShellHandler {
         return;
       }
       this.activeSshSession.parser.handleCommand(rawLine);
-      const prompt = this.activeSshSession.targetDev.getPrompt ? this.activeSshSession.targetDev.getPrompt() : '> ';
-      this.updatePrompt(prompt);
+      if (this.activeSshSession) {
+        const prompt = (this.activeSshSession.parser && typeof this.activeSshSession.parser.getPrompt === 'function')
+          ? this.activeSshSession.parser.getPrompt()
+          : (this.activeSshSession.targetDev && this.activeSshSession.targetDev.getPrompt ? this.activeSshSession.targetDev.getPrompt() : '> ');
+        this.updatePrompt(prompt);
+      }
       if (this.triggerScoreUpdate) this.triggerScoreUpdate();
       return;
     }
@@ -798,57 +802,28 @@ ifIndex DestinationPrefix       NextHop               RouteMetric ifMetric Polic
       return;
     }
 
-    const targetDev = dstInfo.device;
+    const authSession = new RemoteAuthSession({
+      type: 'ssh',
+      targetDev: targetDev,
+      targetHost: targetIp,
+      initialUser: user,
+      print: this.print,
+      updatePrompt: (p) => this.updatePrompt(p),
+      onAuthenticated: (dev, realParser) => {
+        this.activeSshSession = { targetDev: dev, parser: realParser, user: user };
+        this.updatePrompt(realParser.getPrompt ? realParser.getPrompt() : dev.getPrompt());
+      },
+      onDisconnect: () => {
+        this.activeSshSession = null;
+        this.updatePrompt(this.getPrompt());
+      },
+      triggerScoreUpdate: this.triggerScoreUpdate
+    });
 
-    if (targetDev.type === 'mikrotik') {
-      this.print(`\nMikroTik RouterOS 7.12 (c) 1994-2026`);
-      this.print(`Connected over SSH session as '${user}'.`);
-      const parser = new MikroTikCLIParser(
-        targetDev,
-        this.print,
-        () => this.updatePrompt(targetDev.getPrompt()),
-        this.triggerScoreUpdate
-      );
-      this.activeSshSession = { targetDev, parser, user };
-      this.updatePrompt(targetDev.getPrompt());
-      return;
+    if (authSession.state !== 'DISCONNECTED') {
+      this.activeSshSession = { targetDev: targetDev, parser: authSession, user: user };
+      this.updatePrompt(authSession.getPrompt ? authSession.getPrompt() : targetDev.getPrompt());
     }
-
-    if (targetDev.type === 'openwrt') {
-      this.print(`\nOpenWrt 23.05 - Dropbear SSH Session active.`);
-      const parser = new OpenWrtCLIParser(
-        targetDev,
-        this.print,
-        () => this.updatePrompt(targetDev.getPrompt()),
-        this.triggerScoreUpdate
-      );
-      this.activeSshSession = { targetDev, parser, user };
-      this.updatePrompt(targetDev.getPrompt());
-      return;
-    }
-
-    if (targetDev.type === 'hpe_switch') {
-      this.print(`\nHPE ArubaOS-S Switch Software (c) Copyright 2026 Hewlett Packard Enterprise`);
-      const parser = new HpeCLIParser(targetDev, this.print, (p) => this.updatePrompt(p), this.triggerScoreUpdate);
-      this.activeSshSession = { targetDev, parser, user };
-      this.updatePrompt(parser.getPrompt());
-      return;
-    }
-
-    if (targetDev.type === 'router' || targetDev.type === 'switch') {
-      this.print(`\nOpen SSH session to ${targetDev.hostname} (${targetIp})`);
-      const parser = new CiscoCLIParser(
-        targetDev,
-        this.print,
-        () => this.updatePrompt(targetDev.getPrompt()),
-        this.triggerScoreUpdate
-      );
-      this.activeSshSession = { targetDev, parser, user };
-      this.updatePrompt(targetDev.getPrompt());
-      return;
-    }
-
-    this.print(`ssh: connect to host ${targetIp} port 22: Service unavailable on device type.`);
   }
 
   cmdTelnet(args) {
@@ -872,20 +847,26 @@ ifIndex DestinationPrefix       NextHop               RouteMetric ifMetric Polic
       return;
     }
     const targetDev = dstInfo.device;
-    let parser = null;
-    if (targetDev.type === 'router' || targetDev.type === 'switch') {
-      parser = new CiscoCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
-    } else if (targetDev.type === 'hpe_switch') {
-      parser = new HpeCLIParser(targetDev, this.print, (p) => this.updatePrompt(p), this.triggerScoreUpdate);
-    } else if (targetDev.type === 'mikrotik') {
-      parser = new MikroTikCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
-    } else if (targetDev.type === 'openwrt') {
-      parser = new OpenWrtCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
-    }
-    if (parser) {
-      this.print(`Connected to ${targetDev.hostname} (${targetIp}) via Telnet.\nEscape character is '^]'.\n`);
-      this.activeSshSession = { targetDev, parser, user: 'telnet' };
-      this.updatePrompt(targetDev.getPrompt ? targetDev.getPrompt() : '> ');
+    const authSession = new RemoteAuthSession({
+      type: 'telnet',
+      targetDev: targetDev,
+      targetHost: targetIp,
+      print: this.print,
+      updatePrompt: (p) => this.updatePrompt(p),
+      onAuthenticated: (dev, realParser) => {
+        this.activeSshSession = { targetDev: dev, parser: realParser, user: 'telnet' };
+        this.updatePrompt(realParser.getPrompt ? realParser.getPrompt() : dev.getPrompt());
+      },
+      onDisconnect: () => {
+        this.activeSshSession = null;
+        this.updatePrompt(this.getPrompt());
+      },
+      triggerScoreUpdate: this.triggerScoreUpdate
+    });
+
+    if (authSession.state !== 'DISCONNECTED') {
+      this.activeSshSession = { targetDev: targetDev, parser: authSession, user: 'telnet' };
+      this.updatePrompt(authSession.getPrompt ? authSession.getPrompt() : targetDev.getPrompt());
     }
   }
 

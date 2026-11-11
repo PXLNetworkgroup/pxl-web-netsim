@@ -34,8 +34,12 @@ class PCDesktopHandler {
         return;
       }
       this.activeSshSession.parser.handleCommand(rawLine);
-      const prompt = this.activeSshSession.targetDev.getPrompt ? this.activeSshSession.targetDev.getPrompt() : '> ';
-      this.updatePrompt(prompt);
+      if (this.activeSshSession) {
+        const prompt = (this.activeSshSession.parser && typeof this.activeSshSession.parser.getPrompt === 'function')
+          ? this.activeSshSession.parser.getPrompt()
+          : (this.activeSshSession.targetDev && this.activeSshSession.targetDev.getPrompt ? this.activeSshSession.targetDev.getPrompt() : '> ');
+        this.updatePrompt(prompt);
+      }
       if (this.triggerScoreUpdate) this.triggerScoreUpdate();
       return;
     }
@@ -157,80 +161,29 @@ class PCDesktopHandler {
       this.print(`ssh: connect to host ${targetIp} port 22: Connection refused`);
       return;
     }
-
     const targetDev = dstInfo.device;
+    const authSession = new RemoteAuthSession({
+      type: 'ssh',
+      targetDev: targetDev,
+      targetHost: targetIp,
+      initialUser: user,
+      print: this.print,
+      updatePrompt: (p) => this.updatePrompt(p),
+      onAuthenticated: (dev, realParser) => {
+        this.activeSshSession = { targetDev: dev, parser: realParser, user: user };
+        this.updatePrompt(realParser.getPrompt ? realParser.getPrompt() : dev.getPrompt());
+      },
+      onDisconnect: () => {
+        this.activeSshSession = null;
+        this.updatePrompt('C:\\Users\\Student> ');
+      },
+      triggerScoreUpdate: this.triggerScoreUpdate
+    });
 
-    // 1. MikroTik Router SSH
-    if (targetDev.type === 'mikrotik') {
-      const srv = targetDev.mikrotikConfig?.services?.ssh;
-      if (srv && srv.enabled === false) {
-        this.print(`ssh: connect to host ${targetIp} port 22: Connection refused (SSH service disabled on MikroTik)`);
-        return;
-      }
-      this.print(`\nMikroTik RouterOS 7.12 (c) 1994-2026`);
-      this.print(`Authenticated as '${user}' over secure SSH session.`);
-      const parser = new MikroTikCLIParser(
-        targetDev,
-        this.print,
-        () => this.updatePrompt(targetDev.getPrompt()),
-        this.triggerScoreUpdate
-      );
-      this.activeSshSession = { targetDev, parser, user };
-      this.updatePrompt(targetDev.getPrompt());
-      return;
+    if (authSession.state !== 'DISCONNECTED') {
+      this.activeSshSession = { targetDev: targetDev, parser: authSession, user: user };
+      this.updatePrompt(authSession.getPrompt ? authSession.getPrompt() : targetDev.getPrompt());
     }
-
-    // 2. OpenWrt Router SSH
-    if (targetDev.type === 'openwrt') {
-      this.print(`\nOpenWrt 23.05 (r23630-94290f9e3d) - Dropbear SSH`);
-      this.print(`Authenticated as '${user}' on ${targetDev.hostname}.\n`);
-      const parser = new OpenWrtCLIParser(
-        targetDev,
-        this.print,
-        () => this.updatePrompt(targetDev.getPrompt()),
-        this.triggerScoreUpdate
-      );
-      this.activeSshSession = { targetDev, parser, user };
-      this.updatePrompt(targetDev.getPrompt());
-      return;
-    }
-
-    // 3. HPE Switch SSH
-    if (targetDev.type === 'hpe_switch') {
-      this.print(`\nHPE ArubaOS-S Switch Software (c) Copyright 2026 Hewlett Packard Enterprise`);
-      this.print(`Authenticated as '${user}' on ${targetDev.hostname}.\n`);
-      const parser = new HpeCLIParser(
-        targetDev,
-        this.print,
-        (p) => this.updatePrompt(p),
-        this.triggerScoreUpdate
-      );
-      this.activeSshSession = { targetDev, parser, user };
-      this.updatePrompt(parser.getPrompt());
-      return;
-    }
-
-    // 4. Cisco Switch / Router SSH
-    if (targetDev.type === 'router' || targetDev.type === 'switch') {
-      const vtyHasSsh = targetDev.vtyTransportInput.includes('ssh') || targetDev.vtyTransportInput === 'all';
-      if (!vtyHasSsh && targetDev.vtyTransportInput !== "") {
-        this.print(`% Connection refused by remote host (SSH not permitted on line vty)`);
-        return;
-      }
-      this.print(`\nOpen SSH session to ${targetDev.hostname} (${targetIp})`);
-      this.print(`User Access Verification - Connected via SSH v2\n`);
-      const parser = new CiscoCLIParser(
-        targetDev,
-        this.print,
-        () => this.updatePrompt(targetDev.getPrompt()),
-        this.triggerScoreUpdate
-      );
-      this.activeSshSession = { targetDev, parser, user };
-      this.updatePrompt(targetDev.getPrompt());
-      return;
-    }
-
-    this.print(`ssh: connect to host ${targetIp} port 22: Protocol not supported on this device type`);
   }
 
   handleTelnet(args) {
@@ -261,67 +214,27 @@ class PCDesktopHandler {
     }
 
     const targetDev = dstInfo.device;
+    const authSession = new RemoteAuthSession({
+      type: 'telnet',
+      targetDev: targetDev,
+      targetHost: targetIp,
+      print: this.print,
+      updatePrompt: (p) => this.updatePrompt(p),
+      onAuthenticated: (dev, realParser) => {
+        this.activeSshSession = { targetDev: dev, parser: realParser, user: 'telnet' };
+        this.updatePrompt(realParser.getPrompt ? realParser.getPrompt() : dev.getPrompt());
+      },
+      onDisconnect: () => {
+        this.activeSshSession = null;
+        this.updatePrompt('C:\\Users\\Student> ');
+      },
+      triggerScoreUpdate: this.triggerScoreUpdate
+    });
 
-    if (targetDev.type === 'router' || targetDev.type === 'switch') {
-      const vtyMode = (targetDev.vtyTransportInput || 'all').toLowerCase();
-      if (vtyMode !== 'all' && vtyMode !== '' && !vtyMode.includes('telnet')) {
-        this.print(`% Connection refused by remote host (Telnet not permitted on line vty)`);
-        return;
-      }
-      this.print(`Connected to ${targetDev.hostname} (${targetIp}).`);
-      this.print(`Escape character is '^]'.\n`);
-
-      const parser = new CiscoCLIParser(
-        targetDev,
-        this.print,
-        () => this.updatePrompt(targetDev.getPrompt()),
-        this.triggerScoreUpdate
-      );
-      this.activeSshSession = { targetDev, parser, user: 'telnet' };
-      this.updatePrompt(targetDev.getPrompt());
-      return;
+    if (authSession.state !== 'DISCONNECTED') {
+      this.activeSshSession = { targetDev: targetDev, parser: authSession, user: 'telnet' };
+      this.updatePrompt(authSession.getPrompt ? authSession.getPrompt() : targetDev.getPrompt());
     }
-
-    if (targetDev.type === 'hpe_switch') {
-      this.print(`Connected to ${targetDev.hostname} (${targetIp}) over Telnet.\n`);
-      const parser = new HpeCLIParser(
-        targetDev,
-        this.print,
-        (p) => this.updatePrompt(p),
-        this.triggerScoreUpdate
-      );
-      this.activeSshSession = { targetDev, parser, user: 'telnet' };
-      this.updatePrompt(parser.getPrompt());
-      return;
-    }
-
-    if (targetDev.type === 'mikrotik') {
-      this.print(`Connected to ${targetDev.hostname} (MikroTik RouterOS 7.12).\n`);
-      const parser = new MikroTikCLIParser(
-        targetDev,
-        this.print,
-        () => this.updatePrompt(targetDev.getPrompt()),
-        this.triggerScoreUpdate
-      );
-      this.activeSshSession = { targetDev, parser, user: 'telnet' };
-      this.updatePrompt(targetDev.getPrompt());
-      return;
-    }
-
-    if (targetDev.type === 'openwrt') {
-      this.print(`Connected to ${targetDev.hostname} (OpenWrt).\n`);
-      const parser = new OpenWrtCLIParser(
-        targetDev,
-        this.print,
-        () => this.updatePrompt(targetDev.getPrompt()),
-        this.triggerScoreUpdate
-      );
-      this.activeSshSession = { targetDev, parser, user: 'telnet' };
-      this.updatePrompt(targetDev.getPrompt());
-      return;
-    }
-
-    this.print(`% Connection to ${targetIp} closed by foreign host (port ${port} not open)`);
   }
 
   tabComplete(inputLine) {

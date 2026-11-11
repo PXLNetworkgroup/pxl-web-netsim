@@ -169,42 +169,69 @@ function openActivePuttyTerminal(devId) {
     termTitle.innerText = `${targetDev.hostname} (COM1 - 9600 baud) - PuTTY`;
     screen.innerHTML = `Connected to COM1 (9600, 8, N, 1) over Rollover Console Cable.\nTarget device: ${targetDev.hostname} [${targetDev.type.toUpperCase()}]\n\n`;
 
-    let parser = null;
+    let activeSession = null;
     const print = (t) => {
       screen.innerHTML += `${t}\n`;
       screen.scrollTop = screen.scrollHeight;
     };
     const updatePrompt = (p) => {
       if (promptEl) promptEl.innerText = p;
+      if (input) {
+        const isPw = activeSession && typeof activeSession.isPasswordPrompt === 'function' && activeSession.isPasswordPrompt();
+        input.type = isPw ? 'password' : 'text';
+      }
     };
 
-    if (targetDev.type === 'hpe_switch') {
-      parser = new HpeCLIParser(targetDev, print, updatePrompt, () => window.PXLApp.triggerScoreUpdate());
-    } else if (targetDev.type === 'mikrotik') {
-      parser = new MikroTikCLIParser(targetDev, print, updatePrompt, () => window.PXLApp.triggerScoreUpdate());
-    } else if (targetDev.type === 'openwrt') {
-      parser = new OpenWrtCLIParser(targetDev, print, updatePrompt, () => window.PXLApp.triggerScoreUpdate());
-    } else {
-      // Cisco Switch / Router
-      parser = new CiscoCLIParser(targetDev, print, updatePrompt, () => window.PXLApp.triggerScoreUpdate());
-    }
+    const authSession = new RemoteAuthSession({
+      type: 'console',
+      targetDev: targetDev,
+      targetHost: targetDev.hostname,
+      print: print,
+      updatePrompt: updatePrompt,
+      onAuthenticated: (dev, realParser) => {
+        activeSession = realParser;
+        updatePrompt(realParser.getPrompt ? realParser.getPrompt() : dev.getPrompt());
+      },
+      onDisconnect: () => {
+        activeSession = null;
+        updatePrompt('[Closed] ');
+      },
+      triggerScoreUpdate: () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); }
+    });
+    activeSession = authSession;
 
-    const initialPrompt = targetDev.getPrompt ? targetDev.getPrompt() : '> ';
-    updatePrompt(initialPrompt);
+    updatePrompt(activeSession.getPrompt ? activeSession.getPrompt() : targetDev.getPrompt());
     input.value = '';
     input.focus();
 
     input.onkeydown = (e) => {
       if (e.key === 'Enter') {
         const val = input.value;
-        screen.innerHTML += `${promptEl.innerText}${val}\n`;
+        const isPw = activeSession && typeof activeSession.isPasswordPrompt === 'function' && activeSession.isPasswordPrompt();
+        if (isPw) {
+          screen.innerHTML += `${promptEl.innerText}\n`;
+        } else {
+          screen.innerHTML += `${promptEl.innerText}${val}\n`;
+        }
         input.value = '';
-        parser.handleCommand(val);
+
+        if (!activeSession) return;
+        if (val.toLowerCase() === 'exit' || val.toLowerCase() === 'quit') {
+          screen.innerHTML += `\n[Connection closed by foreign host]\n`;
+          activeSession = null;
+          setTimeout(() => {
+            mainWin.style.display = 'block';
+            termView.style.display = 'none';
+          }, 1000);
+          return;
+        }
+
+        activeSession.handleCommand(val);
         screen.scrollTop = screen.scrollHeight;
       } else if (e.key === 'Tab') {
         e.preventDefault();
-        if (parser && typeof parser.tabComplete === 'function') {
-          const comp = parser.tabComplete(input.value);
+        if (activeSession && typeof activeSession.tabComplete === 'function') {
+          const comp = activeSession.tabComplete(input.value);
           if (comp && comp !== input.value) {
             input.value = comp;
             input.selectionStart = input.selectionEnd = comp.length;
@@ -212,7 +239,9 @@ function openActivePuttyTerminal(devId) {
         }
       } else if (e.key === '?' && input.value.trim() === '') {
         e.preventDefault();
-        parser.handleCommand('?');
+        if (activeSession && typeof activeSession.handleCommand === 'function') {
+          activeSession.handleCommand('?');
+        }
       }
     };
     return;
@@ -236,59 +265,85 @@ function openActivePuttyTerminal(devId) {
   mainWin.style.display = 'none';
   termView.style.display = 'block';
   termTitle.innerText = `${targetDev.hostname} (${targetHost}) - PuTTY`;
+  screen.innerHTML = '';
 
-  if (connType === 'telnet') {
-    screen.innerHTML = `Trying ${targetHost}...\nConnected to ${targetHost}.\nEscape character is '^]'.\n\n`;
-  } else {
-    screen.innerHTML = `login as: admin\nAuthenticating with public key "pxl-key" or password...\nConnected to ${targetDev.hostname} over SSH v2.\n\n`;
-  }
-
-  let parser = null;
+  let activeSession = null;
   const print = (t) => {
     screen.innerHTML += `${t}\n`;
     screen.scrollTop = screen.scrollHeight;
   };
   const updatePrompt = (p) => {
     if (promptEl) promptEl.innerText = p;
+    if (input) {
+      const isPw = activeSession && typeof activeSession.isPasswordPrompt === 'function' && activeSession.isPasswordPrompt();
+      input.type = isPw ? 'password' : 'text';
+    }
   };
 
-  if (targetDev.type === 'hpe_switch') {
-    parser = new HpeCLIParser(targetDev, print, updatePrompt, () => window.PXLApp.triggerScoreUpdate());
-  } else if (targetDev.type === 'mikrotik') {
-    parser = new MikroTikCLIParser(targetDev, print, updatePrompt, () => window.PXLApp.triggerScoreUpdate());
-  } else if (targetDev.type === 'openwrt') {
-    parser = new OpenWrtCLIParser(targetDev, print, updatePrompt, () => window.PXLApp.triggerScoreUpdate());
-  } else {
-    parser = new CiscoCLIParser(targetDev, print, updatePrompt, () => window.PXLApp.triggerScoreUpdate());
-  }
+  const authSession = new RemoteAuthSession({
+    type: connType,
+    targetDev: targetDev,
+    targetHost: targetHost,
+    initialUser: '',
+    print: print,
+    updatePrompt: updatePrompt,
+    onAuthenticated: (dev, realParser) => {
+      activeSession = realParser;
+      updatePrompt(realParser.getPrompt ? realParser.getPrompt() : dev.getPrompt());
+    },
+    onDisconnect: () => {
+      activeSession = null;
+      updatePrompt('[Closed] ');
+      setTimeout(() => {
+        mainWin.style.display = 'block';
+        termView.style.display = 'none';
+      }, 1500);
+    },
+    triggerScoreUpdate: () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); }
+  });
+  activeSession = authSession;
 
-  updatePrompt(targetDev.getPrompt ? targetDev.getPrompt() : '> ');
+  updatePrompt(activeSession.getPrompt ? activeSession.getPrompt() : targetDev.getPrompt());
   input.value = '';
   input.focus();
 
   input.onkeydown = (e) => {
     if (e.key === 'Enter') {
       const val = input.value;
-      screen.innerHTML += `${promptEl.innerText}${val}\n`;
+      const isPw = activeSession && typeof activeSession.isPasswordPrompt === 'function' && activeSession.isPasswordPrompt();
+      if (isPw) {
+        screen.innerHTML += `${promptEl.innerText}\n`;
+      } else {
+        screen.innerHTML += `${promptEl.innerText}${val}\n`;
+      }
       input.value = '';
+
+      if (!activeSession) return;
       if (val.toLowerCase() === 'exit' || val.toLowerCase() === 'quit') {
         screen.innerHTML += `\n[Connection closed by foreign host]\n`;
+        activeSession = null;
         setTimeout(() => {
           mainWin.style.display = 'block';
           termView.style.display = 'none';
         }, 1000);
         return;
       }
-      parser.handleCommand(val);
+
+      activeSession.handleCommand(val);
       screen.scrollTop = screen.scrollHeight;
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      if (parser && typeof parser.tabComplete === 'function') {
-        const comp = parser.tabComplete(input.value);
+      if (activeSession && typeof activeSession.tabComplete === 'function') {
+        const comp = activeSession.tabComplete(input.value);
         if (comp && comp !== input.value) {
           input.value = comp;
           input.selectionStart = input.selectionEnd = comp.length;
         }
+      }
+    } else if (e.key === '?' && input.value.trim() === '') {
+      e.preventDefault();
+      if (activeSession && typeof activeSession.handleCommand === 'function') {
+        activeSession.handleCommand('?');
       }
     }
   };

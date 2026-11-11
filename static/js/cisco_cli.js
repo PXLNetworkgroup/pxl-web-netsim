@@ -14,8 +14,13 @@ class CiscoCLIParser {
   }
 
   getPrompt() {
-    if (this.activeRemoteSession && this.activeRemoteSession.targetDev) {
-      return this.activeRemoteSession.targetDev.getPrompt ? this.activeRemoteSession.targetDev.getPrompt() : '> ';
+    if (this.activeRemoteSession) {
+      if (this.activeRemoteSession.parser && typeof this.activeRemoteSession.parser.getPrompt === 'function') {
+        return this.activeRemoteSession.parser.getPrompt();
+      }
+      if (this.activeRemoteSession.targetDev) {
+        return this.activeRemoteSession.targetDev.getPrompt ? this.activeRemoteSession.targetDev.getPrompt() : '> ';
+      }
     }
     return this.device.getPrompt();
   }
@@ -136,13 +141,14 @@ class CiscoCLIParser {
     // Active remote telnet / ssh session from this Cisco device
     if (this.activeRemoteSession) {
       if (cmd0 === 'exit' || cmd0 === 'quit' || cmd0 === 'ex') {
-        const remoteName = this.activeRemoteSession.targetDev.hostname || 'remote';
+        const remoteName = this.activeRemoteSession.targetDev ? (this.activeRemoteSession.targetDev.hostname || 'remote') : 'remote';
         this.print(`[Connection to ${remoteName} closed by foreign host]`);
         this.activeRemoteSession = null;
         if (this.updatePrompt) this.updatePrompt();
         return;
       }
       this.activeRemoteSession.parser.handleCommand(fullLine);
+      if (this.updatePrompt) this.updatePrompt();
       return;
     }
 
@@ -438,18 +444,31 @@ class CiscoCLIParser {
       }
     }
 
-    // username <user> secret <pw> / password <pw>
+    // username <user> [privilege <0-15>] {secret|password} <pw>
     if (this.matchCmd(cmd0, 'username') || cmd0 === 'user') {
       if (tokens.length >= 4) {
         const u = tokens[1];
-        if (this.matchCmd(tokens[2], 'secret') || tokens[2].toLowerCase() === 'sec') {
-          dev.users[u] = {
-            secret: (typeof CiscoCrypto !== 'undefined' && CiscoCrypto.hashType5) ? CiscoCrypto.hashType5(tokens[3]) : tokens[3],
-            password: null
-          };
-          dev.markModified();
-        } else if (this.matchCmd(tokens[2], 'password') || tokens[2].toLowerCase().startsWith('pass')) {
-          dev.users[u] = { secret: null, password: tokens[3] };
+        let priv = 1;
+        let secret = null;
+        let password = null;
+
+        for (let i = 2; i < tokens.length; i++) {
+          const tok = tokens[i].toLowerCase();
+          if ((tok === 'privilege' || tok === 'priv') && tokens[i + 1]) {
+            priv = parseInt(tokens[i + 1], 10) || 1;
+            i++;
+          } else if ((tok === 'secret' || tok === 'sec') && tokens[i + 1]) {
+            const rawPw = tokens[i + 1];
+            secret = (typeof CiscoCrypto !== 'undefined' && CiscoCrypto.hashType5) ? CiscoCrypto.hashType5(rawPw) : rawPw;
+            i++;
+          } else if ((tok === 'password' || tok.startsWith('pass')) && tokens[i + 1]) {
+            password = tokens[i + 1];
+            i++;
+          }
+        }
+
+        if (secret !== null || password !== null) {
+          dev.users[u] = { secret, password, priv };
           dev.markModified();
         }
       }
@@ -662,14 +681,24 @@ class CiscoCLIParser {
       if (tokens.length >= 2 && (this.matchCmd(tokens[1], 'local') || tokens[1].toLowerCase() === 'loc')) {
         if (dev.currentLine && dev.currentLine.startsWith('con')) {
           dev.consoleLoginRequired = true;
+          dev.consoleLoginMode = 'local';
         } else {
           dev.vtyLoginMode = 'local';
+          for (let i = 0; i <= (dev.maxConfiguredVty || 15); i++) {
+            if (!dev.vtyLines[i]) dev.vtyLines[i] = { password: '', loginMode: 'local', transportInput: '' };
+            dev.vtyLines[i].loginMode = 'local';
+          }
         }
       } else {
         if (dev.currentLine && dev.currentLine.startsWith('con')) {
           dev.consoleLoginRequired = true;
+          dev.consoleLoginMode = 'login';
         } else {
           dev.vtyLoginMode = 'login';
+          for (let i = 0; i <= (dev.maxConfiguredVty || 15); i++) {
+            if (!dev.vtyLines[i]) dev.vtyLines[i] = { password: '', loginMode: 'login', transportInput: '' };
+            dev.vtyLines[i].loginMode = 'login';
+          }
         }
       }
       dev.markModified();
@@ -680,8 +709,13 @@ class CiscoCLIParser {
     if (this.matchCmd(cmd0, 'no') && tokens.length >= 2 && (this.matchCmd(tokens[1], 'login') || tokens[1].toLowerCase() === 'log')) {
       if (dev.currentLine && dev.currentLine.startsWith('con')) {
         dev.consoleLoginRequired = false;
+        dev.consoleLoginMode = 'none';
       } else {
         dev.vtyLoginMode = 'none';
+        for (let i = 0; i <= (dev.maxConfiguredVty || 15); i++) {
+          if (!dev.vtyLines[i]) dev.vtyLines[i] = { password: '', loginMode: 'none', transportInput: '' };
+          dev.vtyLines[i].loginMode = 'none';
+        }
       }
       dev.markModified();
       return;
@@ -962,22 +996,25 @@ class CiscoCLIParser {
     }
 
     const targetDev = dstInfo.device;
-    let parser = null;
-    if (targetDev.type === 'router' || targetDev.type === 'switch') {
-      parser = new CiscoCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
-    } else if (targetDev.type === 'hpe_switch') {
-      parser = new HpeCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
-    } else if (targetDev.type === 'mikrotik') {
-      parser = new MikroTikCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
-    } else if (targetDev.type === 'openwrt') {
-      parser = new OpenWrtCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
-    } else if (targetDev.type === 'pc' || targetDev.type === 'laptop' || targetDev.type === 'server') {
-      parser = new PCDesktopHandler(targetDev, this.print, () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); }, () => this.updatePrompt());
-    }
+    const authSession = new RemoteAuthSession({
+      type: 'telnet',
+      targetDev: targetDev,
+      targetHost: targetIp,
+      print: this.print,
+      updatePrompt: () => this.updatePrompt(),
+      onAuthenticated: (dev, realParser) => {
+        this.activeRemoteSession = { targetDev: dev, parser: realParser };
+        if (this.updatePrompt) this.updatePrompt();
+      },
+      onDisconnect: () => {
+        this.activeRemoteSession = null;
+        if (this.updatePrompt) this.updatePrompt();
+      },
+      triggerScoreUpdate: this.triggerScoreUpdate
+    });
 
-    if (parser) {
-      this.activeRemoteSession = { targetDev, parser };
-      this.print(`User Access Verification\n`);
+    if (authSession.state !== 'DISCONNECTED') {
+      this.activeRemoteSession = { targetDev: targetDev, parser: authSession };
       if (this.updatePrompt) this.updatePrompt();
     }
   }
@@ -1015,22 +1052,26 @@ class CiscoCLIParser {
     }
 
     const targetDev = dstInfo.device;
-    let parser = null;
-    if (targetDev.type === 'router' || targetDev.type === 'switch') {
-      parser = new CiscoCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
-    } else if (targetDev.type === 'hpe_switch') {
-      parser = new HpeCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
-    } else if (targetDev.type === 'mikrotik') {
-      parser = new MikroTikCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
-    } else if (targetDev.type === 'openwrt') {
-      parser = new OpenWrtCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
-    } else if (targetDev.type === 'pc' || targetDev.type === 'laptop' || targetDev.type === 'server') {
-      parser = new PCDesktopHandler(targetDev, this.print, () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); }, () => this.updatePrompt());
-    }
+    const authSession = new RemoteAuthSession({
+      type: 'ssh',
+      targetDev: targetDev,
+      targetHost: targetIp,
+      initialUser: user,
+      print: this.print,
+      updatePrompt: () => this.updatePrompt(),
+      onAuthenticated: (dev, realParser) => {
+        this.activeRemoteSession = { targetDev: dev, parser: realParser };
+        if (this.updatePrompt) this.updatePrompt();
+      },
+      onDisconnect: () => {
+        this.activeRemoteSession = null;
+        if (this.updatePrompt) this.updatePrompt();
+      },
+      triggerScoreUpdate: this.triggerScoreUpdate
+    });
 
-    if (parser) {
-      this.activeRemoteSession = { targetDev, parser };
-      this.print(`Open SSH session to ${targetDev.hostname} (${targetIp})\n`);
+    if (authSession.state !== 'DISCONNECTED') {
+      this.activeRemoteSession = { targetDev: targetDev, parser: authSession };
       if (this.updatePrompt) this.updatePrompt();
     }
   }

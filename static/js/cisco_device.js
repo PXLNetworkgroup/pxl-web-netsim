@@ -511,7 +511,11 @@ class CiscoDevice {
       lines.push(` password ${cp}`);
     }
     if (this.consoleLoginRequired) {
-      lines.push(' login');
+      if (this.consoleLoginMode === 'local') {
+        lines.push(' login local');
+      } else {
+        lines.push(' login');
+      }
     }
     lines.push('!');
 

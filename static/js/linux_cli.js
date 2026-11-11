@@ -59,8 +59,12 @@ class LinuxCLIHandler {
         return;
       }
       this.activeSshSession.parser.handleCommand(rawLine);
-      const prompt = this.activeSshSession.targetDev.getPrompt ? this.activeSshSession.targetDev.getPrompt() : '> ';
-      this.updatePrompt(prompt);
+      if (this.activeSshSession) {
+        const prompt = (this.activeSshSession.parser && typeof this.activeSshSession.parser.getPrompt === 'function')
+          ? this.activeSshSession.parser.getPrompt()
+          : (this.activeSshSession.targetDev && this.activeSshSession.targetDev.getPrompt ? this.activeSshSession.targetDev.getPrompt() : '> ');
+        this.updatePrompt(prompt);
+      }
       if (this.triggerScoreUpdate) this.triggerScoreUpdate();
       return;
     }
@@ -414,34 +418,28 @@ class LinuxCLIHandler {
       return;
     }
 
-    const targetDev = dstInfo.device;
-    this.print(`\nAuthenticating to ${targetDev.hostname} (${target}) as '${user}'...`);
+    const authSession = new RemoteAuthSession({
+      type: 'ssh',
+      targetDev: targetDev,
+      targetHost: target,
+      initialUser: user,
+      print: this.print,
+      updatePrompt: (p) => this.updatePrompt(p),
+      onAuthenticated: (dev, realParser) => {
+        this.activeSshSession = { targetDev: dev, parser: realParser, user: user };
+        this.updatePrompt(realParser.getPrompt ? realParser.getPrompt() : dev.getPrompt());
+      },
+      onDisconnect: () => {
+        this.activeSshSession = null;
+        this.updatePrompt(this.getPrompt());
+      },
+      triggerScoreUpdate: this.triggerScoreUpdate
+    });
 
-    if (targetDev.type === 'hpe_switch') {
-      this.print(`HPE ArubaOS-S Switch Software (c) Copyright 2026 Hewlett Packard Enterprise`);
-      const parser = new HpeCLIParser(targetDev, this.print, (p) => this.updatePrompt(p), this.triggerScoreUpdate);
-      this.activeSshSession = { targetDev, parser, user };
-      this.updatePrompt(parser.getPrompt());
-      return;
+    if (authSession.state !== 'DISCONNECTED') {
+      this.activeSshSession = { targetDev: targetDev, parser: authSession, user: user };
+      this.updatePrompt(authSession.getPrompt ? authSession.getPrompt() : targetDev.getPrompt());
     }
-
-    if (targetDev.type === 'mikrotik') {
-      this.print(`MikroTik RouterOS 7.12 (c) 1994-2026`);
-      const parser = new MikroTikCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
-      this.activeSshSession = { targetDev, parser, user };
-      this.updatePrompt(targetDev.getPrompt());
-      return;
-    }
-
-    if (targetDev.type === 'router' || targetDev.type === 'switch') {
-      this.print(`Cisco IOS Software, Version 15.4(3)M2\nUser Access Verification\n`);
-      const parser = new CiscoCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
-      this.activeSshSession = { targetDev, parser, user };
-      this.updatePrompt(targetDev.getPrompt());
-      return;
-    }
-
-    this.print(`ssh: connected to remote server ${targetDev.hostname}`);
   }
 
   handleTelnet(args) {
@@ -469,23 +467,26 @@ class LinuxCLIHandler {
     }
 
     const targetDev = dstInfo.device;
-    let parser = null;
-    if (targetDev.type === 'hpe_switch') {
-      parser = new HpeCLIParser(targetDev, this.print, (p) => this.updatePrompt(p), this.triggerScoreUpdate);
-    } else if (targetDev.type === 'mikrotik') {
-      parser = new MikroTikCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
-    } else if (targetDev.type === 'openwrt') {
-      parser = new OpenWrtCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
-    } else if (targetDev.type === 'router' || targetDev.type === 'switch') {
-      parser = new CiscoCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
-    }
+    const authSession = new RemoteAuthSession({
+      type: 'telnet',
+      targetDev: targetDev,
+      targetHost: target,
+      print: this.print,
+      updatePrompt: (p) => this.updatePrompt(p),
+      onAuthenticated: (dev, realParser) => {
+        this.activeSshSession = { targetDev: dev, parser: realParser, user: 'telnet' };
+        this.updatePrompt(realParser.getPrompt ? realParser.getPrompt() : dev.getPrompt());
+      },
+      onDisconnect: () => {
+        this.activeSshSession = null;
+        this.updatePrompt(this.getPrompt());
+      },
+      triggerScoreUpdate: this.triggerScoreUpdate
+    });
 
-    if (parser) {
-      this.print(`Connected to ${targetDev.hostname} (${target}).\nEscape character is '^]'.\n`);
-      this.activeSshSession = { targetDev, parser, user: 'telnet' };
-      this.updatePrompt(targetDev.getPrompt ? targetDev.getPrompt() : '> ');
-    } else {
-      this.print(`telnet: Connection closed by foreign host`);
+    if (authSession.state !== 'DISCONNECTED') {
+      this.activeSshSession = { targetDev: targetDev, parser: authSession, user: 'telnet' };
+      this.updatePrompt(authSession.getPrompt ? authSession.getPrompt() : targetDev.getPrompt());
     }
   }
 
