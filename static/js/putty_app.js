@@ -236,7 +236,12 @@ function openActivePuttyTerminal(devId) {
   mainWin.style.display = 'none';
   termView.style.display = 'block';
   termTitle.innerText = `${targetDev.hostname} (${targetHost}) - PuTTY`;
-  screen.innerHTML = `login as: admin\nAuthenticating with public key "pxl-key" or password...\nConnected to ${targetDev.hostname} over SSH v2.\n\n`;
+
+  if (connType === 'telnet') {
+    screen.innerHTML = `Trying ${targetHost}...\nConnected to ${targetHost}.\nEscape character is '^]'.\n\n`;
+  } else {
+    screen.innerHTML = `login as: admin\nAuthenticating with public key "pxl-key" or password...\nConnected to ${targetDev.hostname} over SSH v2.\n\n`;
+  }
 
   let parser = null;
   const print = (t) => {

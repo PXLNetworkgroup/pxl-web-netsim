@@ -692,14 +692,25 @@ class PXLNetSimApp {
 
   updatePortIp(portName, ip) {
     if (this.activeDevice && this.activeDevice.interfaces[portName]) {
-      this.activeDevice.interfaces[portName].ip = ip.trim();
+      const trimmed = ip.trim();
+      this.activeDevice.interfaces[portName].ip = trimmed;
+      if (trimmed) {
+        this.activeDevice.interfaces[portName].shutdown = false;
+        if (this.activeDevice.type === 'switch' || this.activeDevice.type === 'hpe_switch') {
+          this.activeDevice.ip = trimmed;
+        }
+      }
       this.triggerScoreUpdate();
     }
   }
 
   updatePortMask(portName, mask) {
     if (this.activeDevice && this.activeDevice.interfaces[portName]) {
-      this.activeDevice.interfaces[portName].mask = mask.trim();
+      const trimmed = mask.trim();
+      this.activeDevice.interfaces[portName].mask = trimmed;
+      if (trimmed && (this.activeDevice.type === 'switch' || this.activeDevice.type === 'hpe_switch')) {
+        this.activeDevice.mask = trimmed;
+      }
       this.triggerScoreUpdate();
     }
   }
@@ -868,7 +879,7 @@ class PXLNetSimApp {
           screen.scrollTop = screen.scrollHeight;
         },
         () => {
-          prompt.innerText = dev.getPrompt();
+          prompt.innerText = getCurrentPrompt();
         },
         () => {
           this.triggerScoreUpdate();
@@ -881,7 +892,14 @@ class PXLNetSimApp {
       screen.scrollTop = screen.scrollHeight;
     }
 
-    prompt.innerText = dev.getPrompt();
+    const getCurrentPrompt = () => {
+      if (this.activeTerminalParser && typeof this.activeTerminalParser.getPrompt === 'function') {
+        return this.activeTerminalParser.getPrompt();
+      }
+      return dev.getPrompt();
+    };
+
+    prompt.innerText = getCurrentPrompt();
     setTimeout(() => {
       if (input) input.focus();
     }, 50);
@@ -892,19 +910,19 @@ class PXLNetSimApp {
         if (e.key === ' ' || e.code === 'Space') {
           e.preventDefault();
           this.activeTerminalParser.handlePagerKey('space');
-          prompt.innerText = dev.getPrompt();
+          prompt.innerText = getCurrentPrompt();
           screen.scrollTop = screen.scrollHeight;
           return;
         } else if (e.key === 'Enter') {
           e.preventDefault();
           this.activeTerminalParser.handlePagerKey('enter');
-          prompt.innerText = dev.getPrompt();
+          prompt.innerText = getCurrentPrompt();
           screen.scrollTop = screen.scrollHeight;
           return;
         } else if (e.key === 'q' || e.key === 'Q') {
           e.preventDefault();
           this.activeTerminalParser.handlePagerKey('quit');
-          prompt.innerText = dev.getPrompt();
+          prompt.innerText = getCurrentPrompt();
           screen.scrollTop = screen.scrollHeight;
           return;
         }
@@ -914,7 +932,7 @@ class PXLNetSimApp {
       if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
         e.preventDefault();
         const currentVal = input.value;
-        const currentPrompt = dev.getPrompt();
+        const currentPrompt = getCurrentPrompt();
         screen.innerHTML += `${currentPrompt} ${currentVal}?\n`;
         dev.terminalBuffer = (dev.terminalBuffer || '') + `${currentPrompt} ${currentVal}?\n`;
         if (this.activeTerminalParser && typeof this.activeTerminalParser.handleInlineHelp === 'function') {
@@ -931,12 +949,12 @@ class PXLNetSimApp {
 
       if (e.key === 'Enter') {
         const cmd = input.value;
-        const currentPrompt = dev.getPrompt();
+        const currentPrompt = getCurrentPrompt();
         screen.innerHTML += `${currentPrompt} ${cmd}\n`;
         dev.terminalBuffer = (dev.terminalBuffer || '') + `${currentPrompt} ${cmd}\n`;
         input.value = '';
         this.activeTerminalParser.handleCommand(cmd);
-        prompt.innerText = dev.getPrompt();
+        prompt.innerText = getCurrentPrompt();
         screen.scrollTop = screen.scrollHeight;
         this.triggerScoreUpdate();
       } else if (e.key === 'ArrowUp') {

@@ -123,6 +123,9 @@ class LinuxCLIHandler {
       case 'ssh':
         this.handleSsh(args);
         break;
+      case 'telnet':
+        this.handleTelnet(args);
+        break;
       case 'python':
       case 'python3':
         this.startPythonRepl(args);
@@ -441,6 +444,51 @@ class LinuxCLIHandler {
     this.print(`ssh: connected to remote server ${targetDev.hostname}`);
   }
 
+  handleTelnet(args) {
+    if (args.length === 0) {
+      this.print("Usage: telnet <host> [port]");
+      return;
+    }
+
+    const target = args[0].trim();
+    const port = args[1] ? parseInt(args[1], 10) : 23;
+    const sim = window.PXLNetworkSim;
+    if (!sim) return;
+
+    this.print(`Trying ${target}...`);
+    const ping = sim.executePing(this.device.id, target);
+    if (!ping.success) {
+      this.print(`telnet: Unable to connect to remote host: Connection timed out`);
+      return;
+    }
+
+    const dstInfo = sim.findDeviceByIp(target);
+    if (!dstInfo) {
+      this.print(`telnet: Unable to connect to remote host: Connection refused`);
+      return;
+    }
+
+    const targetDev = dstInfo.device;
+    let parser = null;
+    if (targetDev.type === 'hpe_switch') {
+      parser = new HpeCLIParser(targetDev, this.print, (p) => this.updatePrompt(p), this.triggerScoreUpdate);
+    } else if (targetDev.type === 'mikrotik') {
+      parser = new MikroTikCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
+    } else if (targetDev.type === 'openwrt') {
+      parser = new OpenWrtCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
+    } else if (targetDev.type === 'router' || targetDev.type === 'switch') {
+      parser = new CiscoCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
+    }
+
+    if (parser) {
+      this.print(`Connected to ${targetDev.hostname} (${target}).\nEscape character is '^]'.\n`);
+      this.activeSshSession = { targetDev, parser, user: 'telnet' };
+      this.updatePrompt(targetDev.getPrompt ? targetDev.getPrompt() : '> ');
+    } else {
+      this.print(`telnet: Connection closed by foreign host`);
+    }
+  }
+
   startPythonRepl(args) {
     this.pythonReplActive = true;
     if (!this.pythonEngine && window.PythonEngine) {
@@ -535,6 +583,7 @@ class LinuxCLIHandler {
     this.print("  curl <url>                Transfer data from HTTP web servers");
     this.print("  wget <url>                Download web page or file via HTTP");
     this.print("  ssh [user@]host           Open secure shell to Cisco, HPE, MikroTik, or Server");
+    this.print("  telnet <host> [port]      Open Telnet terminal session to Cisco, HPE, or MikroTik");
     this.print("  python3 / python          Start interactive Python 3.12 REPL");
     this.print("  cat <file>                Print content of file (e.g. /etc/resolv.conf)");
     this.print("  sudo su / su              Elevate privileges to root administrator");
@@ -550,7 +599,7 @@ class LinuxCLIHandler {
     const commands = [
       'ip addr', 'ip a', 'ip link', 'ip route', 'ifconfig', 'ping', 'traceroute',
       'netstat -tuln', 'ss -tulpn', 'route -n', 'curl http://', 'wget http://',
-      'ssh admin@', 'python3', 'cat /etc/resolv.conf', 'cat /etc/hosts',
+      'ssh admin@', 'telnet ', 'python3', 'cat /etc/resolv.conf', 'cat /etc/hosts',
       'sudo su', 'uname -a', 'clear', 'help'
     ];
     const match = commands.find(c => c.startsWith(inputLine.trim()));

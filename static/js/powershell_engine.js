@@ -180,6 +180,10 @@ class PowerShellHandler {
         this.cmdSsh(args);
         break;
 
+      case 'telnet':
+        this.cmdTelnet(args);
+        break;
+
       // 6. Navigation & File System
       case 'get-location':
       case 'pwd':
@@ -823,6 +827,14 @@ ifIndex DestinationPrefix       NextHop               RouteMetric ifMetric Polic
       return;
     }
 
+    if (targetDev.type === 'hpe_switch') {
+      this.print(`\nHPE ArubaOS-S Switch Software (c) Copyright 2026 Hewlett Packard Enterprise`);
+      const parser = new HpeCLIParser(targetDev, this.print, (p) => this.updatePrompt(p), this.triggerScoreUpdate);
+      this.activeSshSession = { targetDev, parser, user };
+      this.updatePrompt(parser.getPrompt());
+      return;
+    }
+
     if (targetDev.type === 'router' || targetDev.type === 'switch') {
       this.print(`\nOpen SSH session to ${targetDev.hostname} (${targetIp})`);
       const parser = new CiscoCLIParser(
@@ -837,6 +849,44 @@ ifIndex DestinationPrefix       NextHop               RouteMetric ifMetric Polic
     }
 
     this.print(`ssh: connect to host ${targetIp} port 22: Service unavailable on device type.`);
+  }
+
+  cmdTelnet(args) {
+    if (args.length === 0) {
+      this.print("telnet : Missing destination IP address.");
+      return;
+    }
+    const targetIp = args[0].trim();
+    const sim = window.PXLNetworkSim;
+    if (!sim) return;
+
+    this.print(`Connecting to ${targetIp}...`);
+    const pingRes = sim.executePing(this.device.id, targetIp);
+    if (!pingRes.success) {
+      this.print(`telnet : Could not open connection to the host, on port 23: Connect failed`);
+      return;
+    }
+    const dstInfo = sim.findDeviceByIp(targetIp);
+    if (!dstInfo) {
+      this.print(`telnet : Connection refused by ${targetIp}`);
+      return;
+    }
+    const targetDev = dstInfo.device;
+    let parser = null;
+    if (targetDev.type === 'router' || targetDev.type === 'switch') {
+      parser = new CiscoCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
+    } else if (targetDev.type === 'hpe_switch') {
+      parser = new HpeCLIParser(targetDev, this.print, (p) => this.updatePrompt(p), this.triggerScoreUpdate);
+    } else if (targetDev.type === 'mikrotik') {
+      parser = new MikroTikCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
+    } else if (targetDev.type === 'openwrt') {
+      parser = new OpenWrtCLIParser(targetDev, this.print, () => this.updatePrompt(targetDev.getPrompt()), this.triggerScoreUpdate);
+    }
+    if (parser) {
+      this.print(`Connected to ${targetDev.hostname} (${targetIp}) via Telnet.\nEscape character is '^]'.\n`);
+      this.activeSshSession = { targetDev, parser, user: 'telnet' };
+      this.updatePrompt(targetDev.getPrompt ? targetDev.getPrompt() : '> ');
+    }
   }
 
   cmdSetLocation(args) {

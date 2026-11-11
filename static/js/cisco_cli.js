@@ -10,6 +10,14 @@ class CiscoCLIParser {
     this.updatePrompt = updatePromptCallback || (() => {});
     this.triggerScoreUpdate = triggerScoreUpdate || (() => {});
     this.pagerState = null; // { lines: [], index: 0, pageSize: 20 }
+    this.activeRemoteSession = null;
+  }
+
+  getPrompt() {
+    if (this.activeRemoteSession && this.activeRemoteSession.targetDev) {
+      return this.activeRemoteSession.targetDev.getPrompt ? this.activeRemoteSession.targetDev.getPrompt() : '> ';
+    }
+    return this.device.getPrompt();
   }
 
   /**
@@ -125,6 +133,19 @@ class CiscoCLIParser {
     const dev = this.device;
     const cmd0 = tokens[0].toLowerCase();
 
+    // Active remote telnet / ssh session from this Cisco device
+    if (this.activeRemoteSession) {
+      if (cmd0 === 'exit' || cmd0 === 'quit' || cmd0 === 'ex') {
+        const remoteName = this.activeRemoteSession.targetDev.hostname || 'remote';
+        this.print(`[Connection to ${remoteName} closed by foreign host]`);
+        this.activeRemoteSession = null;
+        if (this.updatePrompt) this.updatePrompt();
+        return;
+      }
+      this.activeRemoteSession.parser.handleCommand(fullLine);
+      return;
+    }
+
     // Universal navigation: 'exit', 'quit', 'ex'
     if (cmd0 === 'exit' || cmd0 === 'quit' || cmd0 === 'ex') {
       this.handleExit();
@@ -143,6 +164,18 @@ class CiscoCLIParser {
     // Universal: 'ping' (and 'p')
     if (this.matchCmd(cmd0, 'ping') || cmd0 === 'p') {
       this.handlePing(tokens);
+      return;
+    }
+
+    // Remote access: 'telnet'
+    if (this.matchCmd(cmd0, 'telnet')) {
+      this.handleTelnet(tokens);
+      return;
+    }
+
+    // Remote access: 'ssh'
+    if (this.matchCmd(cmd0, 'ssh')) {
+      this.handleSsh(tokens);
       return;
     }
 
@@ -855,6 +888,103 @@ class CiscoCLIParser {
       }
     } else {
       this.print("!!!!!\nSuccess rate is 100 percent (5/5)");
+    }
+  }
+
+  // --- TELNET SIMULATION ---
+  handleTelnet(tokens) {
+    if (tokens.length < 2) {
+      this.print("% Incomplete command: telnet <target-ip> [port]");
+      return;
+    }
+    const targetIp = tokens[1];
+    const sim = window.PXLNetworkSim;
+    if (!sim) return;
+
+    this.print(`Trying ${targetIp} ... Open`);
+    const pingRes = sim.executePing(this.device.id, targetIp);
+    if (!pingRes.success) {
+      this.print(`% Destination host unreachable / Connection timed out; remote host not responding`);
+      return;
+    }
+
+    const dstInfo = sim.findDeviceByIp(targetIp);
+    if (!dstInfo) {
+      this.print(`% Connection refused by remote host`);
+      return;
+    }
+
+    const targetDev = dstInfo.device;
+    let parser = null;
+    if (targetDev.type === 'router' || targetDev.type === 'switch') {
+      parser = new CiscoCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
+    } else if (targetDev.type === 'hpe_switch') {
+      parser = new HpeCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
+    } else if (targetDev.type === 'mikrotik') {
+      parser = new MikroTikCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
+    } else if (targetDev.type === 'openwrt') {
+      parser = new OpenWrtCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
+    } else if (targetDev.type === 'pc' || targetDev.type === 'laptop' || targetDev.type === 'server') {
+      parser = new PCDesktopHandler(targetDev, this.print, () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); }, () => this.updatePrompt());
+    }
+
+    if (parser) {
+      this.activeRemoteSession = { targetDev, parser };
+      this.print(`User Access Verification\n`);
+      if (this.updatePrompt) this.updatePrompt();
+    }
+  }
+
+  // --- SSH SIMULATION ---
+  handleSsh(tokens) {
+    let user = 'admin';
+    let targetIp = '';
+    for (let i = 1; i < tokens.length; i++) {
+      if (tokens[i] === '-l' && tokens[i + 1]) {
+        user = tokens[i + 1];
+        i++;
+      } else if (!targetIp) {
+        targetIp = tokens[i];
+      }
+    }
+    if (!targetIp) {
+      this.print("% Incomplete command: ssh -l <username> <target-ip>");
+      return;
+    }
+    const sim = window.PXLNetworkSim;
+    if (!sim) return;
+
+    this.print(`[Open SSH session to ${targetIp} as ${user}]`);
+    const pingRes = sim.executePing(this.device.id, targetIp);
+    if (!pingRes.success) {
+      this.print(`% Connection to ${targetIp} timed out`);
+      return;
+    }
+
+    const dstInfo = sim.findDeviceByIp(targetIp);
+    if (!dstInfo) {
+      this.print(`% Connection refused by remote host`);
+      return;
+    }
+
+    const targetDev = dstInfo.device;
+    let parser = null;
+    if (targetDev.type === 'router' || targetDev.type === 'switch') {
+      parser = new CiscoCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
+    } else if (targetDev.type === 'hpe_switch') {
+      parser = new HpeCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
+    } else if (targetDev.type === 'mikrotik') {
+      parser = new MikroTikCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
+    } else if (targetDev.type === 'openwrt') {
+      parser = new OpenWrtCLIParser(targetDev, this.print, () => this.updatePrompt(), () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); });
+    } else if (targetDev.type === 'pc' || targetDev.type === 'laptop' || targetDev.type === 'server') {
+      parser = new PCDesktopHandler(targetDev, this.print, () => { if (window.PXLApp) window.PXLApp.triggerScoreUpdate(); }, () => this.updatePrompt());
+    }
+
+    if (parser) {
+      this.activeRemoteSession = { targetDev, parser };
+      this.print(`Open SSH session to ${targetDev.hostname} (${targetIp})\n`);
+      if (this.updatePrompt) this.updatePrompt();
     }
   }
 

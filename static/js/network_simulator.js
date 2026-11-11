@@ -198,6 +198,16 @@ class NetworkSimulator {
         queue.push({ devId: dev.wireless.associatedAp, portName: 'Wireless0' });
       }
 
+      // Handle switch SVI (Vlan1 or any VlanX) traversal: fan out across all physical switch ports in this VLAN
+      if ((dev.type === 'switch' || dev.type === 'hpe_switch') && (item.portName === 'Vlan1' || item.portName.startsWith('Vlan'))) {
+        for (const [pName, pIntf] of Object.entries(dev.interfaces)) {
+          if (!pName.startsWith('Vlan') && pName !== 'Console' && pName !== 'Aux' && pName !== 'RS 232' && pName !== 'USB0' && !pIntf.shutdown) {
+            queue.push({ devId: dev.id, portName: pName });
+          }
+        }
+        continue;
+      }
+
       // Check direct wired link
       const peer = this.getConnectedPeer(item.devId, item.portName);
       if (peer) {
@@ -205,21 +215,23 @@ class NetworkSimulator {
         if (peerDev && peerDev.powerOn) {
           const peerIntf = peerDev.interfaces[peer.portName];
           if (peerIntf && !peerIntf.shutdown) {
-            if (peerDev.type === 'switch') {
+            if (peerDev.type === 'switch' || peerDev.type === 'hpe_switch') {
               // Switch bridges all other active ports in the same VLAN
               for (const [pName, pIntf] of Object.entries(peerDev.interfaces)) {
-                if (pName !== 'Vlan1' && pName !== peer.portName && !pIntf.shutdown) {
+                if (!pName.startsWith('Vlan') && pName !== 'Console' && pName !== 'Aux' && pName !== 'RS 232' && pName !== 'USB0' && pName !== peer.portName && !pIntf.shutdown) {
                   queue.push({ devId: peerDev.id, portName: pName });
                 }
               }
               // Switch SVI Vlan1 IP is also present on this domain
-              if (peerDev.interfaces['Vlan1'] && peerDev.interfaces['Vlan1'].ip && !peerDev.interfaces['Vlan1'].shutdown) {
+              const sviIp = peerDev.interfaces['Vlan1']?.ip || peerDev.ip || (peerDev.hpeConfig && peerDev.hpeConfig.mgmtIp);
+              const sviMask = peerDev.interfaces['Vlan1']?.mask || peerDev.mask || (peerDev.hpeConfig && peerDev.hpeConfig.mgmtMask) || '255.255.255.0';
+              if (sviIp) {
                 domain.push({
                   devId: peerDev.id,
                   portName: 'Vlan1',
-                  ip: peerDev.interfaces['Vlan1'].ip,
-                  mask: peerDev.interfaces['Vlan1'].mask,
-                  mac: peerDev.interfaces['Vlan1'].mac
+                  ip: sviIp,
+                  mask: sviMask,
+                  mac: peerDev.interfaces['Vlan1']?.mac || '0019.5e.00.00.01'
                 });
               }
             } else {
@@ -250,10 +262,11 @@ class NetworkSimulator {
   executePing(srcDevId, targetIp) {
     this.updateWirelessAssociations();
     const hops = [];
-    const srcDev = this.devices[srcDevId];
+    const srcDev = (typeof srcDevId === 'object' && srcDevId !== null) ? srcDevId : this.devices[srcDevId];
     if (!srcDev || !srcDev.powerOn || !IPUtils.isValidIp(targetIp)) {
       return { success: false, hops, reason: 'Invalid source device or target IP' };
     }
+    srcDevId = srcDev.id;
 
     // Ping to self
     if (srcDev.ip === targetIp) return { success: true, hops: [targetIp], reason: 'Echo reply from self' };
@@ -282,9 +295,13 @@ class NetworkSimulator {
     }
 
     // Step 2: Return path (dst -> src)
-    const srcIp = (srcDev.type === 'pc' || srcDev.type === 'laptop' || srcDev.type === 'server')
+    let srcIp = (srcDev.type === 'pc' || srcDev.type === 'laptop' || srcDev.type === 'server')
       ? srcDev.ip
-      : (forwardPath.ingressIp || Object.values(srcDev.interfaces).find(i => i.ip && !i.shutdown)?.ip);
+      : (forwardPath.ingressIp || srcDev.ip || srcDev.interfaces['Vlan1']?.ip || Object.values(srcDev.interfaces).find(i => i.ip && !i.shutdown)?.ip);
+
+    if (!srcIp && (srcDev.type === 'switch' || srcDev.type === 'hpe_switch')) {
+      srcIp = srcDev.interfaces['Vlan1']?.ip || srcDev.ip || (srcDev.hpeConfig && srcDev.hpeConfig.mgmtIp);
+    }
 
     if (!srcIp) return { success: false, hops: forwardPath.hops, reason: 'Source has no valid IP' };
 
@@ -495,13 +512,21 @@ class NetworkSimulator {
   findDeviceByIp(targetIp) {
     for (const dev of Object.values(this.devices)) {
       if (!dev.powerOn) continue;
-      if ((dev.type === 'pc' || dev.type === 'laptop' || dev.type === 'server') && dev.ip === targetIp) {
-        return { device: dev, portName: 'FastEthernet0' };
+      if (dev.ip === targetIp) {
+        return { device: dev, portName: (dev.type === 'switch' || dev.type === 'hpe_switch') ? 'Vlan1' : 'FastEthernet0' };
       }
       for (const [pName, intf] of Object.entries(dev.interfaces)) {
-        if (intf.ip === targetIp && !intf.shutdown) {
-          return { device: dev, portName: pName };
+        if (intf.ip === targetIp) {
+          if (pName === 'Vlan1' && (dev.type === 'switch' || dev.type === 'hpe_switch')) {
+            return { device: dev, portName: pName };
+          }
+          if (!intf.shutdown) {
+            return { device: dev, portName: pName };
+          }
         }
+      }
+      if (dev.hpeConfig && dev.hpeConfig.mgmtIp === targetIp) {
+        return { device: dev, portName: 'Vlan1' };
       }
     }
     return null;
@@ -542,10 +567,16 @@ class NetworkSimulator {
 
     // Check all active interfaces on this device for local subnet match
     for (const [portName, intf] of Object.entries(dev.interfaces)) {
-      const myIp = (dev.type === 'pc' || dev.type === 'laptop' || dev.type === 'server') ? dev.ip : intf.ip;
-      const myMask = (dev.type === 'pc' || dev.type === 'laptop' || dev.type === 'server') ? dev.mask : intf.mask;
+      let myIp = (dev.type === 'pc' || dev.type === 'laptop' || dev.type === 'server') ? dev.ip : intf.ip;
+      let myMask = (dev.type === 'pc' || dev.type === 'laptop' || dev.type === 'server') ? dev.mask : intf.mask;
 
-      if (!myIp || !myMask || intf.shutdown) continue;
+      if ((dev.type === 'switch' || dev.type === 'hpe_switch') && portName === 'Vlan1') {
+        if (!myIp) myIp = dev.ip || (dev.hpeConfig && dev.hpeConfig.mgmtIp);
+        if (!myMask) myMask = dev.mask || (dev.hpeConfig && dev.hpeConfig.mgmtMask) || '255.255.255.0';
+      }
+
+      if (!myIp || !myMask) continue;
+      if (intf.shutdown && portName !== 'Vlan1') continue;
 
       // Are target and this interface in the same subnet?
       if (IPUtils.isSameSubnet(myIp, targetIp, myMask)) {
@@ -564,8 +595,8 @@ class NetworkSimulator {
 
     if (dev.type === 'pc' || dev.type === 'laptop' || dev.type === 'server') {
       nextHopIp = dev.gateway;
-    } else if (dev.type === 'switch') {
-      nextHopIp = dev.defaultGateway;
+    } else if (dev.type === 'switch' || dev.type === 'hpe_switch') {
+      nextHopIp = dev.defaultGateway || (dev.hpeConfig && dev.hpeConfig.defaultGateway);
     } else if (dev.type === 'router' || dev.type === 'mikrotik' || dev.type === 'openwrt') {
       // Longest prefix match in static routes
       let bestMatch = null;

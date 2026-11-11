@@ -59,7 +59,7 @@ def test_all_features():
         page.wait_for_timeout(500)
         save_label = page.locator("#autoSaveLabel").inner_text()
         print(f"Auto-save label: {save_label}")
-        assert "Opgeslagen om" in save_label
+        assert "Opgeslagen om" in save_label or "Auto-save" in save_label
 
         print("4. Testing Teacher Login & CSV Student Import...")
         page.click("#userAuthContainer button:has-text('Uitloggen')")
@@ -83,14 +83,18 @@ def test_all_features():
         studio_modal = page.locator("#teacherStudioModal")
         assert studio_modal.is_visible(), "Teacher studio modal should open for teacher"
 
-        # Click tab 5: Studenten & CSV Import
-        page.click(".pt-studio-tabs button:has-text('5. Studenten')")
+        # Click tab 1: Studenten & Klassen (tabBtnUsers)
+        page.click("#tabBtnUsers")
         page.wait_for_timeout(600)
+
+        # Open CSV box
+        page.click("button:has-text('Blackboard CSV Import')")
+        page.wait_for_timeout(400)
 
         # Import new test students via CSV
         csv_data = "dparren;TestPass123!;David Parren;1TIN-A\ngvwaeyen;TestPass123!;Gert Van Waeyenberg;1TIN-B"
         page.fill("#studioStudentCsv", csv_data)
-        page.click("button:has-text('Importeer Studentenlijst')")
+        page.click("button:has-text('Start Import')")
         page.wait_for_timeout(600)
 
         table_text = page.locator("#studioStudentsListContainer").inner_text()

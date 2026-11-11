@@ -12,6 +12,14 @@ class PCDesktopHandler {
     this.activeSshSession = null;
   }
 
+  get activeRemoteSession() {
+    return this.activeSshSession;
+  }
+
+  set activeRemoteSession(val) {
+    this.activeSshSession = val;
+  }
+
   handleCommand(rawLine) {
     const dev = this.device;
     const line = rawLine.trim();
@@ -75,6 +83,9 @@ class PCDesktopHandler {
       case 'ssh':
         this.handleSsh(parts.slice(1));
         break;
+      case 'telnet':
+        this.handleTelnet(parts.slice(1));
+        break;
       case 'ftp':
         this.handleFtp(parts.slice(1));
         break;
@@ -94,7 +105,7 @@ class PCDesktopHandler {
         if (window.PXLApp) window.PXLApp.clearActiveTerminal();
         break;
       case 'help':
-        this.print("Supported commands: ipconfig, ipconfig /all, ping <ip>, tracert <ip>, nslookup <domain>, ssh [-l user] <ip>, python, ftp <target>, cls");
+        this.print("Supported commands: ipconfig, ipconfig /all, ping <ip>, tracert <ip>, nslookup <domain>, telnet <ip>, ssh [-l user] <ip>, python, ftp <target>, cls");
         break;
       default:
         this.print(`'${cmd}' is not recognized as an internal or external command.`);
@@ -222,11 +233,102 @@ class PCDesktopHandler {
     this.print(`ssh: connect to host ${targetIp} port 22: Protocol not supported on this device type`);
   }
 
+  handleTelnet(args) {
+    if (args.length === 0) {
+      this.print("usage: telnet destination-ip [port]");
+      return;
+    }
+
+    const targetIp = args[0].trim();
+    const port = args[1] ? parseInt(args[1], 10) : 23;
+    const sim = window.PXLNetworkSim;
+    if (!sim) {
+      this.print("telnet: network simulation engine not loaded.");
+      return;
+    }
+
+    this.print(`Trying ${targetIp}...`);
+    const pingRes = sim.executePing(this.device.id, targetIp);
+    if (!pingRes.success) {
+      this.print(`% Destination host unreachable / Connection timed out to ${targetIp}`);
+      return;
+    }
+
+    const dstInfo = sim.findDeviceByIp(targetIp);
+    if (!dstInfo) {
+      this.print(`% Connection refused by ${targetIp}`);
+      return;
+    }
+
+    const targetDev = dstInfo.device;
+
+    if (targetDev.type === 'router' || targetDev.type === 'switch') {
+      const vtyMode = (targetDev.vtyTransportInput || 'all').toLowerCase();
+      if (vtyMode !== 'all' && vtyMode !== '' && !vtyMode.includes('telnet')) {
+        this.print(`% Connection refused by remote host (Telnet not permitted on line vty)`);
+        return;
+      }
+      this.print(`Connected to ${targetDev.hostname} (${targetIp}).`);
+      this.print(`Escape character is '^]'.\n`);
+
+      const parser = new CiscoCLIParser(
+        targetDev,
+        this.print,
+        () => this.updatePrompt(targetDev.getPrompt()),
+        this.triggerScoreUpdate
+      );
+      this.activeSshSession = { targetDev, parser, user: 'telnet' };
+      this.updatePrompt(targetDev.getPrompt());
+      return;
+    }
+
+    if (targetDev.type === 'hpe_switch') {
+      this.print(`Connected to ${targetDev.hostname} (${targetIp}) over Telnet.\n`);
+      const parser = new HpeCLIParser(
+        targetDev,
+        this.print,
+        (p) => this.updatePrompt(p),
+        this.triggerScoreUpdate
+      );
+      this.activeSshSession = { targetDev, parser, user: 'telnet' };
+      this.updatePrompt(parser.getPrompt());
+      return;
+    }
+
+    if (targetDev.type === 'mikrotik') {
+      this.print(`Connected to ${targetDev.hostname} (MikroTik RouterOS 7.12).\n`);
+      const parser = new MikroTikCLIParser(
+        targetDev,
+        this.print,
+        () => this.updatePrompt(targetDev.getPrompt()),
+        this.triggerScoreUpdate
+      );
+      this.activeSshSession = { targetDev, parser, user: 'telnet' };
+      this.updatePrompt(targetDev.getPrompt());
+      return;
+    }
+
+    if (targetDev.type === 'openwrt') {
+      this.print(`Connected to ${targetDev.hostname} (OpenWrt).\n`);
+      const parser = new OpenWrtCLIParser(
+        targetDev,
+        this.print,
+        () => this.updatePrompt(targetDev.getPrompt()),
+        this.triggerScoreUpdate
+      );
+      this.activeSshSession = { targetDev, parser, user: 'telnet' };
+      this.updatePrompt(targetDev.getPrompt());
+      return;
+    }
+
+    this.print(`% Connection to ${targetIp} closed by foreign host (port ${port} not open)`);
+  }
+
   tabComplete(inputLine) {
     if (this.activeSshSession && this.activeSshSession.parser && typeof this.activeSshSession.parser.tabComplete === 'function') {
       return this.activeSshSession.parser.tabComplete(inputLine);
     }
-    const pcCommands = ['ipconfig', 'ipconfig /all', 'ping', 'tracert', 'nslookup', 'ssh admin@', 'ftp', 'cls'];
+    const pcCommands = ['ipconfig', 'ipconfig /all', 'ping', 'tracert', 'nslookup', 'ssh admin@', 'telnet', 'ftp', 'cls'];
     const match = pcCommands.find(c => c.startsWith(inputLine.trim()));
     if (match) return match + ' ';
     return inputLine;
