@@ -28,6 +28,7 @@ class CanvasWorkspace {
     this.dragOffsetX = 0;
     this.dragOffsetY = 0;
     this.mouseCanvasPos = { x: 0, y: 0 };
+    this.showPortLabels = true;
 
     // Cabling Engine
     this.cabling = new CablingEngine(this);
@@ -505,13 +506,25 @@ class CanvasWorkspace {
     ctx.stroke();
   }
 
+  togglePortLabels() {
+    this.showPortLabels = !this.showPortLabels;
+    this.render();
+    const btnText = document.getElementById('portLabelsToggleText');
+    if (btnText) {
+      btnText.textContent = this.showPortLabels ? '🏷️ Poorten: Aan' : '🏷️ Poorten: Uit';
+    }
+    return this.showPortLabels;
+  }
+
   drawLinkLed(ctx, fromX, fromY, toX, toY, ratio, color, portLabel) {
     const x = fromX + (toX - fromX) * ratio;
     const y = fromY + (toY - fromY) * ratio;
 
     ctx.save();
+
+    // 1. Draw Link LED Circle directly on the wire
     ctx.beginPath();
-    ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.shadowColor = color;
     ctx.shadowBlur = 6;
@@ -522,11 +535,63 @@ class CanvasWorkspace {
     ctx.shadowBlur = 0;
     ctx.stroke();
 
-    if (this.scale >= 0.8) {
-      ctx.font = '10px Inter, Arial, sans-serif';
-      ctx.fillStyle = '#1e293b';
-      const shortPort = portLabel.replace('GigabitEthernet', 'Gi').replace('FastEthernet', 'Fa').replace('Serial', 'Se');
-      ctx.fillText(shortPort, x + 8, y + 3);
+    // 2. Draw Crisp High-Contrast Port Pill Badge
+    if (this.showPortLabels !== false && this.scale >= 0.35 && portLabel) {
+      const dx = toX - fromX;
+      const dy = toY - fromY;
+      const dist = Math.hypot(dx, dy) || 1;
+
+      // Perpendicular unit vector (normal)
+      const nx = -dy / dist;
+      const ny = dx / dist;
+
+      // Offset badge 16px orthogonally away from the cable to prevent overlapping
+      const offsetDist = 16;
+      const badgeX = x + nx * offsetDist;
+      const badgeY = y + ny * offsetDist;
+
+      // Professional short port naming
+      const shortPort = portLabel
+        .replace(/^GigabitEthernet/i, 'Gi')
+        .replace(/^FastEthernet/i, 'Fa')
+        .replace(/^Serial/i, 'Se')
+        .replace(/^Ethernet/i, 'Eth')
+        .replace(/^Wireless0/i, 'WLAN0')
+        .replace(/^Console/i, 'Console')
+        .replace(/^RS 232/i, 'RS-232');
+
+      ctx.font = 'bold 10px Consolas, "Courier New", monospace';
+      const textMetrics = ctx.measureText(shortPort);
+      const textWidth = textMetrics.width;
+      const padX = 5;
+      const w = textWidth + padX * 2;
+      const h = 16;
+      const rx = badgeX - w / 2;
+      const ry = badgeY - h / 2;
+
+      // Crisp white pill badge with drop shadow
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(rx, ry, w, h, 4);
+      } else {
+        ctx.rect(rx, ry, w, h);
+      }
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+      ctx.shadowBlur = 4;
+      ctx.fill();
+
+      // Border matching link state (red if down) or crisp Packet Tracer cyan/blue
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = color === '#ef4444' ? '#ef4444' : '#0284c7';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // High-contrast dark text
+      ctx.fillStyle = '#0f172a';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(shortPort, badgeX, badgeY + 0.5);
     }
     ctx.restore();
   }

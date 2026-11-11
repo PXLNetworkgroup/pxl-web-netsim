@@ -10,6 +10,8 @@ class NetworkSimulator {
     this.cables = [];    // array of Cable objects
     this.wirelessAssociations = {}; // laptopId -> apId
     this.liveInternetEnabled = false;
+    this.packetCaptureLog = [];
+    this.captureActive = true;
     this.fetchLiveInternetStatus();
   }
 
@@ -269,9 +271,15 @@ class NetworkSimulator {
     srcDevId = srcDev.id;
 
     // Ping to self
-    if (srcDev.ip === targetIp) return { success: true, hops: [targetIp], reason: 'Echo reply from self' };
+    if (srcDev.ip === targetIp) {
+      this.recordIcmpExchange(srcDev, srcDev, srcDev.ip, targetIp, true, [targetIp]);
+      return { success: true, hops: [targetIp], reason: 'Echo reply from self' };
+    }
     for (const intf of Object.values(srcDev.interfaces)) {
-      if (intf.ip === targetIp && !intf.shutdown) return { success: true, hops: [targetIp], reason: 'Echo reply from self' };
+      if (intf.ip === targetIp && !intf.shutdown) {
+        this.recordIcmpExchange(srcDev, srcDev, intf.ip, targetIp, true, [targetIp]);
+        return { success: true, hops: [targetIp], reason: 'Echo reply from self' };
+      }
     }
 
     // Check if destination device exists directly in local topology
@@ -279,18 +287,21 @@ class NetworkSimulator {
     const inetCloud = Object.values(this.devices).find(d => this.isInternetDevice(d) && d.powerOn);
 
     if (!dstInfo && !inetCloud) {
+      this.recordIcmpExchange(srcDev, null, srcDev.ip || '0.0.0.0', targetIp, false, []);
       return { success: false, hops, reason: 'Destination host unreachable (no device has this IP)' };
     }
 
     // Step 1: Forward path (src -> dst or src -> internet_cloud)
     const forwardPath = this.routePacket(srcDevId, targetIp);
     if (!forwardPath.success) {
+      this.recordIcmpExchange(srcDev, dstInfo?.device, srcDev.ip || '0.0.0.0', targetIp, false, forwardPath.hops);
       return { success: false, hops: forwardPath.hops, reason: forwardPath.reason };
     }
 
     // If destination was Het Internet cloud simulator, echo reply is guaranteed!
     if (forwardPath.isInternet || !dstInfo) {
       hops.push(...forwardPath.hops);
+      this.recordIcmpExchange(srcDev, inetCloud, srcDev.ip || '192.168.1.10', targetIp, true, forwardPath.hops);
       return { success: true, hops: forwardPath.hops, reason: 'Echo reply from Het Internet' };
     }
 
@@ -307,8 +318,13 @@ class NetworkSimulator {
 
     const returnPath = this.routePacket(dstInfo.device.id, srcIp);
     if (!returnPath.success) {
+      this.recordIcmpExchange(srcDev, dstInfo.device, srcIp, targetIp, false, forwardPath.hops);
       return { success: false, hops: forwardPath.hops, reason: 'Echo request reached destination, but reply route failed' };
     }
+
+    // Successful ICMP ping! Record both ARP resolution and ICMP Echo packets
+    this.recordArpExchange(srcDev, dstInfo.device, srcIp, targetIp);
+    this.recordIcmpExchange(srcDev, dstInfo.device, srcIp, targetIp, true, forwardPath.hops);
 
     return { success: true, hops: forwardPath.hops, reason: 'Success' };
   }
@@ -356,6 +372,7 @@ class NetworkSimulator {
     if (!rec) {
       return { success: false, reason: `Host Name Unresolved: '${cleanHost}' not found in DNS zone` };
     }
+    this.recordDnsExchange(srcDev, dstInfo.device, cleanHost, rec.ip);
     return { success: true, ip: rec.ip, dnsServerIp: dnsIp };
   }
 
@@ -437,10 +454,12 @@ class NetworkSimulator {
     const srvHttp = dstInfo.device.services.http;
     let requestedFileName = pathPart.replace(/^\/+/, '');
     if (!requestedFileName || requestedFileName === 'index.html') {
+      const respHtml = srvHttp.content || (srvHttp.files && srvHttp.files['index.html']) || '<h1>PXL Web Server</h1>';
+      this.recordHttpExchange(this.devices[srcDevId], dstDev, (this.devices[srcDevId]?.ip || '192.168.1.10'), targetIp, 'GET', pathPart, 200, respHtml);
       return {
         success: true,
         targetIp: targetIp,
-        html: srvHttp.content || (srvHttp.files && srvHttp.files['index.html']) || '<h1>PXL Web Server</h1>'
+        html: respHtml
       };
     }
 
@@ -692,6 +711,405 @@ class NetworkSimulator {
         this.addCable(c);
       });
     }
+  }
+
+  // --- PACKET CAPTURE & PROTOCOL ANALYSIS (WIRESHARK & PACKET TRACER OSI ENGINE) ---
+
+  logPacket(packet) {
+    if (!this.captureActive) return;
+    if (!this.packetCaptureLog) this.packetCaptureLog = [];
+    packet.id = this.packetCaptureLog.length + 1;
+    packet.timestamp = packet.timestamp !== undefined ? packet.timestamp : (this.packetCaptureLog.length * 0.00142);
+    if (!packet.timeFormatted) {
+      const d = new Date();
+      packet.timeFormatted = `${d.toTimeString().split(' ')[0]}.${String(d.getMilliseconds()).padStart(3, '0')}`;
+    }
+    this.packetCaptureLog.push(packet);
+    if (this.packetCaptureLog.length > 1000) {
+      this.packetCaptureLog.shift();
+    }
+    if (typeof window !== 'undefined' && window.PXLWireshark && typeof window.PXLWireshark.render === 'function') {
+      const tb = document.getElementById('wsPacketTableBody');
+      if (tb) {
+        window.PXLWireshark.render();
+      }
+    }
+  }
+
+  clearPacketLog() {
+    this.packetCaptureLog = [];
+  }
+
+  _getDevMac(dev) {
+    if (!dev) return '00:19:5e:3b:00:01';
+    const raw = dev.interfaces?.['FastEthernet0']?.mac || dev.interfaces?.['Vlan1']?.mac || Object.values(dev.interfaces || {}).find(i => i.mac)?.mac || '0050.7966.6801';
+    const clean = raw.replace(/[^0-9a-fA-F]/g, '');
+    const parts = [];
+    for (let i = 0; i < 12 && i < clean.length; i += 2) {
+      parts.push(clean.substr(i, 2));
+    }
+    while (parts.length < 6) parts.push('00');
+    return parts.join(':').toLowerCase();
+  }
+
+  recordArpExchange(srcDev, dstDev, srcIp, dstIp) {
+    const srcMac = this._getDevMac(srcDev);
+    const dstMac = this._getDevMac(dstDev);
+    const srcName = srcDev ? (srcDev.hostname || srcDev.id) : 'Host';
+    const dstName = dstDev ? (dstDev.hostname || dstDev.id) : 'Host';
+
+    // 1. ARP Request (Broadcast)
+    this.logPacket({
+      srcDevId: srcDev?.id,
+      srcDevName: srcName,
+      dstDevId: 'broadcast',
+      dstDevName: 'Broadcast',
+      ingressPort: 'FastEthernet0',
+      egressPort: 'FastEthernet0',
+      protocol: 'ARP',
+      length: 60,
+      srcIp: srcIp,
+      dstIp: dstIp,
+      info: `Who has ${dstIp}? Tell ${srcIp}`,
+      summary: `ARP Request for ${dstIp}`,
+      l2: {
+        type: 'Ethernet II',
+        srcMac: srcMac,
+        dstMac: 'ff:ff:ff:ff:ff:ff',
+        etherType: '0x0806',
+        fcs: '0x4a3b1c2d'
+      },
+      l3: {
+        arp: {
+          hwType: 1,
+          protoType: '0x0800',
+          hwSize: 6,
+          protoSize: 4,
+          opcode: 1, // Request
+          senderMac: srcMac,
+          senderIp: srcIp,
+          targetMac: '00:00:00:00:00:00',
+          targetIp: dstIp
+        }
+      }
+    });
+
+    // 2. ARP Reply (Unicast) if destination known
+    if (dstDev) {
+      this.logPacket({
+        srcDevId: dstDev.id,
+        srcDevName: dstName,
+        dstDevId: srcDev?.id,
+        dstDevName: srcName,
+        ingressPort: 'FastEthernet0',
+        egressPort: 'FastEthernet0',
+        protocol: 'ARP',
+        length: 60,
+        srcIp: dstIp,
+        dstIp: srcIp,
+        info: `${dstIp} is at ${dstMac}`,
+        summary: `ARP Reply from ${dstName}`,
+        l2: {
+          type: 'Ethernet II',
+          srcMac: dstMac,
+          dstMac: srcMac,
+          etherType: '0x0806',
+          fcs: '0x7e2a9b1c'
+        },
+        l3: {
+          arp: {
+            hwType: 1,
+            protoType: '0x0800',
+            hwSize: 6,
+            protoSize: 4,
+            opcode: 2, // Reply
+            senderMac: dstMac,
+            senderIp: dstIp,
+            targetMac: srcMac,
+            targetIp: srcIp
+          }
+        }
+      });
+    }
+  }
+
+  recordIcmpExchange(srcDev, dstDev, srcIp, dstIp, success, hops = []) {
+    const srcMac = this._getDevMac(srcDev);
+    const dstMac = this._getDevMac(dstDev);
+    const srcName = srcDev ? (srcDev.hostname || srcDev.id) : 'Host';
+    const dstName = dstDev ? (dstDev.hostname || dstDev.id) : 'Destination';
+    const ttlReply = hops.length > 1 ? Math.max(1, 128 - hops.length + 1) : 128;
+
+    for (let seq = 1; seq <= 4; seq++) {
+      // 1. Echo Request
+      this.logPacket({
+        srcDevId: srcDev?.id,
+        srcDevName: srcName,
+        dstDevId: dstDev?.id,
+        dstDevName: dstName,
+        ingressPort: 'FastEthernet0',
+        egressPort: 'FastEthernet0',
+        protocol: 'ICMP',
+        length: 74,
+        srcIp: srcIp,
+        dstIp: dstIp,
+        info: `Echo (ping) request  id=0x0001, seq=${seq}/256, ttl=128`,
+        summary: `ICMP Echo Request (seq=${seq})`,
+        l2: {
+          type: 'Ethernet II',
+          srcMac: srcMac,
+          dstMac: dstMac,
+          etherType: '0x0800',
+          fcs: '0x4a3b1c2d'
+        },
+        l3: {
+          version: 4,
+          ttl: 128,
+          protocol: 'ICMP',
+          srcIp: srcIp,
+          dstIp: dstIp
+        },
+        l4: {
+          type: 8, // Echo Request
+          code: 0,
+          id: 1,
+          seq: seq
+        }
+      });
+
+      // 2. Echo Reply or Destination Unreachable
+      if (success) {
+        this.logPacket({
+          srcDevId: dstDev?.id,
+          srcDevName: dstName,
+          dstDevId: srcDev?.id,
+          dstDevName: srcName,
+          ingressPort: 'FastEthernet0',
+          egressPort: 'FastEthernet0',
+          protocol: 'ICMP',
+          length: 74,
+          srcIp: dstIp,
+          dstIp: srcIp,
+          info: `Echo (ping) reply    id=0x0001, seq=${seq}/256, ttl=${ttlReply}`,
+          summary: `ICMP Echo Reply (seq=${seq})`,
+          l2: {
+            type: 'Ethernet II',
+            srcMac: dstMac,
+            dstMac: srcMac,
+            etherType: '0x0800',
+            fcs: '0x8b21c43d'
+          },
+          l3: {
+            version: 4,
+            ttl: ttlReply,
+            protocol: 'ICMP',
+            srcIp: dstIp,
+            dstIp: srcIp
+          },
+          l4: {
+            type: 0, // Echo Reply
+            code: 0,
+            id: 1,
+            seq: seq
+          }
+        });
+      } else {
+        this.logPacket({
+          srcDevId: dstDev?.id || 'gateway',
+          srcDevName: dstName || 'Router',
+          dstDevId: srcDev?.id,
+          dstDevName: srcName,
+          ingressPort: 'FastEthernet0',
+          egressPort: 'FastEthernet0',
+          protocol: 'ICMP',
+          length: 74,
+          srcIp: dstIp || '0.0.0.0',
+          dstIp: srcIp,
+          info: `Destination host unreachable (Request timed out)`,
+          summary: `ICMP Destination Unreachable`,
+          l2: {
+            type: 'Ethernet II',
+            srcMac: dstMac,
+            dstMac: srcMac,
+            etherType: '0x0800',
+            fcs: '0xffffffff'
+          },
+          l3: {
+            version: 4,
+            ttl: 64,
+            protocol: 'ICMP',
+            srcIp: dstIp,
+            dstIp: srcIp
+          },
+          l4: {
+            type: 3, // Destination Unreachable
+            code: 1,
+            id: 1,
+            seq: seq
+          }
+        });
+      }
+    }
+  }
+
+  recordTcpHandshake(srcDev, dstDev, srcIp, dstIp, dstPort = 80, appName = 'HTTP') {
+    const srcMac = this._getDevMac(srcDev);
+    const dstMac = this._getDevMac(dstDev);
+    const srcName = srcDev ? (srcDev.hostname || srcDev.id) : 'Client';
+    const dstName = dstDev ? (dstDev.hostname || dstDev.id) : 'Server';
+    const srcPort = 49152;
+
+    // SYN
+    this.logPacket({
+      srcDevId: srcDev?.id, srcDevName: srcName, dstDevId: dstDev?.id, dstDevName: dstName,
+      ingressPort: 'FastEthernet0', egressPort: 'FastEthernet0',
+      protocol: 'TCP', length: 66, srcIp, dstIp,
+      info: `${srcPort} → ${dstPort} [SYN] Seq=0 Win=65535 Len=0 MSS=1460`,
+      l2: { type: 'Ethernet II', srcMac, dstMac, etherType: '0x0800', fcs: '0x1a2b3c4d' },
+      l3: { version: 4, ttl: 128, protocol: 'TCP', srcIp, dstIp },
+      l4: { srcPort, dstPort, seq: 0, ack: 0, flags: { syn: 1 } }
+    });
+
+    // SYN-ACK
+    this.logPacket({
+      srcDevId: dstDev?.id, srcDevName: dstName, dstDevId: srcDev?.id, dstDevName: srcName,
+      ingressPort: 'FastEthernet0', egressPort: 'FastEthernet0',
+      protocol: 'TCP', length: 66, srcIp: dstIp, dstIp: srcIp,
+      info: `${dstPort} → ${srcPort} [SYN, ACK] Seq=0 Ack=1 Win=65535 Len=0 MSS=1460`,
+      l2: { type: 'Ethernet II', srcMac: dstMac, dstMac: srcMac, etherType: '0x0800', fcs: '0x5e6f7a8b' },
+      l3: { version: 4, ttl: 128, protocol: 'TCP', srcIp: dstIp, dstIp: srcIp },
+      l4: { srcPort: dstPort, dstPort: srcPort, seq: 0, ack: 1, flags: { syn: 1, ack: 1 } }
+    });
+
+    // ACK
+    this.logPacket({
+      srcDevId: srcDev?.id, srcDevName: srcName, dstDevId: dstDev?.id, dstDevName: dstName,
+      ingressPort: 'FastEthernet0', egressPort: 'FastEthernet0',
+      protocol: 'TCP', length: 54, srcIp, dstIp,
+      info: `${srcPort} → ${dstPort} [ACK] Seq=1 Ack=1 Win=65535 Len=0`,
+      l2: { type: 'Ethernet II', srcMac, dstMac, etherType: '0x0800', fcs: '0x9c0d1e2f' },
+      l3: { version: 4, ttl: 128, protocol: 'TCP', srcIp, dstIp },
+      l4: { srcPort, dstPort, seq: 1, ack: 1, flags: { ack: 1 } }
+    });
+  }
+
+  recordHttpExchange(srcDev, dstDev, srcIp, dstIp, method = 'GET', path = '/index.html', status = 200, htmlBody = '') {
+    this.recordTcpHandshake(srcDev, dstDev, srcIp, dstIp, 80, 'HTTP');
+    const srcMac = this._getDevMac(srcDev);
+    const dstMac = this._getDevMac(dstDev);
+    const srcName = srcDev ? (srcDev.hostname || srcDev.id) : 'Client';
+    const dstName = dstDev ? (dstDev.hostname || dstDev.id) : 'Server';
+    const srcPort = 49152;
+
+    // HTTP Request
+    const reqPayload = `${method} ${path} HTTP/1.1\r\nHost: ${dstIp}\r\nUser-Agent: PXL-NetSim/2026\r\nAccept: text/html\r\n\r\n`;
+    this.logPacket({
+      srcDevId: srcDev?.id, srcDevName: srcName, dstDevId: dstDev?.id, dstDevName: dstName,
+      ingressPort: 'FastEthernet0', egressPort: 'FastEthernet0',
+      protocol: 'HTTP', length: 54 + reqPayload.length, srcIp, dstIp,
+      info: `${method} ${path} HTTP/1.1`,
+      l2: { type: 'Ethernet II', srcMac, dstMac, etherType: '0x0800', fcs: '0x22334455' },
+      l3: { version: 4, ttl: 128, protocol: 'TCP', srcIp, dstIp },
+      l4: { srcPort, dstPort: 80, seq: 1, ack: 1, flags: { psh: 1, ack: 1 } },
+      l7: { payload: reqPayload }
+    });
+
+    // HTTP Response
+    const respHeader = `HTTP/1.1 ${status} OK\r\nServer: PXL-NetSim-Web/2.1\r\nContent-Type: text/html\r\nContent-Length: ${htmlBody.length || 320}\r\n\r\n`;
+    const respPayload = respHeader + (htmlBody.slice(0, 300) || '<h1>PXL Web NetSim</h1>');
+    this.logPacket({
+      srcDevId: dstDev?.id, srcDevName: dstName, dstDevId: srcDev?.id, dstDevName: srcName,
+      ingressPort: 'FastEthernet0', egressPort: 'FastEthernet0',
+      protocol: 'HTTP', length: 54 + respPayload.length, srcIp: dstIp, dstIp: srcIp,
+      info: `HTTP/1.1 200 OK  (text/html)`,
+      l2: { type: 'Ethernet II', srcMac: dstMac, dstMac: srcMac, etherType: '0x0800', fcs: '0x66778899' },
+      l3: { version: 4, ttl: 128, protocol: 'TCP', srcIp: dstIp, dstIp: srcIp },
+      l4: { srcPort: 80, dstPort: srcPort, seq: 1, ack: 1 + reqPayload.length, flags: { psh: 1, ack: 1 } },
+      l7: { payload: respPayload }
+    });
+  }
+
+  recordDnsExchange(srcDev, dnsDev, domainName, resolvedIp) {
+    const srcMac = this._getDevMac(srcDev);
+    const dstMac = this._getDevMac(dnsDev);
+    const srcName = srcDev ? (srcDev.hostname || srcDev.id) : 'Client';
+    const dstName = dnsDev ? (dnsDev.hostname || dnsDev.id) : 'DNS-Server';
+    const srcIp = srcDev?.ip || '192.168.1.10';
+    const dnsIp = dnsDev?.ip || srcDev?.dns || '8.8.8.8';
+
+    // DNS Query
+    this.logPacket({
+      srcDevId: srcDev?.id, srcDevName: srcName, dstDevId: dnsDev?.id, dstDevName: dstName,
+      ingressPort: 'FastEthernet0', egressPort: 'FastEthernet0',
+      protocol: 'DNS', length: 73, srcIp, dstIp: dnsIp,
+      info: `Standard query 0x1a2b A ${domainName}`,
+      l2: { type: 'Ethernet II', srcMac, dstMac, etherType: '0x0800', fcs: '0xda12bc34' },
+      l3: { version: 4, ttl: 128, protocol: 'UDP', srcIp, dstIp: dnsIp },
+      l4: { srcPort: 53211, dstPort: 53 }
+    });
+
+    // DNS Response
+    this.logPacket({
+      srcDevId: dnsDev?.id, srcDevName: dstName, dstDevId: srcDev?.id, dstDevName: srcName,
+      ingressPort: 'FastEthernet0', egressPort: 'FastEthernet0',
+      protocol: 'DNS', length: 89, srcIp: dnsIp, dstIp: srcIp,
+      info: `Standard query response 0x1a2b A ${domainName} A ${resolvedIp}`,
+      l2: { type: 'Ethernet II', srcMac: dstMac, dstMac: srcMac, etherType: '0x0800', fcs: '0xef45cd67' },
+      l3: { version: 4, ttl: 128, protocol: 'UDP', srcIp: dnsIp, dstIp: srcIp },
+      l4: { srcPort: 53, dstPort: 53211 }
+    });
+  }
+
+  recordDhcpExchange(srcDev, serverDev, assignedIp = '192.168.1.50') {
+    const srcMac = this._getDevMac(srcDev);
+    const srvMac = this._getDevMac(serverDev);
+    const srcName = srcDev ? (srcDev.hostname || srcDev.id) : 'Client';
+    const srvName = serverDev ? (serverDev.hostname || serverDev.id) : 'DHCP-Server';
+    const srvIp = serverDev?.ip || '192.168.1.1';
+
+    // Discover
+    this.logPacket({
+      srcDevId: srcDev?.id, srcDevName: srcName, dstDevId: 'broadcast', dstDevName: 'Broadcast',
+      ingressPort: 'FastEthernet0', egressPort: 'FastEthernet0',
+      protocol: 'DHCP', length: 342, srcIp: '0.0.0.0', dstIp: '255.255.255.255',
+      info: `DHCP Discover - Transaction ID 0x39a2c1f4`,
+      l2: { type: 'Ethernet II', srcMac, dstMac: 'ff:ff:ff:ff:ff:ff', etherType: '0x0800', fcs: '0x33441122' },
+      l3: { version: 4, ttl: 128, protocol: 'UDP', srcIp: '0.0.0.0', dstIp: '255.255.255.255' },
+      l4: { srcPort: 68, dstPort: 67 }
+    });
+
+    // Offer
+    this.logPacket({
+      srcDevId: serverDev?.id, srcDevName: srvName, dstDevId: srcDev?.id, dstDevName: srcName,
+      ingressPort: 'FastEthernet0', egressPort: 'FastEthernet0',
+      protocol: 'DHCP', length: 342, srcIp: srvIp, dstIp: assignedIp,
+      info: `DHCP Offer    - ${assignedIp} offered to ${srcMac}`,
+      l2: { type: 'Ethernet II', srcMac: srvMac, dstMac, etherType: '0x0800', fcs: '0x77882233' },
+      l3: { version: 4, ttl: 128, protocol: 'UDP', srcIp: srvIp, dstIp: assignedIp },
+      l4: { srcPort: 67, dstPort: 68 }
+    });
+
+    // Request
+    this.logPacket({
+      srcDevId: srcDev?.id, srcDevName: srcName, dstDevId: 'broadcast', dstDevName: 'Broadcast',
+      ingressPort: 'FastEthernet0', egressPort: 'FastEthernet0',
+      protocol: 'DHCP', length: 342, srcIp: '0.0.0.0', dstIp: '255.255.255.255',
+      info: `DHCP Request  - Requesting ${assignedIp} from ${srvIp}`,
+      l2: { type: 'Ethernet II', srcMac, dstMac: 'ff:ff:ff:ff:ff:ff', etherType: '0x0800', fcs: '0x99aa3344' },
+      l3: { version: 4, ttl: 128, protocol: 'UDP', srcIp: '0.0.0.0', dstIp: '255.255.255.255' },
+      l4: { srcPort: 68, dstPort: 67 }
+    });
+
+    // ACK
+    this.logPacket({
+      srcDevId: serverDev?.id, srcDevName: srvName, dstDevId: srcDev?.id, dstDevName: srcName,
+      ingressPort: 'FastEthernet0', egressPort: 'FastEthernet0',
+      protocol: 'DHCP', length: 342, srcIp: srvIp, dstIp: assignedIp,
+      info: `DHCP ACK      - ${assignedIp} assigned to ${srcMac}`,
+      l2: { type: 'Ethernet II', srcMac: srvMac, dstMac, etherType: '0x0800', fcs: '0xbbcc4455' },
+      l3: { version: 4, ttl: 128, protocol: 'UDP', srcIp: srvIp, dstIp: assignedIp },
+      l4: { srcPort: 67, dstPort: 68 }
+    });
   }
 }
 

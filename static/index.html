@@ -59,6 +59,9 @@
         </button>
       </div>
 
+      <button class="pt-btn pt-btn-secondary" id="btnOpenGlobalWireshark" onclick="window.PXLApp.openGlobalWireshark()" title="Open Wireshark Protocol Analyzer & OSI / PDU Inspector">
+        🦈 Wireshark
+      </button>
       <button class="pt-btn pt-btn-secondary" id="btnShowRubric">
         📊 Rubric
       </button>
@@ -102,6 +105,12 @@
       </button>
       <button class="pt-tool-btn" onclick="window.PXLApp.canvasWorkspace.resetZoom()">
         <span>🎯 Reset Zoom</span>
+      </button>
+    </div>
+
+    <div class="pt-tool-group">
+      <button class="pt-tool-btn" id="toolTogglePortLabels" onclick="window.PXLApp.canvasWorkspace.togglePortLabels()" title="Poortlabels aan/uit zetten">
+        <span id="portLabelsToggleText">🏷️ Poorten: Aan</span>
       </button>
     </div>
 
@@ -242,11 +251,12 @@
   <script src="js/network_simulator.js?v=20261111_v5"></script>
   <script src="js/cabling_engine.js?v=20261111_v5"></script>
   <script src="js/canvas_workspace.js?v=20261111_v5"></script>
-  <script src="js/course_labs.js?v=20261111_v5"></script>
-  <script src="js/grading_engine.js?v=20261111_v5"></script>
-  <script src="js/submission_exporter.js?v=20261111_v5"></script>
-  <script src="js/teacher_studio.js?v=20261111_v5"></script>
-  <script src="js/app.js?v=20261111_v5"></script>
+  <script src="js/wireshark_app.js?v=20261111_v6"></script>
+  <script src="js/course_labs.js?v=20261111_v6"></script>
+  <script src="js/grading_engine.js?v=20261111_v6"></script>
+  <script src="js/submission_exporter.js?v=20261111_v6"></script>
+  <script src="js/teacher_studio.js?v=20261111_v6"></script>
+  <script src="js/app.js?v=20261111_v6"></script>
 
 </body>
 </html>

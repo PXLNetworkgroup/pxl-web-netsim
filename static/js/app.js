@@ -394,7 +394,9 @@ class PXLNetSimApp {
   }
 
   // --- DEVICE MODAL (PHYSICAL / CONFIG / CLI / DESKTOP) ---
-  openDeviceModal(device) {
+  openDeviceModal(deviceOrId) {
+    const device = (typeof deviceOrId === 'string') ? (this.sim ? this.sim.devices[deviceOrId] : null) : deviceOrId;
+    if (!device) return;
     this.activeDevice = device;
     const modal = document.getElementById('deviceModal');
     if (!modal) return;
@@ -1022,6 +1024,10 @@ class PXLNetSimApp {
           <div class="pt-desktop-app-icon">🌐</div>
           <span>Web Browser</span>
         </div>
+        <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('wireshark')">
+          <div class="pt-desktop-app-icon" style="background: #0f172a; color: #38bdf8; font-weight: 900; font-size: 16px; border: 1px solid #0284c7; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">🦈</div>
+          <span>Wireshark</span>
+        </div>
         ${dev.type === 'laptop' ? `
           <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('wireless')">
             <div class="pt-desktop-app-icon">📶</div>
@@ -1276,6 +1282,13 @@ Type 'help', 'ip a', or 'python3' to get started.
           if (e.key === 'Enter') this.browseToUrl();
         };
       }
+    } else if (appKey === 'wireshark') {
+      if (window.WiresharkApp) {
+        const ws = new window.WiresharkApp(dev, { containerId: 'pcAppContainer' });
+        ws.render();
+      } else {
+        viewport.innerHTML = `<div style="padding:20px; color:#fff;">Wireshark module niet geladen.</div>`;
+      }
     }
   }
 
@@ -1338,6 +1351,33 @@ Type 'help', 'ip a', or 'python3' to get started.
     if (studioSel) studioSel.value = enabled ? 'true' : 'false';
     if (this.activeDevice && this.activeDevice.type === 'internet_cloud') {
       this.renderCliTab();
+    }
+  }
+
+  openGlobalWireshark() {
+    let modal = document.getElementById('globalWiresharkModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'globalWiresharkModal';
+      modal.className = 'pt-modal';
+      modal.style.zIndex = '9999';
+      modal.innerHTML = `
+        <div class="pt-modal-dialog" style="width: 92vw; max-width: 1250px; height: 85vh; display: flex; flex-direction: column; background: #0f172a; border-radius: 8px; border: 1px solid #334155; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); overflow: hidden;">
+          <div style="background: #1e293b; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
+            <div style="display: flex; align-items: center; gap: 8px; color: #38bdf8; font-weight: 700; font-size: 14px;">
+              <span>🦈 Wireshark Protocol Analyzer &amp; OSI Inspector (Topologie Capture)</span>
+            </div>
+            <button class="pt-btn-close" onclick="document.getElementById('globalWiresharkModal').classList.remove('active')">✕</button>
+          </div>
+          <div id="globalWiresharkViewport" style="flex: 1; overflow: hidden; height: calc(85vh - 45px);"></div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+    modal.classList.add('active');
+    if (window.WiresharkApp) {
+      const ws = new window.WiresharkApp(null, { isGlobal: true, containerId: 'globalWiresharkViewport' });
+      ws.render();
     }
   }
 
