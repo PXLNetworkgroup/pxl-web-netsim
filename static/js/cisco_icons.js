@@ -217,6 +217,48 @@ const CiscoIcons = {
       <ellipse cx="42" cy="30" rx="5" ry="11" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
       <line x1="31" y1="30" x2="53" y2="30" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
       <text x="42" y="55" font-family="Arial, sans-serif" font-weight="bold" font-size="7.5" fill="#0369a1" text-anchor="middle">INTERNET</text>
+    </svg>`,
+
+  // HPE Aruba 2530 / 2930F Managed Switch
+  hpe_switch: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 78 56" width="78" height="56">
+      <defs>
+        <linearGradient id="hpeGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#334155"/>
+          <stop offset="50%" stop-color="#1e293b"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+      </defs>
+      <!-- Switch Chassis -->
+      <rect x="3" y="8" width="72" height="40" rx="4" ry="4" fill="url(#hpeGrad)" stroke="#475569" stroke-width="1.5"/>
+      <!-- Aruba Orange Accent Bar -->
+      <rect x="3" y="8" width="72" height="4" rx="2" fill="#ff7900"/>
+      <!-- Port Matrix (2 Rows of Ports) -->
+      <g fill="#020617" stroke="#64748b" stroke-width="0.5">
+        <rect x="8" y="16" width="6" height="5" rx="1"/>
+        <rect x="16" y="16" width="6" height="5" rx="1"/>
+        <rect x="24" y="16" width="6" height="5" rx="1"/>
+        <rect x="32" y="16" width="6" height="5" rx="1"/>
+        <rect x="40" y="16" width="6" height="5" rx="1"/>
+        <rect x="48" y="16" width="6" height="5" rx="1"/>
+        
+        <rect x="8" y="24" width="6" height="5" rx="1"/>
+        <rect x="16" y="24" width="6" height="5" rx="1"/>
+        <rect x="24" y="24" width="6" height="5" rx="1"/>
+        <rect x="32" y="24" width="6" height="5" rx="1"/>
+        <rect x="40" y="24" width="6" height="5" rx="1"/>
+        <rect x="48" y="24" width="6" height="5" rx="1"/>
+      </g>
+      <!-- SFP Slots (4x) -->
+      <g fill="#1e1b4b" stroke="#818cf8" stroke-width="0.75">
+        <rect x="58" y="16" width="5" height="13" rx="1"/>
+        <rect x="65" y="16" width="5" height="13" rx="1"/>
+      </g>
+      <!-- Status LEDs -->
+      <circle cx="8" cy="34" r="1.2" fill="#22c55e"/>
+      <circle cx="12" cy="34" r="1.2" fill="#22c55e"/>
+      <circle cx="16" cy="34" r="1.2" fill="#38bdf8"/>
+      <!-- Brand Text -->
+      <text x="39" y="44" font-family="Arial, sans-serif" font-weight="900" font-size="7" fill="#ff7900" text-anchor="middle">aruba</text>
     </svg>`
 };
 
@@ -227,6 +269,9 @@ function getCiscoDeviceIcon(type, model = "") {
   const t = (type || "").toLowerCase();
   const m = (model || "").toLowerCase();
 
+  if (t === 'hpe_switch' || m.includes('aruba') || m.includes('hpe') || m.includes('2530') || m.includes('2930')) {
+    return CiscoIcons.hpe_switch;
+  }
   if (t === 'router') return CiscoIcons.router;
   if (t === 'switch') {
     if (m.includes('3560') || m.includes('layer3') || m.includes('l3')) {

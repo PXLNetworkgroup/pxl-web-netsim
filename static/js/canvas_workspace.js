@@ -128,6 +128,7 @@ class CanvasWorkspace {
     let prefix = 'Device';
     if (type === 'router') prefix = 'Router';
     if (type === 'switch') prefix = 'Switch';
+    if (type === 'hpe_switch') prefix = 'Aruba';
     if (type === 'pc') prefix = 'PC';
     if (type === 'laptop') prefix = 'Laptop';
     if (type === 'server') prefix = 'Server';

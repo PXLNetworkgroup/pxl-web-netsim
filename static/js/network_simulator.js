@@ -92,6 +92,21 @@ class NetworkSimulator {
     }
   }
 
+  getConsoleConnection(devId) {
+    for (const cable of this.cables) {
+      if (cable.type === 'console') {
+        if (cable.fromDevice === devId) {
+          const targetDev = this.devices[cable.toDevice];
+          if (targetDev) return { localPort: cable.fromPort, targetDevice: targetDev, targetPort: cable.toPort, cable };
+        } else if (cable.toDevice === devId) {
+          const targetDev = this.devices[cable.fromDevice];
+          if (targetDev) return { localPort: cable.toPort, targetDevice: targetDev, targetPort: cable.fromPort, cable };
+        }
+      }
+    }
+    return null;
+  }
+
   /**
    * Evaluates if a physical link is active and operational (UP/UP)
    */
@@ -111,6 +126,10 @@ class NetworkSimulator {
 
     const peerDev = this.devices[peer.deviceId];
     if (!peerDev || !peerDev.powerOn) return false;
+
+    if (peer.cable && peer.cable.type === 'console') {
+      return true;
+    }
 
     const intf = dev.interfaces[portName];
     const peerIntf = peerDev.interfaces[peer.portName];
@@ -366,7 +385,35 @@ class NetworkSimulator {
     }
 
     const dstInfo = this.findDeviceByIp(targetIp);
-    if (!dstInfo || !dstInfo.device.services || !dstInfo.device.services.http || !dstInfo.device.services.http.enabled) {
+    if (!dstInfo) {
+      return { success: false, reason: `Destination host unreachable: ${targetIp}` };
+    }
+
+    const dstDev = dstInfo.device;
+
+    // 1. MikroTik RouterOS WebFig (HTTP Port 80)
+    if (dstDev.type === 'mikrotik') {
+      const isWwwOn = dstDev.mikrotikConfig?.services?.www?.enabled !== false;
+      if (!isWwwOn) {
+        return { success: false, reason: `Connection Refused: WebFig (HTTP port 80) is uitgeschakeld op ${dstDev.hostname}` };
+      }
+      if (typeof renderMikroTikWebFigHtml === 'function') {
+        return { success: true, targetIp, html: renderMikroTikWebFigHtml(dstDev) };
+      }
+    }
+
+    // 2. HPE Aruba Switch Web Management (HTTP Port 80)
+    if (dstDev.type === 'hpe_switch' || (dstDev.hpeConfig && dstDev.hpeConfig.webManagement)) {
+      const isWebOn = dstDev.hpeConfig?.webManagement?.enabled !== false;
+      if (!isWebOn) {
+        return { success: false, reason: `Connection Refused: HPE Web Management is uitgeschakeld op ${dstDev.hostname}` };
+      }
+      if (typeof renderHpeWebInterfaceHtml === 'function') {
+        return { success: true, targetIp, html: renderHpeWebInterfaceHtml(dstDev) };
+      }
+    }
+
+    if (!dstDev.services || !dstDev.services.http || !dstDev.services.http.enabled) {
       return { success: false, reason: `Connection Refused: HTTP web service inactive on ${targetIp}` };
     }
 

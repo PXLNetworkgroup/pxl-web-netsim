@@ -16,7 +16,7 @@ class PCDesktopHandler {
     const dev = this.device;
     const line = rawLine.trim();
 
-    // If inside an active SSH session to a remote device (Cisco, MikroTik, OpenWrt)
+    // If inside an active SSH session to a remote device (Cisco, MikroTik, OpenWrt, HPE)
     if (this.activeSshSession) {
       if (line.toLowerCase() === 'exit' || line.toLowerCase() === 'quit') {
         const remoteName = this.activeSshSession.targetDev.hostname || 'remote';
@@ -29,6 +29,21 @@ class PCDesktopHandler {
       const prompt = this.activeSshSession.targetDev.getPrompt ? this.activeSshSession.targetDev.getPrompt() : '> ';
       this.updatePrompt(prompt);
       if (this.triggerScoreUpdate) this.triggerScoreUpdate();
+      return;
+    }
+
+    // If inside interactive Python REPL
+    if (this.pythonReplActive) {
+      if (line === 'exit()' || line === 'quit()' || line === 'exit' || line === 'quit') {
+        this.pythonReplActive = false;
+        this.print("");
+        this.updatePrompt('C:\\Users\\Student> ');
+        return;
+      }
+      if (window.PythonEngine && this.pythonEngine) {
+        this.pythonEngine.evalLine(line, this.print);
+        this.updatePrompt(this.pythonEngine.inMultiLine ? '... ' : '>>> ');
+      }
       return;
     }
 
@@ -63,12 +78,23 @@ class PCDesktopHandler {
       case 'ftp':
         this.handleFtp(parts.slice(1));
         break;
+      case 'python':
+      case 'python3':
+        this.pythonReplActive = true;
+        if (!this.pythonEngine && window.PythonEngine) {
+          this.pythonEngine = new window.PythonEngine(this.device);
+        }
+        this.print("Python 3.12.3 (main, Mar 10 2026, 12:45:10) [MSC v.1938 64 bit (AMD64)] on win32");
+        this.print('Type "help", "copyright", "credits" or "license" for more information.');
+        this.print("Type 'exit()' or 'quit()' to exit Python.\n");
+        this.updatePrompt('>>> ');
+        return;
       case 'cls':
       case 'clear':
         if (window.PXLApp) window.PXLApp.clearActiveTerminal();
         break;
       case 'help':
-        this.print("Supported commands: ipconfig, ipconfig /all, ping <ip>, tracert <ip>, nslookup <domain>, ssh [-l user] <ip>, ftp <target>, cls");
+        this.print("Supported commands: ipconfig, ipconfig /all, ping <ip>, tracert <ip>, nslookup <domain>, ssh [-l user] <ip>, python, ftp <target>, cls");
         break;
       default:
         this.print(`'${cmd}' is not recognized as an internal or external command.`);
@@ -158,7 +184,22 @@ class PCDesktopHandler {
       return;
     }
 
-    // 3. Cisco Switch / Router SSH
+    // 3. HPE Switch SSH
+    if (targetDev.type === 'hpe_switch') {
+      this.print(`\nHPE ArubaOS-S Switch Software (c) Copyright 2026 Hewlett Packard Enterprise`);
+      this.print(`Authenticated as '${user}' on ${targetDev.hostname}.\n`);
+      const parser = new HpeCLIParser(
+        targetDev,
+        this.print,
+        (p) => this.updatePrompt(p),
+        this.triggerScoreUpdate
+      );
+      this.activeSshSession = { targetDev, parser, user };
+      this.updatePrompt(parser.getPrompt());
+      return;
+    }
+
+    // 4. Cisco Switch / Router SSH
     if (targetDev.type === 'router' || targetDev.type === 'switch') {
       const vtyHasSsh = targetDev.vtyTransportInput.includes('ssh') || targetDev.vtyTransportInput === 'all';
       if (!vtyHasSsh && targetDev.vtyTransportInput !== "") {

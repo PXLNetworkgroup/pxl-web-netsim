@@ -98,17 +98,46 @@ class CablingEngine {
     title.innerText = `Kies poort op ${dev.hostname}:`;
     pop.appendChild(title);
 
+    if (this.activeCableType === 'console') {
+      const tip = document.createElement('div');
+      tip.style.fontSize = '10px';
+      tip.style.color = '#0284c7';
+      tip.style.padding = '4px 8px';
+      tip.style.background = '#e0f2fe';
+      tip.style.borderRadius = '3px';
+      tip.style.marginBottom = '6px';
+      tip.innerText = '💡 Console kabel: kies RS 232 of USB op PC, en Console op router/switch';
+      pop.appendChild(tip);
+    }
+
     const list = document.createElement('div');
     list.className = 'pt-popover-list';
 
     const sim = window.PXLNetworkSim;
-    const ports = Object.keys(dev.interfaces);
+    let ports = Object.keys(dev.interfaces);
+
+    if (this.activeCableType === 'console') {
+      const isConsoleType = (p) => p === 'Console' || p === 'Aux' || p === 'RS 232' || p === 'USB0';
+      ports.sort((a, b) => (isConsoleType(b) ? 1 : 0) - (isConsoleType(a) ? 1 : 0));
+    }
 
     ports.forEach(pName => {
       const isUsed = sim.getCableOnPort(dev.id, pName);
+      const isConsolePreferred = (this.activeCableType === 'console') && (pName === 'Console' || pName === 'Aux' || pName === 'RS 232' || pName === 'USB0');
       const item = document.createElement('button');
       item.className = `pt-port-item ${isUsed ? 'disabled' : ''}`;
-      item.innerText = `${pName} ${isUsed ? '(in gebruik)' : ''}`;
+      if (isConsolePreferred) {
+        item.style.fontWeight = 'bold';
+        item.style.color = '#0284c7';
+        item.style.borderColor = '#38bdf8';
+      }
+      
+      let displayLabel = pName;
+      if (pName === 'RS 232') displayLabel = 'RS 232 (Serial COM1)';
+      else if (pName === 'USB0') displayLabel = 'USB0 (USB Console)';
+      else if (pName === 'Console') displayLabel = 'Console (RJ-45 / USB Console)';
+
+      item.innerText = `${displayLabel} ${isUsed ? '(in gebruik)' : ''}`;
       if (!isUsed) {
         item.onclick = (e) => {
           e.stopPropagation();

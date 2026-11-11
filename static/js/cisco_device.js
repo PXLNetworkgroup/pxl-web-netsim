@@ -6,11 +6,29 @@
 class CiscoDevice {
   constructor(id, type, defaultHostname, options = {}) {
     this.id = id;
-    this.type = type; // 'router', 'switch', 'pc', 'laptop', 'server', 'wireless_ap'
-    this.model = options.model || (type === 'router' ? '4331' : type === 'switch' ? '2960-24TT' : 'Standard');
+    this.type = type; // 'router', 'switch', 'hpe_switch', 'pc', 'laptop', 'server', 'wireless_ap', 'mikrotik', 'openwrt'
+    this.model = options.model || (type === 'router' ? '4331' : type === 'switch' ? '2960-24TT' : type === 'hpe_switch' ? 'Aruba-2530-24G' : 'Standard');
     this.hostname = defaultHostname || id;
     this.defaultHostname = defaultHostname || id;
     this.displayName = options.displayName || this.hostname;
+
+    // HPE Aruba Switch Configuration
+    if (this.type === 'hpe_switch') {
+      this.hpeConfig = {
+        model: this.model || 'Aruba-2530-24G',
+        hostname: this.hostname || (this.model.includes('2930') ? 'Aruba-2930F' : 'Aruba-2530'),
+        firmware: 'YA.16.11.0003',
+        webManagement: { enabled: true, port: 80, ssl: false },
+        vlans: { 1: { id: 1, name: 'DEFAULT_VLAN', ip: '192.168.1.10', mask: '255.255.255.0', untagged: Array.from({ length: 28 }, (_, i) => String(i + 1)), tagged: [] } },
+        mgmtIp: '192.168.1.10',
+        mgmtMask: '255.255.255.0',
+        defaultGateway: '192.168.1.1',
+        portConfigs: {}
+      };
+      this.ip = '192.168.1.10';
+      this.mask = '255.255.255.0';
+      this.defaultGateway = '192.168.1.1';
+    }
 
     // Canvas Position & Power State
     this.x = options.x !== undefined ? options.x : 200;
@@ -154,33 +172,52 @@ class CiscoDevice {
 
     // 1. Always generate the full hardware interface set first based on device type and model!
     if (this.type === 'router') {
-      // Cisco 4331 Router standard ports: Gi0/0/0, Gi0/0/1, Gi0/0/2, Serial0/1/0, Serial0/1/1, Vlan1
+      // Cisco 4331 Router standard ports: Gi0/0/0, Gi0/0/1, Gi0/0/2, Serial0/1/0, Serial0/1/1, Vlan1, Console, Aux
       this.interfaces = {
         'GigabitEthernet0/0/0': { ip: "", mask: "", shutdown: true, description: "", speed: 'auto', duplex: 'auto', mac: genMac('00d0.ba') },
         'GigabitEthernet0/0/1': { ip: "", mask: "", shutdown: true, description: "", speed: 'auto', duplex: 'auto', mac: genMac('00d0.ba') },
         'GigabitEthernet0/0/2': { ip: "", mask: "", shutdown: true, description: "", speed: 'auto', duplex: 'auto', mac: genMac('00d0.ba') },
         'Serial0/1/0': { ip: "", mask: "", shutdown: true, description: "", clockRate: '2000000', mac: genMac('00d0.ba') },
         'Serial0/1/1': { ip: "", mask: "", shutdown: true, description: "", clockRate: '2000000', mac: genMac('00d0.ba') },
-        'Vlan1': { ip: "", mask: "", shutdown: true, description: "", mac: genMac('00d0.ba') }
+        'Vlan1': { ip: "", mask: "", shutdown: true, description: "", mac: genMac('00d0.ba') },
+        'Console': { ip: "", mask: "", shutdown: false, description: "RJ-45 / USB Console Management Port", portType: 'console', mac: genMac('00d0.ba') },
+        'Aux': { ip: "", mask: "", shutdown: false, description: "Auxiliary Serial Port", portType: 'aux', mac: genMac('00d0.ba') }
       };
     } else if (this.type === 'switch') {
-      // Cisco Catalyst 2960-24TT Switch: SVI Vlan1 + 24 Fa ports + 2 Gi ports
+      // Cisco Catalyst 2960-24TT Switch: SVI Vlan1 + 24 Fa ports + 2 Gi ports + Console
       this.interfaces = {
-        'Vlan1': { ip: "", mask: "", shutdown: true, description: "", mac: genMac('0019.5e') }
+        'Vlan1': { ip: "", mask: "", shutdown: true, description: "", mac: genMac('0019.5e') },
+        'Console': { ip: "", mask: "", shutdown: false, description: "RJ-45 Console Port", portType: 'console', mac: genMac('0019.5e') }
       };
       for (let p = 1; p <= 24; p++) {
         this.interfaces[`FastEthernet0/${p}`] = { ip: "", mask: "", shutdown: false, description: "", vlan: 1, mac: genMac('0019.5e') };
       }
       this.interfaces['GigabitEthernet0/1'] = { ip: "", mask: "", shutdown: false, description: "", vlan: 1, mac: genMac('0019.5e') };
       this.interfaces['GigabitEthernet0/2'] = { ip: "", mask: "", shutdown: false, description: "", vlan: 1, mac: genMac('0019.5e') };
+    } else if (this.type === 'hpe_switch') {
+      // HPE Aruba 2530-24G / 2930F-24G-4SFP+ Switch: 24 10/100/1000 ports + 4 SFP ports + Vlan1 + Console
+      this.interfaces = {
+        'Vlan1': { ip: "192.168.1.10", mask: "255.255.255.0", shutdown: false, description: "DEFAULT_VLAN Management", mac: genMac('b439.d6') },
+        'Console': { ip: "", mask: "", shutdown: false, description: "Micro-USB / RJ-45 Serial Console", portType: 'console', mac: genMac('b439.d6') }
+      };
+      for (let p = 1; p <= 24; p++) {
+        this.interfaces[`Port ${p}`] = { ip: "", mask: "", shutdown: false, description: "", vlan: 1, untagged: true, mac: genMac('b439.d6') };
+      }
+      for (let sfp = 25; sfp <= 28; sfp++) {
+        this.interfaces[`Port ${sfp} (SFP)`] = { ip: "", mask: "", shutdown: false, description: "SFP Uplink", vlan: 1, untagged: true, mac: genMac('b439.d6') };
+      }
     } else if (this.type === 'pc' || this.type === 'server') {
       this.interfaces = {
-        'FastEthernet0': { ip: "", mask: "", shutdown: false, description: "", mac: genMac('0050.79') }
+        'FastEthernet0': { ip: "", mask: "", shutdown: false, description: "FastEthernet Network Adapter", mac: genMac('0050.79') },
+        'RS 232': { ip: "", mask: "", shutdown: false, description: "Serial RS-232 / COM1 Port", portType: 'serial_com' },
+        'USB0': { ip: "", mask: "", shutdown: false, description: "USB Port (Console / Data)", portType: 'usb' }
       };
     } else if (this.type === 'laptop') {
       this.interfaces = {
-        'FastEthernet0': { ip: "", mask: "", shutdown: false, description: "", mac: genMac('0050.79') },
-        'Wireless0': { ip: "", mask: "", shutdown: false, description: "WPC300N Wireless Adapter", mac: genMac('0060.2f') }
+        'FastEthernet0': { ip: "", mask: "", shutdown: false, description: "FastEthernet Network Adapter", mac: genMac('0050.79') },
+        'Wireless0': { ip: "", mask: "", shutdown: false, description: "WPC300N Wireless Adapter", mac: genMac('0060.2f') },
+        'RS 232': { ip: "", mask: "", shutdown: false, description: "Serial RS-232 / COM1 Port", portType: 'serial_com' },
+        'USB0': { ip: "", mask: "", shutdown: false, description: "USB Port (Console / Data)", portType: 'usb' }
       };
     } else if (this.type === 'wireless_ap') {
       this.interfaces = {
@@ -190,22 +227,24 @@ class CiscoDevice {
         'Wireless0': { ip: "192.168.0.1", mask: "255.255.255.0", shutdown: false, description: "2.4GHz Wireless Radio", mac: genMac('0021.d8') }
       };
     } else if (this.type === 'mikrotik') {
-      // MikroTik hEX lite (RB750r2): 5 FastEthernet ports
+      // MikroTik hEX lite (RB750r2): 5 FastEthernet ports + Console
       this.interfaces = {
         'ether1': { ip: "", mask: "", shutdown: false, description: "WAN / ether1", mac: genMac('488f.5a') },
         'ether2': { ip: "192.168.88.1", mask: "255.255.255.0", shutdown: false, description: "LAN / ether2", mac: genMac('488f.5a') },
         'ether3': { ip: "", mask: "", shutdown: false, description: "LAN / ether3", mac: genMac('488f.5a') },
         'ether4': { ip: "", mask: "", shutdown: false, description: "LAN / ether4", mac: genMac('488f.5a') },
-        'ether5': { ip: "", mask: "", shutdown: false, description: "LAN / ether5", mac: genMac('488f.5a') }
+        'ether5': { ip: "", mask: "", shutdown: false, description: "LAN / ether5", mac: genMac('488f.5a') },
+        'Console': { ip: "", mask: "", shutdown: false, description: "Serial / Console Port", portType: 'console', mac: genMac('488f.5a') }
       };
     } else if (this.type === 'openwrt') {
-      // OpenWrt Router: 1 WAN (eth0) + 4 LAN (eth1-eth4)
+      // OpenWrt Router: 1 WAN (eth0) + 4 LAN (eth1-eth4) + Console
       this.interfaces = {
         'eth0': { ip: "", mask: "", shutdown: false, description: "WAN / eth0", mac: genMac('5254.00') },
         'eth1': { ip: "192.168.1.1", mask: "255.255.255.0", shutdown: false, description: "LAN1 / br-lan", mac: genMac('5254.00') },
         'eth2': { ip: "", mask: "", shutdown: false, description: "LAN2 / br-lan", mac: genMac('5254.00') },
         'eth3': { ip: "", mask: "", shutdown: false, description: "LAN3 / br-lan", mac: genMac('5254.00') },
-        'eth4': { ip: "", mask: "", shutdown: false, description: "LAN4 / br-lan", mac: genMac('5254.00') }
+        'eth4': { ip: "", mask: "", shutdown: false, description: "LAN4 / br-lan", mac: genMac('5254.00') },
+        'Console': { ip: "", mask: "", shutdown: false, description: "Serial Console Port", portType: 'console', mac: genMac('5254.00') }
       };
     } else if (this.type === 'internet_cloud' || this.type === 'internet_simulated' || this.type === 'internet_public') {
       // Global Internet Gateway (Simulated or Public NAT Bridge)
@@ -248,6 +287,18 @@ class CiscoDevice {
       return `root@${h}:~# `;
     }
 
+    if (this.type === 'hpe_switch') {
+      const hname = this.hostname || 'Aruba-2530';
+      switch (this.mode) {
+        case 'USER_EXEC': return `${hname}> `;
+        case 'PRIV_EXEC': return `${hname}# `;
+        case 'CONFIG': return `${hname}(config)# `;
+        case 'CONFIG_VLAN': return `${hname}(vlan-${this.currentVlan || '1'})# `;
+        case 'CONFIG_IF': return `${hname}(eth-${this.currentInterface || '1'})# `;
+        default: return `${hname}# `;
+      }
+    }
+
     if (this.type === 'internet_cloud' || this.type === 'internet_simulated' || this.type === 'internet_public') {
       return this.type === 'internet_public' ? `[Public Internet NAT Active]` : `[Simulated Internet Active]`;
     }
@@ -280,7 +331,7 @@ class CiscoDevice {
     'bannerMotd', 'domainName', 'rsaKeyBits', 'sshVersion', 'users', 'consolePassword',
     'consoleLoginRequired', 'vtyLines', 'maxConfiguredVty', 'vtyPassword', 'vtyLoginMode',
     'vtyTransportInput', 'interfaces', 'defaultGateway', 'staticRoutes', 'ipClassless',
-    'ip', 'mask', 'gateway', 'dns', 'dhcpEnabled', 'wireless', 'services', 'mikrotikConfig', 'openwrtConfig'
+    'ip', 'mask', 'gateway', 'dns', 'dhcpEnabled', 'wireless', 'services', 'mikrotikConfig', 'openwrtConfig', 'hpeConfig'
   ];
 
   snapshotConfig() {

@@ -227,6 +227,8 @@ class PXLNetSimApp {
       // Network Devices - Switches
       { type: 'switch', model: '2960-24TT', label: '2960-24TT Switch', category: 'switches' },
       { type: 'switch', model: '3560-24PS', label: '3560 Multilayer', category: 'switches' },
+      { type: 'hpe_switch', model: 'Aruba-2530-24G', label: 'HPE Aruba 2530', category: 'switches' },
+      { type: 'hpe_switch', model: 'Aruba-2930F-24G', label: 'HPE Aruba 2930F', category: 'switches' },
       // Network Devices - Wireless
       { type: 'wireless_ap', model: 'WRT300N', label: 'WRT300N Wireless', category: 'wireless' },
       // End Devices
@@ -406,6 +408,8 @@ class PXLNetSimApp {
     const cliTabBtn = document.getElementById('tabBtnCli');
     const desktopTabBtn = document.getElementById('tabBtnDesktop');
     const servicesTabBtn = document.getElementById('tabBtnServices');
+    const webfigTabBtn = document.getElementById('tabBtnWebFig');
+    const hpeWebTabBtn = document.getElementById('tabBtnHpeWeb');
 
     if (cliTabBtn) {
       cliTabBtn.style.display = isHost ? 'none' : 'inline-block';
@@ -413,6 +417,8 @@ class PXLNetSimApp {
         cliTabBtn.innerText = 'CLI (RouterOS)';
       } else if (device.type === 'openwrt') {
         cliTabBtn.innerText = 'CLI (Ash Linux)';
+      } else if (device.type === 'hpe_switch') {
+        cliTabBtn.innerText = 'CLI (ArubaOS-S)';
       } else if (device.type === 'internet_cloud' || device.type === 'internet_simulated' || device.type === 'internet_public') {
         cliTabBtn.innerText = device.type === 'internet_public' ? 'Status (Internet Public NAT)' : 'Status (Het Internet)';
       } else {
@@ -421,6 +427,8 @@ class PXLNetSimApp {
     }
     if (desktopTabBtn) desktopTabBtn.style.display = isHost ? 'inline-block' : 'none';
     if (servicesTabBtn) servicesTabBtn.style.display = isServer ? 'inline-block' : 'none';
+    if (webfigTabBtn) webfigTabBtn.style.display = (device.type === 'mikrotik') ? 'inline-block' : 'none';
+    if (hpeWebTabBtn) hpeWebTabBtn.style.display = (device.type === 'hpe_switch') ? 'inline-block' : 'none';
 
     // Switch to primary operational tab
     if (isServer) {
@@ -441,7 +449,7 @@ class PXLNetSimApp {
   }
 
   switchDeviceModalTab(tabKey) {
-    const tabs = ['physical', 'config', 'cli', 'desktop', 'services'];
+    const tabs = ['physical', 'config', 'cli', 'desktop', 'services', 'webfig', 'hpeweb'];
     tabs.forEach(t => {
       const pane = document.getElementById(`modalPane${t.charAt(0).toUpperCase() + t.slice(1)}`);
       if (pane) pane.classList.remove('active');
@@ -459,6 +467,30 @@ class PXLNetSimApp {
     if (tabKey === 'cli') this.renderCliTab();
     if (tabKey === 'desktop') this.renderDesktopTab();
     if (tabKey === 'services') this.renderServicesTab();
+    if (tabKey === 'webfig') this.renderWebFigTab();
+    if (tabKey === 'hpeweb') this.renderHpeWebTab();
+  }
+
+  renderWebFigTab() {
+    const dev = this.activeDevice;
+    const container = document.getElementById('modalPaneWebfig');
+    if (!dev || !container) return;
+    if (typeof window.renderMikroTikWebFigHtml === 'function') {
+      container.innerHTML = window.renderMikroTikWebFigHtml(dev, this.sim);
+    } else {
+      container.innerHTML = '<div style="padding:20px; color:#fff;">WebFig module niet geladen.</div>';
+    }
+  }
+
+  renderHpeWebTab() {
+    const dev = this.activeDevice;
+    const container = document.getElementById('modalPaneHpeweb');
+    if (!dev || !container) return;
+    if (typeof window.renderHpeWebInterfaceHtml === 'function') {
+      container.innerHTML = window.renderHpeWebInterfaceHtml(dev, this.sim);
+    } else {
+      container.innerHTML = '<div style="padding:20px; color:#fff;">HPE Web Management module niet geladen.</div>';
+    }
   }
 
   // 1. PHYSICAL TAB
@@ -538,6 +570,26 @@ class PXLNetSimApp {
               <input type="text" class="pt-input" value="${dev.defaultGateway || ''}" onchange="window.PXLApp.updateDeviceGateway(this.value)">
             </div>
           ` : ''}
+          ${dev.type === 'mikrotik' ? `
+            <div class="pt-form-group" style="margin-top: 15px; padding: 12px; background: #0f172a; border: 1px solid #0284c7; border-radius: 6px;">
+              <label style="color: #38bdf8; font-weight: bold;">MikroTik WebFig (HTTP Server):</label>
+              <label class="pt-checkbox-label" style="display:flex; align-items:center; gap:8px; margin-top:6px; cursor:pointer;">
+                <input type="checkbox" id="cfgMikrotikWebfig" ${dev.mikrotikConfig && dev.mikrotikConfig.services && dev.mikrotikConfig.services.www ? 'checked' : ''} onchange="window.PXLApp.toggleMikrotikWebfig(this.checked)">
+                WebFig Inschakelen (Poort 80 HTTP GUI)
+              </label>
+              <p style="font-size: 11px; color: #94a3b8; margin-top: 4px; margin-bottom: 0;">Hiermee kan je vanaf een aangesloten PC of Laptop via de browser (bv. http://192.168.88.1) of via het tabblad WebFig grafisch configureren.</p>
+            </div>
+          ` : ''}
+          ${dev.type === 'hpe_switch' ? `
+            <div class="pt-form-group" style="margin-top: 15px; padding: 12px; background: #0f172a; border: 1px solid #ff7900; border-radius: 6px;">
+              <label style="color: #fb923c; font-weight: bold;">HPE Aruba Web Management (HTTP Server):</label>
+              <label class="pt-checkbox-label" style="display:flex; align-items:center; gap:8px; margin-top:6px; cursor:pointer;">
+                <input type="checkbox" id="cfgHpeWeb" ${dev.hpeConfig && dev.hpeConfig.webManagement ? 'checked' : ''} onchange="window.PXLApp.toggleHpeWeb(this.checked)">
+                Web Management Inschakelen (HTTP GUI)
+              </label>
+              <p style="font-size: 11px; color: #94a3b8; margin-top: 4px; margin-bottom: 0;">Hiermee kan je de switch via het tabblad 'Aruba Web GUI' of via de browser op het management IP configureren.</p>
+            </div>
+          ` : ''}
           <p class="pt-help-text">Klik op een interface aan de linkerkant om IP, subnetmasker en poortstatus in te stellen.</p>
           <div style="margin-top: 25px; border-top: 1px solid #334155; padding-top: 15px;">
             <button class="pt-btn-secondary" style="border-color: #ef4444; color: #ef4444; width: 100%;" onclick="window.PXLApp.factoryResetDevice()">
@@ -547,6 +599,25 @@ class PXLNetSimApp {
         </div>
       </div>
     `;
+  }
+
+  toggleMikrotikWebfig(enabled) {
+    if (this.activeDevice && this.activeDevice.type === 'mikrotik') {
+      if (!this.activeDevice.mikrotikConfig) this.activeDevice.mikrotikConfig = { services: { www: true } };
+      if (!this.activeDevice.mikrotikConfig.services) this.activeDevice.mikrotikConfig.services = {};
+      this.activeDevice.mikrotikConfig.services.www = enabled;
+      this.showToast(`MikroTik WebFig ${enabled ? 'ingeschakeld (poort 80)' : 'uitgeschakeld'}`);
+      this.triggerScoreUpdate();
+    }
+  }
+
+  toggleHpeWeb(enabled) {
+    if (this.activeDevice && this.activeDevice.type === 'hpe_switch') {
+      if (!this.activeDevice.hpeConfig) this.activeDevice.hpeConfig = { webManagement: true };
+      this.activeDevice.hpeConfig.webManagement = enabled;
+      this.showToast(`HPE Aruba Web Management ${enabled ? 'ingeschakeld' : 'uitgeschakeld'}`);
+      this.triggerScoreUpdate();
+    }
   }
 
   factoryResetDevice() {
@@ -771,6 +842,23 @@ class PXLNetSimApp {
       if (!dev.history || dev.history.length === 0) {
         screen.innerHTML = `  _______                     ________        __\n |       |.-----.-----.-----.|  |  |  |.----.|  |_\n |   -   ||  _  |  -__|     ||  |  |  ||   _||   _|\n |_______||   __|_____|__|__||________||__|  |____|\n          |__| W I R E L E S S   F R E E D O M\n -----------------------------------------------------\n OpenWrt 23.05.2, r23630-94290f9e3d\n -----------------------------------------------------\n\n`;
       }
+    } else if (dev.type === 'hpe_switch') {
+      this.activeTerminalParser = new HpeCLIParser(
+        dev,
+        (text) => {
+          screen.innerHTML += `${text}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => {
+          prompt.innerText = dev.getPrompt();
+        },
+        () => {
+          this.triggerScoreUpdate();
+        }
+      );
+      if (!dev.history || dev.history.length === 0) {
+        screen.innerHTML = `HP J9773A 2530-24G Switch\nSoftware revision YA.16.10.0018\nCopyright (C) 1991-2026 Hewlett Packard Enterprise Development LP\n\nPress any key or enter commands. Type '?' or 'help' for command reference.\n\n`;
+      }
     } else {
       this.activeTerminalParser = new CiscoCLIParser(
         dev,
@@ -895,6 +983,18 @@ class PXLNetSimApp {
         <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('powershell')">
           <div class="pt-desktop-app-icon" style="background: #012456; color: #38bdf8; font-weight: 900; font-size: 14px; border: 1px solid #03449e; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">PS</div>
           <span>PowerShell</span>
+        </div>
+        <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('linux')">
+          <div class="pt-desktop-app-icon" style="background: #300a24; color: #e95420; font-weight: 900; font-size: 14px; border: 1px solid #772953; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">🐧</div>
+          <span>Linux Terminal</span>
+        </div>
+        <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('putty')">
+          <div class="pt-desktop-app-icon" style="background: #1e293b; color: #38bdf8; font-weight: 900; font-size: 14px; border: 1px solid #475569; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">💻</div>
+          <span>PuTTY</span>
+        </div>
+        <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('python')">
+          <div class="pt-desktop-app-icon" style="background: #1e3a5f; color: #fbbf24; font-weight: 900; font-size: 14px; border: 1px solid #3b82f6; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">🐍</div>
+          <span>Python 3.12</span>
         </div>
         <div class="pt-desktop-icon" onclick="window.PXLApp.openPcApp('ipconfig')">
           <div class="pt-desktop-app-icon">⚙️</div>
@@ -1050,6 +1150,76 @@ class PXLNetSimApp {
           }
         }
       };
+    } else if (appKey === 'linux') {
+      const isServer = (dev.type === 'server');
+      const defaultUser = isServer ? 'root' : 'student';
+      const defaultPrompt = isServer ? `root@${dev.hostname || 'pxl-server'}:~# ` : `student@${dev.hostname || 'pxl-client'}:~$ `;
+      viewport.innerHTML = `
+        <div class="pt-app-window pt-linux-window" style="background: #300a24; height: 100%; display: flex; flex-direction: column;">
+          <div class="pt-terminal-screen" id="pcLinuxScreen" style="color: #ffffff; background: #300a24; flex: 1; padding: 12px; font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; overflow-y: auto; white-space: pre-wrap;">Welcome to Ubuntu 24.04.1 LTS (GNU/Linux 6.8.0-40-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+PXL NetSim Linux Terminal &amp; Networking Tools ready.
+Type 'help', 'ip a', or 'python3' to get started.
+
+</div>
+          <div class="pt-terminal-input-bar" style="background: #300a24; border-top: 1px solid #772953; display: flex; align-items: center; padding: 6px 12px;">
+            <span class="pt-terminal-prompt" id="pcLinuxPrompt" style="color: #4af626; font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; font-weight: bold; margin-right: 6px;">${defaultPrompt}</span>
+            <input type="text" class="pt-terminal-input" id="pcLinuxInput" autocomplete="off" spellcheck="false" style="color: #ffffff; background: transparent; border: none; outline: none; font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; flex: 1;">
+          </div>
+        </div>
+      `;
+
+      const screen = document.getElementById('pcLinuxScreen');
+      const input = document.getElementById('pcLinuxInput');
+      const promptEl = document.getElementById('pcLinuxPrompt');
+      const linuxHandler = new LinuxCLIHandler(
+        dev,
+        (t) => {
+          screen.innerHTML += `${t}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => this.triggerScoreUpdate(),
+        (newPrompt) => {
+          if (promptEl) promptEl.innerText = newPrompt;
+        }
+      );
+
+      input.focus();
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          const val = input.value;
+          const curPrompt = promptEl ? promptEl.innerText : defaultPrompt;
+          screen.innerHTML += `${curPrompt}${val}\n`;
+          input.value = '';
+          linuxHandler.handleCommand(val);
+          screen.scrollTop = screen.scrollHeight;
+        } else if (e.key === 'Tab') {
+          e.preventDefault();
+          if (linuxHandler && typeof linuxHandler.tabComplete === 'function') {
+            const completed = linuxHandler.tabComplete(input.value);
+            if (completed && completed !== input.value) {
+              input.value = completed;
+              input.selectionStart = input.selectionEnd = completed.length;
+            }
+          }
+        }
+      };
+    } else if (appKey === 'putty') {
+      if (typeof renderPuttyConfigHtml === 'function') {
+        viewport.innerHTML = renderPuttyConfigHtml(dev);
+      } else {
+        viewport.innerHTML = `<div style="padding:20px; color:#fff;">PuTTY module niet geladen.</div>`;
+      }
+    } else if (appKey === 'python') {
+      if (typeof renderPythonAppHtml === 'function') {
+        viewport.innerHTML = renderPythonAppHtml(dev);
+      } else {
+        viewport.innerHTML = `<div style="padding:20px; color:#fff;">Python 3.12 IDE module niet geladen.</div>`;
+      }
     } else if (appKey === 'wireless') {
       viewport.innerHTML = `
         <div class="pt-app-window">
