@@ -102,6 +102,28 @@ Alle onderstaande labs zijn voorgeprogrammeerd met rubrieken en selecteerbaar vi
    - Python 3.12, Flask, PyCryptodome en MinGit geïnstalleerd op dit toestel.
    - 1-klik starter script `start_local.bat` toegevoegd (start direct op `http://localhost:8080`).
 
+### E. PuTTY App, Linux CLI, Python 3.12, Console Bekabeling, 2 HPE Aruba Switches & MikroTik WebFig (11 november 2026)
+1. **PuTTY Desktop Applicatie (`static/js/putty_app.js`):**
+   - Geïntegreerd op Desktop (PC), Laptop en Server via het tabblad *Desktop*.
+   - Authentieke klassieke PuTTY interface met Category links (Session, Terminal, Connection, Serial) en radiobuttons voor SSH (22), Telnet (23) en Serial (COM1).
+   - Serial-modus detecteert automatisch of er een consolekabel is aangesloten en opent direct een live console-sessie naar de verbonden switch/router zonder IP of ARP vereisten.
+2. **Linux Terminal (`static/js/linux_cli.js`):**
+   - Ubuntu 24.04.1 LTS (Bash shell) beschikbaar op PC, Laptop en Server naast Command Prompt en PowerShell.
+   - Ondersteunt `ip addr`/`ip a`, `ifconfig`, `ping`, `traceroute`, `route -n`, `netstat -tuln`/`ss`, `cat`, `curl`, `wget`, `ssh`, `python3`, `sudo`, `systemctl`, `whoami`, `uname -a` en tab completion.
+3. **Python 3.12 Script Runner & IDE (`static/js/python_engine.js`):**
+   - Python REPL beschikbaar direct in Command Prompt en Linux Terminal (`python` of `python3`).
+   - Volledige Desktop IDE App met code editor, templates (Socket TCP Ping, IPv4 Subnet Calculator, HTTP Web Client) en run-knop.
+4. **Console Bekabeling (Rollover USB-naar-RJ45 & Serial):**
+   - Consolekabel toegevoegd in het onderste dock.
+   - Verbindt `RS 232` (Serial COM1) of `USB0` van PC/laptop naar de `Console` poort van Cisco routers/switches, HPE Aruba switches, MikroTik en OpenWrt.
+5. **2 HPE Aruba Switches (CLI & Web GUI - `static/js/hpe_switch.js`):**
+   - Modellen `HPE Aruba 2530-24G` en `HPE Aruba 2930F-24G` in het switches-menu.
+   - ArubaOS-S Provision CLI parser (`enable`, `configure terminal`, `hostname`, `vlan`, `name`, `untagged`, `tagged`, `interface`, `show vlans`, `show running-config`, tab completion).
+   - Aruba Web GUI via het tabblad *"Aruba Web GUI"* of via browser op het switch management IP met 28-poorts LED-matrix, VLAN beheer en IP configuratie.
+6. **MikroTik RouterOS v7 WebFig (`static/js/mikrotik_webfig.js`):**
+   - WebFig toggle checkbox in de GUI van de MikroTik (`[x] WebFig Inschakelen (Poort 80 HTTP)`).
+   - Toegang via het tabblad *"WebFig"* of vanaf aangesloten pc/laptop browser (`http://192.168.88.1`).
+
 ---
 
 ## 3. Belangrijke Bestanden & Structuur
