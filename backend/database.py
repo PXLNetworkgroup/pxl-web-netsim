@@ -253,19 +253,24 @@ def parse_blackboard_student_row(raw_last, first, uname, default_password='PXL20
     Voornaam: Matteo
     Gebruikersnaam: 12603952
     """
-    m = re.match(r'^(.*?)\s*\((.*?)\)$', raw_last.strip())
-    if m:
-        last_name = m.group(1).strip()
-        bracket_content = m.group(2).strip()
-        bracket_parts = [p.strip() for p in bracket_content.split(' - ')]
-        acad_year = bracket_parts[0] if len(bracket_parts) > 0 else '2026-27'
-        program = bracket_parts[1] if len(bracket_parts) > 1 else ''
-        class_grp = bracket_parts[-1] if len(bracket_parts) > 2 else ''
+    bracket_match = re.match(r'^(.*?)\s*\((.*?)\)$', raw_last.strip())
+    if bracket_match:
+        last_name = bracket_match.group(1).strip()
+        bracket_content = bracket_match.group(2).strip()
+        if 'uitgeschreven' in bracket_content.lower():
+            acad_year = '2026-27'
+            program = 'Uitgeschreven'
+            class_grp = 'Uitgeschreven'
+        else:
+            bracket_parts = [p.strip() for p in bracket_content.split(' - ')]
+            acad_year = bracket_parts[0] if len(bracket_parts) > 0 else '2026-27'
+            program = bracket_parts[1] if len(bracket_parts) > 1 else ''
+            class_grp = bracket_parts[-1] if len(bracket_parts) >= 3 else 'Geen Klas'
     else:
         last_name = raw_last.strip()
         acad_year = '2026-27'
         program = ''
-        class_grp = 'Algemeen'
+        class_grp = 'Geen Klas'
 
     first_name = first.strip()
     full_name = f"{first_name} {last_name}".strip()
