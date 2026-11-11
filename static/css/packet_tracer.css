@@ -65,11 +65,11 @@ body {
   font-weight: 700;
   color: var(--pxl-blue-dark);
   letter-spacing: -0.2px;
+  line-height: 1.2;
 }
 
 .pt-brand-titles p {
-  font-size: 11px;
-  color: var(--pt-text-muted);
+  display: none !important;
 }
 
 .pt-header-center {

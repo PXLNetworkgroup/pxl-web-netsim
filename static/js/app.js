@@ -20,6 +20,7 @@ class PXLNetSimApp {
     this.currentUser = null;
     this.autoSaveInterval = null;
     this.activeServiceSubtab = 'http';
+    this.isOpdrachtPinned = (localStorage.getItem('pxl_opdracht_pinned') === 'true');
 
     this.initPresetExams();
     this.initEventListeners();
@@ -35,6 +36,7 @@ class PXLNetSimApp {
 
     // Load default exam
     this.loadExam(this.presetExams['01_pxl_standard']);
+    this.initPinnedPanel();
   }
 
   initRunningConfigScanner() {
@@ -331,6 +333,21 @@ class PXLNetSimApp {
     if (submitBtn) {
       submitBtn.onclick = () => this.openSubmissionModal();
     }
+
+    // Escape key closes modals and floating panels
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.closeGlobalWireshark();
+        this.closeDeviceModal();
+        this.closeLoginModal();
+        this.closeSubmissionModal();
+        if (!this.isOpdrachtPinned) {
+          this.closeOpdrachtDropdown();
+        }
+        const pdu = document.getElementById('pduInspectorModal');
+        if (pdu) pdu.style.display = 'none';
+      }
+    });
   }
 
   populateExamSelector(selectedId) {
@@ -1643,25 +1660,42 @@ Type 'help', 'ip a', or 'python3' to get started.
     if (!modal) {
       modal = document.createElement('div');
       modal.id = 'globalWiresharkModal';
-      modal.className = 'pt-modal';
+      modal.className = 'pt-modal-overlay';
       modal.style.zIndex = '9999';
       modal.innerHTML = `
-        <div class="pt-modal-dialog" style="width: 92vw; max-width: 1250px; height: 85vh; display: flex; flex-direction: column; background: #0f172a; border-radius: 8px; border: 1px solid #334155; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); overflow: hidden;">
-          <div style="background: #1e293b; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
+        <div class="pt-device-dialog" style="width: 94vw; max-width: 1300px; height: 88vh; display: flex; flex-direction: column; background: #0f172a; border-radius: 8px; border: 2px solid #0284c7; box-shadow: 0 25px 60px rgba(0,0,0,0.75); overflow: hidden;">
+          <div style="background: #1e293b; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
             <div style="display: flex; align-items: center; gap: 8px; color: #38bdf8; font-weight: 700; font-size: 14px;">
               <span>🦈 Wireshark Protocol Analyzer &amp; OSI Inspector (Topologie Capture)</span>
             </div>
-            <button class="pt-btn-close" onclick="document.getElementById('globalWiresharkModal').classList.remove('active')">✕</button>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <button class="pt-btn pt-btn-secondary" style="padding: 4px 10px; font-size: 11px; background: #334155; color: #f8fafc; border: 1px solid #475569; cursor: pointer;" onclick="window.PXLApp.closeGlobalWireshark()">Sluiten</button>
+              <button class="pt-btn-close" style="color: #94a3b8; font-size: 20px; cursor: pointer; background: transparent; border: none; padding: 2px 6px;" onclick="window.PXLApp.closeGlobalWireshark()" title="Sluit Wireshark">✕</button>
+            </div>
           </div>
-          <div id="globalWiresharkViewport" style="flex: 1; overflow: hidden; height: calc(85vh - 45px);"></div>
+          <div id="globalWiresharkViewport" style="flex: 1; overflow: hidden; height: calc(88vh - 50px);"></div>
         </div>
       `;
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          this.closeGlobalWireshark();
+        }
+      });
       document.body.appendChild(modal);
     }
+    modal.style.display = 'flex';
     modal.classList.add('active');
     if (window.WiresharkApp) {
       const ws = new window.WiresharkApp(null, { isGlobal: true, containerId: 'globalWiresharkViewport' });
       ws.render();
+    }
+  }
+
+  closeGlobalWireshark() {
+    const modal = document.getElementById('globalWiresharkModal');
+    if (modal) {
+      modal.style.display = 'none';
+      modal.classList.remove('active');
     }
   }
 
@@ -1765,7 +1799,7 @@ Type 'help', 'ip a', or 'python3' to get started.
       } else {
         scoreText.innerText = `Score: ${evalResult.percentage}% (${evalResult.earnedPoints}/${evalResult.totalPoints} pt)`;
         scoreBar.style.width = `${evalResult.percentage}%`;
-        scoreBar.style.backgroundColor = evalResult.percentage >= 50 ? '#22c55e' : '#f59e0b';
+        scoreBar.style.backgroundColor = evalResult.percentage >= 80 ? 'var(--pt-green)' : (evalResult.percentage >= 50 ? 'var(--pxl-accent)' : 'var(--pt-red)');
       }
     }
 
@@ -1774,45 +1808,31 @@ Type 'help', 'ip a', or 'python3' to get started.
       canvasScorePct.innerText = `${evalResult.percentage}%`;
     }
 
-    const panel = document.getElementById('rubricSidePanel');
-    if (panel && panel.classList.contains('open')) {
-      this.renderRubricSidePanel();
+    const panel = document.getElementById('opdrachtDropdownPanel');
+    if (panel && (panel.classList.contains('open') || panel.classList.contains('pinned') || panel.style.display === 'flex')) {
+      this.updateRubricSectionOnly(evalResult);
     }
   }
 
   toggleRubricPanel() {
-    const panel = document.getElementById('rubricSidePanel');
+    const panel = document.getElementById('opdrachtDropdownPanel');
     if (!panel) return;
-    panel.classList.toggle('open');
-    if (panel.classList.contains('open')) {
-      this.renderRubricSidePanel();
+    const isHidden = (panel.style.display === 'none' || !panel.style.display || !panel.classList.contains('open'));
+    if (isHidden) {
+      this.renderOpdrachtDropdown();
+      panel.style.display = 'flex';
+      panel.classList.add('open');
+      const rubricEl = document.getElementById('rubricSidePanel');
+      if (rubricEl) rubricEl.classList.add('open');
+    }
+    const rubricAnchor = document.getElementById('rubricSidePanel');
+    if (rubricAnchor) {
+      rubricAnchor.scrollIntoView({ behavior: 'smooth' });
     }
   }
 
   renderRubricSidePanel() {
-    const container = document.getElementById('rubricSidePanelContent');
-    if (!container) return;
-
-    const res = this.gradingEngine.evaluate();
-    container.innerHTML = `
-      <div class="pt-rubric-panel-header">
-        <h4>Beoordelingsrubric & Criteria</h4>
-        <div class="pt-rubric-summary-score">Totaal: <strong>${res.earnedPoints}</strong> / ${res.totalPoints} pt (${res.percentage}%)</div>
-      </div>
-      <div class="pt-rubric-panel-list">
-        ${res.objectives.map(obj => `
-          <div class="pt-rubric-panel-item ${obj.passed ? 'passed' : 'failed'}">
-            <div class="pt-panel-item-top">
-              <span class="pt-panel-item-status">${obj.passed ? '✅' : '❌'}</span>
-              <strong class="pt-panel-item-title">${obj.title}</strong>
-              <span class="pt-panel-item-pts">${obj.passed ? obj.points : 0}/${obj.points} pt</span>
-            </div>
-            <div class="pt-panel-item-desc">${obj.desc || ''}</div>
-            <div class="pt-panel-item-detail">${obj.detail || ''}</div>
-          </div>
-        `).join('')}
-      </div>
-    `;
+    this.renderOpdrachtDropdown();
   }
 
   // --- EXAM TIMER ---
@@ -2592,21 +2612,95 @@ Type 'help', 'ip a', or 'python3' to get started.
   }
 
   // --- OPDRACHT & RUBRIC DROPDOWN ---
+  // --- UNIFIED OPDRACHT & RUBRIC SIDE PANEL (RECHTS MET VASTZETTEN) ---
+  initPinnedPanel() {
+    if (this.isOpdrachtPinned) {
+      const panel = document.getElementById('opdrachtDropdownPanel');
+      const pinCb = document.getElementById('pinOpdrachtPanel');
+      if (pinCb) pinCb.checked = true;
+      if (panel) {
+        panel.classList.add('pinned');
+        panel.classList.add('open');
+        panel.style.display = 'flex';
+        this.renderOpdrachtDropdown();
+      }
+      this.adjustWorkspaceForPinnedPanel();
+    }
+  }
+
+  togglePinOpdrachtPanel(isPinned) {
+    this.isOpdrachtPinned = !!isPinned;
+    localStorage.setItem('pxl_opdracht_pinned', this.isOpdrachtPinned ? 'true' : 'false');
+    const panel = document.getElementById('opdrachtDropdownPanel');
+    const pinCb = document.getElementById('pinOpdrachtPanel');
+    if (pinCb) pinCb.checked = this.isOpdrachtPinned;
+
+    if (panel) {
+      if (this.isOpdrachtPinned) {
+        panel.classList.add('pinned');
+        panel.classList.add('open');
+        panel.style.display = 'flex';
+        this.renderOpdrachtDropdown();
+      } else {
+        panel.classList.remove('pinned');
+      }
+    }
+    this.adjustWorkspaceForPinnedPanel();
+  }
+
+  adjustWorkspaceForPinnedPanel() {
+    const ws = document.querySelector('.pt-workspace');
+    if (ws) {
+      ws.style.transition = 'margin-right 0.25s ease';
+      ws.style.marginRight = this.isOpdrachtPinned ? '480px' : '0px';
+      if (this.canvasWorkspace) {
+        setTimeout(() => {
+          this.canvasWorkspace.handleResize();
+          this.canvasWorkspace.render();
+        }, 260);
+      }
+    }
+  }
+
   toggleOpdrachtDropdown() {
     const el = document.getElementById('opdrachtDropdownPanel');
     if (!el) return;
-    const isHidden = (el.style.display === 'none' || !el.style.display);
+    if (this.isOpdrachtPinned) {
+      this.togglePinOpdrachtPanel(false);
+      el.style.display = 'none';
+      el.classList.remove('open');
+      const rubricSide = document.getElementById('rubricSidePanel');
+      if (rubricSide) rubricSide.classList.remove('open');
+      return;
+    }
+    const isHidden = (el.style.display === 'none' || !el.style.display || !el.classList.contains('open'));
     if (isHidden) {
       this.renderOpdrachtDropdown();
       el.style.display = 'flex';
+      el.classList.add('open');
+      const rubricSide = document.getElementById('rubricSidePanel');
+      if (rubricSide) rubricSide.classList.add('open');
     } else {
       el.style.display = 'none';
+      el.classList.remove('open');
+      const rubricSide = document.getElementById('rubricSidePanel');
+      if (rubricSide) rubricSide.classList.remove('open');
     }
   }
 
   closeOpdrachtDropdown() {
     const el = document.getElementById('opdrachtDropdownPanel');
-    if (el) el.style.display = 'none';
+    if (this.isOpdrachtPinned) {
+      this.togglePinOpdrachtPanel(false);
+    }
+    if (el) {
+      el.style.display = 'none';
+      el.classList.remove('open');
+      el.classList.remove('pinned');
+    }
+    const rubricSide = document.getElementById('rubricSidePanel');
+    if (rubricSide) rubricSide.classList.remove('open');
+    this.adjustWorkspaceForPinnedPanel();
   }
 
   formatMarkdownInstructions(md) {
@@ -2689,53 +2783,110 @@ Type 'help', 'ip a', or 'python3' to get started.
     const exam = this.activeExam;
     const titleEl = document.getElementById('opdrachtDropdownTitle');
     const bodyEl = document.getElementById('opdrachtDropdownBody');
+    const pinCb = document.getElementById('pinOpdrachtPanel');
+    if (pinCb) pinCb.checked = !!this.isOpdrachtPinned;
     if (!exam || !bodyEl) return;
 
     if (titleEl) titleEl.innerText = exam.title;
 
-    const evalRes = this.gradingEngine.evaluate();
+    const evalRes = this.gradingEngine ? this.gradingEngine.evaluate() : { earnedPoints: 0, totalPoints: 100, percentage: 0, objectives: [] };
     const objectives = evalRes.objectives || [];
-
-    let rubricHtml = '';
-    if (objectives.length > 0) {
-      rubricHtml = `
-        <h4 style="margin: 20px 0 8px; color: #0284c7; font-size: 14px; font-weight: 700;">🎯 Beoordelingscriteria & Live Punten (${evalRes.earnedPoints}/${evalRes.totalPoints} pt):</h4>
-        <table style="width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; background: #ffffff;">
-          <thead style="background: #0f172a; color: #ffffff;">
-            <tr>
-              <th style="padding: 7px 10px; text-align: left; border: 1px solid #cbd5e1;">Criterium</th>
-              <th style="padding: 7px 10px; text-align: left; border: 1px solid #cbd5e1;">Omschrijving</th>
-              <th style="width: 70px; text-align: center; border: 1px solid #cbd5e1;">Punten</th>
-              <th style="width: 90px; text-align: center; border: 1px solid #cbd5e1;">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${objectives.map(obj => `
-              <tr style="border-bottom: 1px solid #e2e8f0; background: ${obj.passed ? '#f0fdf4' : '#ffffff'};">
-                <td style="font-weight: 600; padding: 6px 10px; border: 1px solid #cbd5e1; color: #1e293b;">${obj.title}</td>
-                <td style="font-size: 11px; color: #475569; padding: 6px 10px; border: 1px solid #cbd5e1;">${obj.desc || ''}</td>
-                <td style="text-align: center; font-weight: 700; padding: 6px 10px; border: 1px solid #cbd5e1;">${obj.points} pt</td>
-                <td style="text-align: center; font-weight: 700; padding: 6px 10px; border: 1px solid #cbd5e1; color: ${obj.passed ? '#16a34a' : '#94a3b8'};">
-                  ${obj.passed ? '✅ GESLAAGD' : '⏳ NOG NIET'}
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-    }
-
     const formattedInstructions = this.formatMarkdownInstructions(exam.instructions || '');
 
     bodyEl.innerHTML = `
-      <div style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 14px 16px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-        <h4 style="margin: 0 0 8px; color: #0f172a; font-size: 15px; font-weight: 700;">Examen Opgave: ${exam.title}</h4>
-        <div style="font-size: 12px; color: #334155; line-height: 1.6;">
+      <!-- DEEL 1: DE OPDRACHT -->
+      <div class="pt-opdracht-assignment-card" style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 14px 16px; margin-bottom: 18px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <h4 style="margin: 0; color: #0f172a; font-size: 14.5px; font-weight: 700;">📝 Opdracht &amp; Netwerkschema: ${exam.title}</h4>
+          <span style="font-size: 11px; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 4px; font-weight: 700;">Hogeschool PXL</span>
+        </div>
+        <div style="font-size: 12.5px; color: #334155; line-height: 1.6;">
           ${formattedInstructions}
         </div>
       </div>
-      ${rubricHtml}
+
+      <!-- DEEL 2: DE RUBRIC MET DE SCORES (DIRECT DAARONDER) -->
+      <div id="rubricSidePanel" class="pt-rubric-section-unified open" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 20px;">
+        <div id="rubricSidePanelContent">
+          <div class="pt-rubric-panel-header" style="border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #0284c7; display: flex; align-items: center; gap: 6px;">
+                <span>🎯</span> Beoordelingsrubric &amp; Criteria
+              </h4>
+              <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                Live evaluatie van criteria en vereisten
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <div class="pt-rubric-summary-score" style="font-size: 14px; font-weight: 800; color: ${evalRes.percentage >= 80 ? '#16a34a' : (evalRes.percentage >= 50 ? '#d97706' : '#dc2626')};">
+                ${evalRes.earnedPoints} / ${evalRes.totalPoints} pt (${evalRes.percentage}%)
+              </div>
+            </div>
+          </div>
+
+          <!-- Score Progress Bar -->
+          <div style="background: #f1f5f9; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 14px; border: 1px solid #e2e8f0;">
+            <div class="pt-rubric-live-bar" style="height: 100%; width: ${evalRes.percentage}%; background: ${evalRes.percentage >= 80 ? '#22c55e' : (evalRes.percentage >= 50 ? '#f59e0b' : '#ef4444')}; transition: width 0.3s ease;"></div>
+          </div>
+
+          <!-- Criteria List -->
+          <div class="pt-rubric-panel-list" style="display: flex; flex-direction: column; gap: 8px;">
+            ${objectives.map(obj => `
+              <div class="pt-rubric-panel-item ${obj.passed ? 'passed' : 'failed'}" style="border: 1px solid ${obj.passed ? '#bbf7d0' : '#e2e8f0'}; background: ${obj.passed ? '#f0fdf4' : '#fafafa'}; border-radius: 6px; padding: 10px 12px; transition: all 0.2s;">
+                <div class="pt-panel-item-top" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span class="pt-panel-item-status" style="font-size: 14px;">${obj.passed ? '✅' : '⏳'}</span>
+                    <strong class="pt-panel-item-title" style="font-size: 12.5px; color: #0f172a;">${obj.title}</strong>
+                  </div>
+                  <span class="pt-panel-item-pts" style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: ${obj.passed ? '#dcfce7; color: #15803d;' : '#f1f5f9; color: #64748b;'}">
+                    ${obj.passed ? obj.points : 0} / ${obj.points} pt
+                  </span>
+                </div>
+                ${obj.desc ? `<div class="pt-panel-item-desc" style="font-size: 11.5px; color: #475569; margin-top: 4px; line-height: 1.4;">${obj.desc}</div>` : ''}
+                ${obj.detail ? `<div class="pt-panel-item-detail" style="font-size: 11px; color: ${obj.passed ? '#15803d' : '#94a3b8'}; margin-top: 3px; font-family: monospace;">${obj.detail}</div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
     `;
+  }
+
+  updateRubricSectionOnly(evalRes) {
+    const content = document.getElementById('rubricSidePanelContent');
+    if (!content) return;
+    const objectives = evalRes.objectives || [];
+
+    const summaryScore = content.querySelector('.pt-rubric-summary-score');
+    if (summaryScore) {
+      summaryScore.innerText = `${evalRes.earnedPoints} / ${evalRes.totalPoints} pt (${evalRes.percentage}%)`;
+      summaryScore.style.color = evalRes.percentage >= 80 ? '#16a34a' : (evalRes.percentage >= 50 ? '#d97706' : '#dc2626');
+    }
+
+    const liveBar = content.querySelector('.pt-rubric-live-bar');
+    if (liveBar) {
+      liveBar.style.width = `${evalRes.percentage}%`;
+      liveBar.style.background = evalRes.percentage >= 80 ? '#22c55e' : (evalRes.percentage >= 50 ? '#f59e0b' : '#ef4444');
+    }
+
+    const list = content.querySelector('.pt-rubric-panel-list');
+    if (list) {
+      list.innerHTML = objectives.map(obj => `
+        <div class="pt-rubric-panel-item ${obj.passed ? 'passed' : 'failed'}" style="border: 1px solid ${obj.passed ? '#bbf7d0' : '#e2e8f0'}; background: ${obj.passed ? '#f0fdf4' : '#fafafa'}; border-radius: 6px; padding: 10px 12px; transition: all 0.2s;">
+          <div class="pt-panel-item-top" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="pt-panel-item-status" style="font-size: 14px;">${obj.passed ? '✅' : '⏳'}</span>
+              <strong class="pt-panel-item-title" style="font-size: 12.5px; color: #0f172a;">${obj.title}</strong>
+            </div>
+            <span class="pt-panel-item-pts" style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: ${obj.passed ? '#dcfce7; color: #15803d;' : '#f1f5f9; color: #64748b;'}">
+              ${obj.passed ? obj.points : 0} / ${obj.points} pt
+            </span>
+          </div>
+          ${obj.desc ? `<div class="pt-panel-item-desc" style="font-size: 11.5px; color: #475569; margin-top: 4px; line-height: 1.4;">${obj.desc}</div>` : ''}
+          ${obj.detail ? `<div class="pt-panel-item-detail" style="font-size: 11px; color: ${obj.passed ? '#15803d' : '#94a3b8'}; margin-top: 3px; font-family: monospace;">${obj.detail}</div>` : ''}
+        </div>
+      `).join('');
+    }
   }
 
   // --- AUTHENTICATION & AUTOSAVE ---
@@ -2764,17 +2915,17 @@ Type 'help', 'ip a', or 'python3' to get started.
     if (this.currentUser) {
       const isTeacher = (this.currentUser.role === 'teacher');
       container.innerHTML = `
-        <span class="pt-auth-badge ${isTeacher ? 'teacher' : ''}">
-          ${isTeacher ? '🎓 Docent' : '👨‍🎓 Student'}: ${this.currentUser.full_name}
+        <span class="pt-auth-badge ${isTeacher ? 'teacher' : ''}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 8px; border-radius: 4px; background: ${isTeacher ? '#fef3c7; color: #92400e; border: 1px solid #fde68a;' : '#e0f2fe; color: #0369a1; border: 1px solid #bae6fd;'} white-space: nowrap;">
+          ${isTeacher ? '🎓 Docent' : '👨‍🎓 Student'}: ${this.currentUser.full_name || this.currentUser.username}
         </span>
-        ${!isTeacher ? `<span class="pt-autosave-indicator" id="autoSaveLabel">💾 Auto-save actief</span>` : ''}
-        <button class="pt-btn pt-btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="window.PXLApp.logout()">
+        ${!isTeacher ? `<span class="pt-autosave-indicator" id="autoSaveLabel" style="font-size: 10px; color: #16a34a; white-space: nowrap;">💾 Auto-save</span>` : ''}
+        <button class="pt-btn pt-btn-secondary" id="btnLogoutBtn" style="padding: 4px 9px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;" onclick="window.PXLApp.logout()" title="Sessie beëindigen en uitloggen">
           Uitloggen
         </button>
       `;
     } else {
       container.innerHTML = `
-        <button class="pt-btn pt-btn-secondary" id="btnLoginModal" onclick="window.PXLApp.openLoginModal()">
+        <button class="pt-btn pt-btn-secondary" id="btnLoginModal" onclick="window.PXLApp.openLoginModal()" style="padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;">
           🔑 Inloggen
         </button>
       `;

@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PXL NetSim - Cisco Packet Tracer Web Exam Platform</title>
   <link rel="icon" type="image/png" href="img/pxl_logo.png">
-  <link rel="stylesheet" href="css/packet_tracer.css?v=20261110_v2">
-  <link rel="stylesheet" href="css/modal.css?v=20261110_v2">
-  <link rel="stylesheet" href="css/terminal.css?v=20261110_v2">
+  <link rel="stylesheet" href="css/packet_tracer.css?v=20261112_v1">
+  <link rel="stylesheet" href="css/modal.css?v=20261112_v1">
+  <link rel="stylesheet" href="css/terminal.css?v=20261112_v1">
 </head>
 <body>
 
@@ -16,8 +16,7 @@
     <div class="pt-brand">
       <img src="img/pxl_logo.png" alt="Hogeschool PXL" class="pt-brand-logo">
       <div class="pt-brand-titles">
-        <h1>PXL NetSim • Cisco IOS Exam & Lab Platform</h1>
-        <p>© Parren, Van Waeyenberg, Frissaer, Jean, Hombroeks • Hogeschool PXL (Toegepaste Informatica / SNE)</p>
+        <h1 style="margin: 0; font-size: 15px; font-weight: 700; color: #0369a1; white-space: nowrap;">PXL NetSim • Cisco Lab Platform</h1>
       </div>
     </div>
 
@@ -28,22 +27,28 @@
         <option value="03_wireless_lan">Lab 3: Wireless LAN & WPA2-PSK</option>
       </select>
 
-      <button class="pt-btn" onclick="window.PXLApp.importLabJson()" title="Importeer een labo vanuit JSON bestand" style="font-size: 11px; padding: 5px 9px; background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; cursor: pointer;">
-        📥 Import
-      </button>
-      <button class="pt-btn" onclick="window.PXLApp.exportCurrentLabJson()" title="Exporteer huidig labo en topologie als JSON" style="font-size: 11px; padding: 5px 9px; background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; cursor: pointer;">
-        📤 Export
-      </button>
+      <!-- TRIO: IMPORT, EXPORT, INLEVEREN VLAK NAAST ELKAAR -->
+      <div class="pt-trio-btn-group" style="display: flex; align-items: center; gap: 4px;">
+        <button class="pt-btn" onclick="window.PXLApp.importLabJson()" title="Importeer een labo vanuit JSON bestand" style="font-size: 11px; padding: 5px 9px; background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; cursor: pointer;">
+          📥 Import
+        </button>
+        <button class="pt-btn" onclick="window.PXLApp.exportCurrentLabJson()" title="Exporteer huidig labo en topologie als JSON" style="font-size: 11px; padding: 5px 9px; background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; cursor: pointer;">
+          📤 Export
+        </button>
+        <button class="pt-btn pt-btn-primary" id="btnSubmitExam" onclick="window.PXLApp.openSubmissionModal()" title="Examen of labo afronden en inleveren" style="font-size: 11px; padding: 5px 11px; font-weight: 700; background: #0284c7; color: #ffffff; border: 1px solid #0369a1; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+          🚀 Inleveren
+        </button>
+      </div>
 
-      <button class="pt-btn" id="btnOpdrachtDropdown" onclick="window.PXLApp.toggleOpdrachtDropdown()" style="font-weight: 700; background: #0284c7; color: white; border: none; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer;">
-        📋 Opdracht & Rubric ▾
+      <button class="pt-btn" id="btnOpdrachtDropdown" onclick="window.PXLApp.toggleOpdrachtDropdown()" style="font-weight: 700; background: #0284c7; color: white; border: none; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px;" title="Toon de gecombineerde labopdracht en rubric">
+        📋 Opdracht & Rubric
       </button>
 
       <div class="pt-timer-badge">
         ⏱️ <span id="examTimer">80:00</span>
       </div>
 
-      <div class="pt-score-badge" style="cursor: pointer;" onclick="window.PXLApp.toggleRubricPanel()" title="Klik om taakchecklist en rubric te openen">
+      <div class="pt-score-badge" style="cursor: pointer;" onclick="window.PXLApp.toggleRubricPanel()" title="Klik om opdracht en rubric te openen">
         <span class="pt-score-text" id="scoreText">Score: 0%</span>
         <div class="pt-score-progress">
           <div class="pt-score-bar" id="scoreBar"></div>
@@ -52,38 +57,45 @@
     </div>
 
     <div class="pt-header-actions">
-      <!-- User Profile / Login status -->
-      <div id="userAuthContainer" style="display: flex; align-items: center; gap: 8px;">
+      <button class="pt-btn pt-btn-secondary" id="btnOpenGlobalWireshark" onclick="window.PXLApp.openGlobalWireshark()" title="Open Wireshark Protocol Analyzer & OSI / PDU Inspector">
+        🦈 Wireshark
+      </button>
+      <button class="pt-btn pt-btn-accent" id="btnToggleStudio" title="Open Docentenportaal & Examenbeheer">
+        🛠️ Teacher Studio
+      </button>
+
+      <!-- UITLOGGEN HELEMAAL RECHTS -->
+      <div id="userAuthContainer" style="display: flex; align-items: center; gap: 8px; margin-left: 6px;">
         <button class="pt-btn pt-btn-secondary" id="btnLoginModal" onclick="window.PXLApp.openLoginModal()">
           🔑 Inloggen
         </button>
       </div>
-
-      <button class="pt-btn pt-btn-secondary" id="btnOpenGlobalWireshark" onclick="window.PXLApp.openGlobalWireshark()" title="Open Wireshark Protocol Analyzer & OSI / PDU Inspector">
-        🦈 Wireshark
-      </button>
-      <button class="pt-btn pt-btn-secondary" id="btnShowRubric">
-        📊 Rubric
-      </button>
-      <button class="pt-btn pt-btn-accent" id="btnToggleStudio">
-        🛠️ Teacher Studio
-      </button>
-      <button class="pt-btn pt-btn-primary" id="btnSubmitExam">
-        🚀 Inleveren
-      </button>
     </div>
   </header>
 
-  <!-- FLOATING OPDRACHT DROPDOWN PANEL -->
-  <div class="pt-opdracht-dropdown" id="opdrachtDropdownPanel">
+  <!-- UNIFIED OPDRACHT & RUBRIC SIDE PANEL (RECHTS VAN HET SCHERM MET VASTZETTEN) -->
+  <aside class="pt-opdracht-dropdown pt-unified-panel" id="opdrachtDropdownPanel">
     <div class="pt-opdracht-header">
-      <h4>📋 <span id="opdrachtDropdownTitle">Lab Opdracht & Netwerkschema</span></h4>
-      <button class="pt-btn-close" onclick="window.PXLApp.closeOpdrachtDropdown()">✕</button>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+          <span>📋</span> <span id="opdrachtDropdownTitle">Lab Opdracht &amp; Rubric</span>
+        </h4>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <label class="pt-pin-label" style="display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 4px 8px; border-radius: 4px; border: 1px solid #bae6fd; cursor: pointer; user-select: none;" title="Zet het opdracht- en rubricpaneel permanent vast aan de rechterkant van het scherm">
+          <input type="checkbox" id="pinOpdrachtPanel" onchange="window.PXLApp.togglePinOpdrachtPanel(this.checked)" style="cursor: pointer;">
+          <span>📌 Vastzetten</span>
+        </label>
+        <button class="pt-btn-close" onclick="window.PXLApp.closeOpdrachtDropdown()" title="Sluiten" style="background: transparent; border: none; font-size: 16px; color: #64748b; cursor: pointer; padding: 2px 6px;">✕</button>
+      </div>
     </div>
     <div class="pt-opdracht-body" id="opdrachtDropdownBody">
       <!-- Dynamically filled with instructions, addressing table, and rubric -->
+      <div id="rubricSidePanel" class="pt-rubric-section-unified">
+        <div id="rubricSidePanelContent"></div>
+      </div>
     </div>
-  </div>
+  </aside>
 
   <!-- WORKSPACE TOOLBAR -->
   <div class="pt-toolbar">
@@ -147,11 +159,6 @@
       <!-- Dynamically populated shelf items (Routers, Switches, PCs, Cables) -->
     </div>
   </footer>
-
-  <!-- SLIDE-OUT RUBRIC PANEL -->
-  <aside class="pt-rubric-side-panel" id="rubricSidePanel">
-    <div id="rubricSidePanelContent"></div>
-  </aside>
 
   <!-- DEVICE CONFIGURATION & INTERACTION MODAL -->
   <div class="pt-modal-overlay" id="deviceModal">
@@ -283,7 +290,7 @@
   <script src="js/grading_engine.js?v=20261111_v7"></script>
   <script src="js/submission_exporter.js?v=20261111_v7"></script>
   <script src="js/teacher_studio.js?v=20261111_v7"></script>
-  <script src="js/app.js?v=20261111_v7"></script>
+  <script src="js/app.js?v=20261112_v1"></script>
 
 </body>
 </html>

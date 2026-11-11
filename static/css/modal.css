@@ -565,28 +565,60 @@
   gap: 12px;
 }
 
-/* OPDRACHT & RUBRIC DROPDOWN */
+/* UNIFIED OPDRACHT & RUBRIC SIDE PANEL (RECHTS VAN HET SCHERM MET VASTZETTEN) */
 .pt-opdracht-dropdown {
-  position: absolute;
-  top: 48px;
-  left: 310px;
-  width: 620px;
-  max-height: 550px;
+  position: fixed;
+  top: 56px;
+  right: -520px;
+  left: auto;
+  width: 480px;
+  max-width: 90vw;
+  bottom: 105px;
+  max-height: none;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-  z-index: 95;
+  border-left: 3px solid #0284c7;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 0;
+  box-shadow: -6px 0 25px rgba(0,0,0,0.15);
+  z-index: 1000;
   display: none;
   flex-direction: column;
   overflow: hidden;
-  animation: slideDown 0.15s ease-out;
+  transition: right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+.pt-opdracht-dropdown.open {
+  display: flex !important;
+  right: 0 !important;
 }
+
+.pt-opdracht-dropdown.pinned {
+  display: flex !important;
+  right: 0 !important;
+  box-shadow: -4px 0 16px rgba(0,0,0,0.12);
+}
+
+/* GLOBAL WIRESHARK MODAL FIX */
+#globalWiresharkModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(3px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+#globalWiresharkModal.active {
+  display: flex !important;
+}
+
 
 .pt-opdracht-header {
   padding: 12px 16px;
