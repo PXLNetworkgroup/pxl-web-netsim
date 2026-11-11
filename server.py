@@ -14,16 +14,29 @@ import socket
 import urllib.request
 import urllib.error
 import urllib.parse
-from flask import Flask, request, jsonify, send_from_directory, session
+from flask import Flask, request, jsonify, send_from_directory, session, Response
 from backend.pka_parser import convert_pka_to_netsim
 from backend.database import (
     init_db,
     authenticate_user,
     create_or_update_user,
+    delete_user,
+    delete_users_bulk,
+    move_users_to_class,
+    get_distinct_classes,
+    get_distinct_programs,
+    list_students,
     save_student_progress,
     get_student_progress,
     list_students_with_progress,
     bulk_import_students,
+    import_blackboard_csv,
+    reset_student_exam,
+    assign_exam,
+    get_exam_assignments,
+    delete_exam_assignment,
+    toggle_exam_assignment,
+    get_assigned_exam_for_student,
     get_system_setting,
     set_system_setting,
     get_db
@@ -116,12 +129,13 @@ def auth_me():
     })
 
 
-# --- STUDENT PROGRESS & 1-MINUTE AUTOSAVE ---
+# --- STUDENT PROGRESS & 10-SECOND AUTOSAVE & RUNNING CONFIG ---
 @app.route("/api/student/save", methods=["POST"])
 def student_save():
     data = request.get_json(force=True) or {}
     exam_id = data.get("exam_id", "01_pxl_standard")
     topology = data.get("topology", {})
+    running_config = data.get("running_config", {})
     score = data.get("score", 0)
     max_score = data.get("max_score", 100)
     percentage = data.get("percentage", 0.0)
@@ -140,11 +154,11 @@ def student_save():
     if not user_id:
         return jsonify({"error": "Niet ingelogd. Log in om je voortgang op te slaan."}), 401
 
-    save_student_progress(user_id, exam_id, topology, score, max_score, percentage)
+    save_student_progress(user_id, exam_id, topology, score, max_score, percentage, running_config)
     return jsonify({
         "success": True,
         "saved_at": time.strftime("%H:%M:%S"),
-        "message": "Voortgang automatisch opgeslagen in database"
+        "message": "Voortgang & Running Config automatisch opgeslagen in database"
     })
 
 
@@ -172,14 +186,112 @@ def student_load():
     return jsonify({"found": True, "progress": progress})
 
 
-# --- TEACHER APIS & STUDENT IMPORT ---
+@app.route("/api/student/assigned-exam", methods=["GET"])
+def student_assigned_exam():
+    """Returns the open exam assigned to the currently logged in student or their class."""
+    user_id = session.get("user_id")
+    if not user_id and "username" in request.args:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM users WHERE username = ?", (request.args["username"].strip(),))
+        row = cur.fetchone()
+        conn.close()
+        if row:
+            user_id = row["id"]
+
+    if not user_id:
+        return jsonify({"assigned": False, "assignment": None})
+
+    assignment = get_assigned_exam_for_student(user_id)
+    if not assignment:
+        return jsonify({"assigned": False, "assignment": None})
+
+    return jsonify({"assigned": True, "assignment": assignment})
+
+
+# --- TEACHER APIS: USERS, CLASSES, DROPDOWN MOVES & MANAGEMENT ---
+@app.route("/api/teacher/classes", methods=["GET"])
+def teacher_classes():
+    return jsonify({
+        "classes": get_distinct_classes(),
+        "programs": get_distinct_programs()
+    })
+
+
 @app.route("/api/teacher/students", methods=["GET"])
 def teacher_students():
-    role = session.get("role")
-    # For kiosk testing, if not logged in or teacher, check auth
     exam_id = request.args.get("exam_id", "01_pxl_standard")
-    students = list_students_with_progress(exam_id)
+    classes_param = request.args.get("classes", "")
+    search = request.args.get("search", "")
+
+    class_list = [c.strip() for c in classes_param.split(",") if c.strip()] if classes_param else None
+    students = list_students_with_progress(exam_id=exam_id, class_groups=class_list, search=search)
     return jsonify({"students": students})
+
+
+@app.route("/api/teacher/student/create", methods=["POST"])
+def teacher_create_student():
+    data = request.get_json(force=True) or {}
+    username = data.get("username", "").strip()
+    if not username:
+        return jsonify({"error": "Gebruikersnaam / Studentnummer verplicht"}), 400
+
+    first_name = data.get("first_name", "").strip()
+    last_name = data.get("last_name", "").strip()
+    full_name = data.get("full_name", "").strip() or f"{first_name} {last_name}".strip() or username
+    academic_year = data.get("academic_year", "2026-27").strip()
+    program = data.get("program", "").strip()
+    class_group = data.get("class_group", "Algemeen").strip()
+    password = data.get("password", "PXL2026!").strip() or "PXL2026!"
+    raw_display = f"{last_name} ({academic_year} - {program} - {class_group}), {first_name}"
+
+    uid = create_or_update_user(
+        username=username,
+        password=password,
+        full_name=full_name,
+        role='student',
+        class_group=class_group,
+        first_name=first_name,
+        last_name=last_name,
+        academic_year=academic_year,
+        program=program,
+        raw_display_name=raw_display
+    )
+    return jsonify({"success": True, "user_id": uid, "message": f"Student {full_name} succesvol opgeslagen."})
+
+
+@app.route("/api/teacher/student/delete", methods=["POST"])
+def teacher_delete_student():
+    data = request.get_json(force=True) or {}
+    user_id = data.get("user_id")
+    user_ids = data.get("user_ids", [])
+
+    if user_id:
+        delete_user(user_id)
+        return jsonify({"success": True, "message": "Student succesvol verwijderd."})
+
+    if user_ids:
+        cnt = delete_users_bulk(user_ids)
+        return jsonify({"success": True, "count": cnt, "message": f"{cnt} student(en) verwijderd."})
+
+    return jsonify({"error": "Geen student ID(s) opgegeven"}), 400
+
+
+@app.route("/api/teacher/students/move-class", methods=["POST"])
+def teacher_move_students():
+    data = request.get_json(force=True) or {}
+    user_ids = data.get("user_ids", [])
+    new_class = data.get("new_class_group", "").strip()
+
+    if not user_ids or not new_class:
+        return jsonify({"error": "Selecteer studenten en een doelklas"}), 400
+
+    updated = move_users_to_class(user_ids, new_class)
+    return jsonify({
+        "success": True,
+        "count": updated,
+        "message": f"{updated} student(en) verplaatst naar klas {new_class}."
+    })
 
 
 @app.route("/api/teacher/import-students", methods=["POST"])
@@ -189,13 +301,116 @@ def teacher_import_students():
     if not csv_text.strip():
         return jsonify({"error": "Geen CSV gegevens ontvangen"}), 400
 
-    result = bulk_import_students(csv_text)
+    result = import_blackboard_csv(csv_text)
     return jsonify({
         "success": True,
         "created": result["created"],
         "updated": result["updated"],
         "errors": result["errors"],
-        "message": f"{result['created']} nieuwe accounts aangemaakt, {result['updated']} bijgewerkt"
+        "message": f"{result['created']} nieuwe studenten aangemaakt, {result['updated']} bijgewerkt"
+    })
+
+
+# --- TEACHER TAB 2: SCORES OVERVIEW & BLACKBOARD / EXCEL EXPORT ---
+@app.route("/api/teacher/scores", methods=["GET"])
+def teacher_scores():
+    exam_id = request.args.get("exam_id", "01_pxl_standard")
+    classes_param = request.args.get("classes", "")
+    search = request.args.get("search", "")
+
+    class_list = [c.strip() for c in classes_param.split(",") if c.strip()] if classes_param else None
+    students = list_students_with_progress(exam_id=exam_id, class_groups=class_list, search=search)
+    return jsonify({"exam_id": exam_id, "scores": students})
+
+
+@app.route("/api/teacher/scores/export", methods=["GET"])
+def teacher_scores_export():
+    exam_id = request.args.get("exam_id", "01_pxl_standard")
+    classes_param = request.args.get("classes", "")
+    class_list = [c.strip() for c in classes_param.split(",") if c.strip()] if classes_param else None
+
+    students = list_students_with_progress(exam_id=exam_id, class_groups=class_list)
+
+    # Output CSV for Blackboard / Excel
+    csv_lines = ["Achternaam;Voornaam;Gebruikersnaam;Richting;Klas;Examen;Score;MaxScore;Percentage;LaatsteOpslag"]
+    for s in students:
+        csv_lines.append(
+            f"{s['last_name']};{s['first_name']};{s['username']};{s['program']};{s['class_group']};"
+            f"{exam_id};{s['score']};{s['max_score']};{s['percentage']};{s['last_saved']}"
+        )
+    csv_data = "\r\n".join(csv_lines)
+
+    filename = f"PXL_NetSim_Scores_{exam_id}_{time.strftime('%Y%m%d_%H%M%S')}.csv"
+    return Response(
+        csv_data,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment;filename={filename}"}
+    )
+
+
+# --- TEACHER TAB 3: TEST ASSIGNMENTS, TIME LIMITS & EXAM RESET ---
+@app.route("/api/teacher/exam/assignments", methods=["GET", "POST"])
+def teacher_exam_assignments():
+    if request.method == "POST":
+        data = request.get_json(force=True) or {}
+        exam_id = data.get("exam_id", "").strip()
+        title = data.get("title", "").strip() or exam_id
+        target_type = data.get("target_type", "class")  # 'class', 'student', 'all'
+        target_values = data.get("target_values", [])  # list of classes or usernames
+        time_limit = int(data.get("time_limit_minutes", 80))
+        is_active = 1 if data.get("is_active", True) else 0
+
+        if not exam_id:
+            return jsonify({"error": "Examen ID is verplicht"}), 400
+
+        if target_type == 'all' or not target_values:
+            assign_exam(exam_id, title, 'all', '*', time_limit, is_active)
+        else:
+            for val in target_values:
+                if str(val).strip():
+                    assign_exam(exam_id, title, target_type, str(val).strip(), time_limit, is_active)
+
+        return jsonify({"success": True, "message": f"Examen '{title}' succesvol toegewezen met tijdslimiet van {time_limit} min."})
+    else:
+        assignments = get_exam_assignments()
+        return jsonify({"assignments": assignments})
+
+
+@app.route("/api/teacher/exam/assignment/toggle", methods=["POST"])
+def teacher_toggle_assignment():
+    data = request.get_json(force=True) or {}
+    assignment_id = data.get("id")
+    is_active = data.get("is_active", True)
+    if not assignment_id:
+        return jsonify({"error": "Toewijzing ID ontbreekt"}), 400
+    toggle_exam_assignment(assignment_id, is_active)
+    return jsonify({"success": True})
+
+
+@app.route("/api/teacher/exam/assignment/delete", methods=["POST"])
+def teacher_delete_assignment():
+    data = request.get_json(force=True) or {}
+    assignment_id = data.get("id")
+    if not assignment_id:
+        return jsonify({"error": "Toewijzing ID ontbreekt"}), 400
+    delete_exam_assignment(assignment_id)
+    return jsonify({"success": True})
+
+
+@app.route("/api/teacher/exam/reset", methods=["POST"])
+def teacher_reset_exam():
+    data = request.get_json(force=True) or {}
+    user_ids = data.get("user_ids", [])
+    exam_id = data.get("exam_id")
+
+    if not user_ids:
+        return jsonify({"error": "Selecteer minstens één student om te resetten"}), 400
+
+    deleted = reset_student_exam(user_ids, exam_id)
+    return jsonify({
+        "success": True,
+        "count": deleted,
+        "message": f"Examenopslag voor {len(user_ids)} student(en) gewist. Studenten starten met een schone lei."
     })
 
 

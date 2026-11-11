@@ -1779,7 +1779,7 @@ class PXLNetSimApp {
         this.showToast(`👋 Welkom ${data.user.full_name}!`);
         if (pInput) pInput.value = '';
         if (this.currentUser.role === 'student') {
-          this.loadSavedTopology();
+          this.checkAssignedExamAndLoad();
         }
       } else {
         if (errBox) {
@@ -1804,12 +1804,38 @@ class PXLNetSimApp {
     this.showToast('Succesvol uitgelogd');
   }
 
+  async checkAssignedExamAndLoad() {
+    if (!this.currentUser || this.currentUser.role !== 'student') return;
+    try {
+      const res = await fetch('/api/student/assigned-exam');
+      const data = await res.json();
+      if (data.assigned && data.assignment) {
+        const asg = data.assignment;
+        if (asg.time_limit_minutes) {
+          this.timerSeconds = asg.time_limit_minutes * 60;
+          this.startExamTimer();
+        }
+        if (asg.exam_id && (!this.activeExam || this.activeExam.id !== asg.exam_id)) {
+          // Switch to assigned exam if available in presets/labs
+          const lab = window.PXL_COURSE_LABS ? window.PXL_COURSE_LABS.find(l => l.id === asg.exam_id || l.code === asg.exam_id) : null;
+          if (lab) {
+            this.loadCourseLab(lab.id);
+          }
+        }
+        this.showToast(`📋 Toegewezen examen: ${asg.title || asg.exam_id} (${asg.time_limit_minutes} min)`);
+      }
+    } catch (e) {
+      console.warn('Could not check assigned exam:', e);
+    }
+    await this.loadSavedTopology();
+  }
+
   initAutoSaveTimer() {
     if (this.autoSaveInterval) clearInterval(this.autoSaveInterval);
-    // Autosave every 60 seconds (1 minute)
+    // Autosave every 10 seconds with running config testing
     this.autoSaveInterval = setInterval(() => {
       this.saveActiveTopology();
-    }, 60000);
+    }, 10000);
   }
 
   async saveActiveTopology() {
@@ -1821,6 +1847,18 @@ class PXLNetSimApp {
     const percentage = evalResult.percentage || 0;
     const topology = this.sim.exportTopology();
 
+    // Snapshot running configs of all active devices
+    const runningConfigs = {};
+    if (this.sim && this.sim.devices) {
+      for (const [dId, dev] of Object.entries(this.sim.devices)) {
+        if (dev.getRunningConfig) {
+          runningConfigs[dId] = dev.getRunningConfig();
+        } else if (dev.runningConfig) {
+          runningConfigs[dId] = dev.runningConfig;
+        }
+      }
+    }
+
     try {
       const res = await fetch('/api/student/save', {
         method: 'POST',
@@ -1828,6 +1866,7 @@ class PXLNetSimApp {
         body: JSON.stringify({
           exam_id: examId,
           topology: topology,
+          running_config: runningConfigs,
           score: score,
           max_score: maxScore,
           percentage: percentage
@@ -1837,7 +1876,7 @@ class PXLNetSimApp {
       if (data.success) {
         const lbl = document.getElementById('autoSaveLabel');
         if (lbl) {
-          lbl.innerText = `💾 Opgeslagen om ${data.saved_at}`;
+          lbl.innerText = `💾 10s Auto-save: ${data.saved_at}`;
           lbl.style.color = '#10b981';
         }
       }

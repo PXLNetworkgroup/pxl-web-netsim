@@ -44,25 +44,33 @@ if ($repoCheck.message -eq "Not Found") {
     Write-Host "Repository bestaat reeds op GitHub." -ForegroundColor Green
 }
 
+$gitCmd = "git"
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    $minGit = "C:\Users\PXL\AppData\Local\Microsoft\WinGet\Packages\Git.MinGit_Microsoft.Winget.Source_8wekyb3d8bbwe\cmd\git.exe"
+    if (Test-Path $minGit) {
+        $gitCmd = $minGit
+    }
+}
+
 Write-Host "`n2. Git remote 'origin' configureren..." -ForegroundColor Cyan
 $authenticatedUrl = "https://${githubUser}:${Token}@github.com/${githubUser}/${repoName}.git"
 $publicUrl = "https://github.com/${githubUser}/${repoName}.git"
 
-& git remote remove origin 2>$null
-& git remote add origin $authenticatedUrl
+& $gitCmd remote remove origin 2>$null
+& $gitCmd remote add origin $authenticatedUrl
 
 Write-Host "`n3. Lokale wijzigingen committen..." -ForegroundColor Cyan
-& git add -A
-$status = & git status --porcelain
+& $gitCmd add -A
+$status = & $gitCmd status --porcelain
 if ($status) {
-    & git commit -m "feat: complete Cisco CLI tab completion, MikroTik hEX lite, OpenWrt router, Het Internet simulator, and team collaboration guides"
+    & $gitCmd commit -m "feat: individual student sessions, 10s running-config auto-save, blackboard student import, class move dropdown, multi-class score matrix with export, and exam assignments with time limits and reset"
 } else {
     Write-Host "Geen nieuwe on-gecommitte wijzigingen." -ForegroundColor Gray
 }
 
 Write-Host "`n4. Pushing naar GitHub ($githubUser/$repoName:main)..." -ForegroundColor Cyan
-& git branch -M main
-$pushRes = & git push -u origin main 2>&1
+& $gitCmd branch -M main
+$pushRes = & $gitCmd push -u origin main 2>&1
 Write-Host $pushRes
 
 # Reset remote back to clean public URL without embedding token in git config
