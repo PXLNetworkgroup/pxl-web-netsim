@@ -728,6 +728,23 @@ class NetworkSimulator {
     if (this.packetCaptureLog.length > 1000) {
       this.packetCaptureLog.shift();
     }
+
+    // Trigger visual packet animation on canvas workspace (Packet Tracer Envelope Flow)
+    if (typeof window !== 'undefined' && window.PXLApp?.canvasWorkspace && packet.srcDevId) {
+      const cw = window.PXLApp.canvasWorkspace;
+      if (packet.dstDevId === 'broadcast') {
+        for (const cable of this.cables) {
+          if (cable.fromDevice === packet.srcDevId) {
+            cw.enqueueFlyingPacket(packet.srcDevId, cable.toDevice, packet.protocol, packet.protocol);
+          } else if (cable.toDevice === packet.srcDevId) {
+            cw.enqueueFlyingPacket(packet.srcDevId, cable.fromDevice, packet.protocol, packet.protocol);
+          }
+        }
+      } else if (packet.dstDevId && packet.dstDevId !== packet.srcDevId && this.devices[packet.dstDevId]) {
+        cw.enqueueFlyingPacket(packet.srcDevId, packet.dstDevId, packet.protocol, packet.protocol);
+      }
+    }
+
     if (typeof window !== 'undefined' && window.PXLWireshark && typeof window.PXLWireshark.render === 'function') {
       const tb = document.getElementById('wsPacketTableBody');
       if (tb) {

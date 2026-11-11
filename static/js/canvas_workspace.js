@@ -29,6 +29,9 @@ class CanvasWorkspace {
     this.dragOffsetY = 0;
     this.mouseCanvasPos = { x: 0, y: 0 };
     this.showPortLabels = true;
+    this.flyingPackets = [];
+    this.animating = false;
+    this.hoveredDevice = null;
 
     // Cabling Engine
     this.cabling = new CablingEngine(this);
@@ -245,6 +248,10 @@ class CanvasWorkspace {
     } else if (this.activeTool === 'select') {
       const hoverDev = this.getDeviceAt(pos.x, pos.y);
       this.canvas.style.cursor = hoverDev ? 'grab' : 'default';
+      if (this.hoveredDevice !== hoverDev) {
+        this.hoveredDevice = hoverDev;
+        this.render();
+      }
     }
   }
 
@@ -252,6 +259,7 @@ class CanvasWorkspace {
     if (this.draggedDevice) {
       const dev = this.draggedDevice;
       this.draggedDevice = null;
+      this.hoveredDevice = null;
       if (!this.hasMovedDevice) {
         // Single click without dragging opens device modal (Packet Tracer standard)
         if (window.PXLApp) {
@@ -370,11 +378,17 @@ class CanvasWorkspace {
     // 3. Draw Cables & Link LEDs
     this.drawCables(ctx);
 
-    // 4. Draw Pending Rubber-band Cable
+    // 4. Draw Flying Animated Packets (Packet Tracer envelope flow)
+    this.drawFlyingPackets(ctx);
+
+    // 5. Draw Pending Rubber-band Cable
     this.drawPendingCable(ctx);
 
-    // 5. Draw Devices
+    // 6. Draw Devices
     this.drawDevices(ctx);
+
+    // 7. Draw Hover Tooltips (Device Summary / Port Details)
+    this.drawHoverTooltip(ctx);
 
     ctx.restore();
   }
@@ -779,6 +793,248 @@ class CanvasWorkspace {
       ctx.fillStyle = '#64748b';
       ctx.fillRect(x + 8, y + 45, 54, 8);
     }
+  }
+
+  // --- PACKET TRACER FLYING ENVELOPES ANIMATION ---
+
+  enqueueFlyingPacket(fromDevId, toDevId, protocol = 'ICMP', label = 'ICMP') {
+    if (!this.flyingPackets) this.flyingPackets = [];
+    let borderColor = '#0284c7';
+    let bgColor = '#ffffff';
+    let textColor = '#0284c7';
+
+    if (protocol === 'ICMP') {
+      borderColor = '#059669';
+      bgColor = '#ecfdf5';
+      textColor = '#047857';
+    } else if (protocol === 'ARP') {
+      borderColor = '#d97706';
+      bgColor = '#fffbeb';
+      textColor = '#b45309';
+    } else if (protocol === 'TCP') {
+      borderColor = '#2563eb';
+      bgColor = '#eff6ff';
+      textColor = '#1d4ed8';
+    } else if (protocol === 'HTTP') {
+      borderColor = '#16a34a';
+      bgColor = '#f0fdf4';
+      textColor = '#15803d';
+    } else if (protocol === 'DNS') {
+      borderColor = '#6366f1';
+      bgColor = '#eef2ff';
+      textColor = '#4f46e5';
+    } else if (protocol === 'DHCP') {
+      borderColor = '#db2777';
+      bgColor = '#fdf2f8';
+      textColor = '#be185d';
+    }
+
+    this.flyingPackets.push({
+      fromDevId,
+      toDevId,
+      protocol,
+      label,
+      progress: 0.0,
+      speed: 0.022,
+      borderColor,
+      bgColor,
+      textColor
+    });
+
+    if (!this.animating) {
+      this.animating = true;
+      requestAnimationFrame(() => {
+        this.animating = false;
+        this.render();
+      });
+    }
+  }
+
+  drawFlyingPackets(ctx) {
+    if (!this.flyingPackets || this.flyingPackets.length === 0) return;
+    const sim = window.PXLNetworkSim;
+    if (!sim) return;
+
+    for (let i = this.flyingPackets.length - 1; i >= 0; i--) {
+      const fp = this.flyingPackets[i];
+      const devA = sim.devices[fp.fromDevId];
+      const devB = sim.devices[fp.toDevId];
+
+      if (!devA || !devB) {
+        this.flyingPackets.splice(i, 1);
+        continue;
+      }
+
+      const x1 = devA.x + 35;
+      const y1 = devA.y + 35;
+      const x2 = devB.x + 35;
+      const y2 = devB.y + 35;
+
+      const curX = x1 + (x2 - x1) * fp.progress;
+      const curY = y1 + (y2 - y1) * fp.progress;
+
+      // Draw Packet Tracer envelope
+      ctx.save();
+      ctx.translate(curX, curY);
+
+      // Drop shadow
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+      ctx.shadowBlur = 6;
+
+      // Envelope body (20x14)
+      ctx.fillStyle = fp.bgColor || '#ffffff';
+      ctx.strokeStyle = fp.borderColor || '#0284c7';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(-10, -7, 20, 14, 2);
+      } else {
+        ctx.rect(-10, -7, 20, 14);
+      }
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.stroke();
+
+      // Envelope flap lines
+      ctx.strokeStyle = fp.borderColor || '#0284c7';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-10, -7);
+      ctx.lineTo(0, 1);
+      ctx.lineTo(10, -7);
+      ctx.stroke();
+
+      // Protocol badge above envelope
+      ctx.font = 'bold 8px Consolas, monospace';
+      ctx.fillStyle = fp.textColor || '#0284c7';
+      ctx.textAlign = 'center';
+      ctx.fillText(fp.label || fp.protocol || 'PDU', 0, -10);
+
+      ctx.restore();
+
+      // Advance progress
+      fp.progress += fp.speed || 0.022;
+      if (fp.progress >= 1.0) {
+        this.flyingPackets.splice(i, 1);
+      }
+    }
+
+    // Continue animation loop while envelopes are flying
+    if (this.flyingPackets.length > 0 && !this.animating) {
+      this.animating = true;
+      requestAnimationFrame(() => {
+        this.animating = false;
+        this.render();
+      });
+    }
+  }
+
+  // --- PACKET TRACER SUMMARY HOVER TOOLTIP ---
+
+  drawHoverTooltip(ctx) {
+    if (!this.hoveredDevice || this.isPanning || this.draggedDevice) return;
+    const dev = this.hoveredDevice;
+    const sim = window.PXLNetworkSim;
+    if (!sim) return;
+
+    // Collect active interface entries
+    const intfRows = [];
+    if (dev.interfaces) {
+      for (const [pName, intf] of Object.entries(dev.interfaces)) {
+        if (pName === 'Aux' || pName === 'USB0' || pName === 'RS 232') continue;
+        const isUp = sim.isLinkUp(dev.id, pName);
+        let ipDisp = (dev.type === 'pc' || dev.type === 'laptop' || dev.type === 'server')
+          ? (dev.ip || '--')
+          : (intf.ip || (pName === 'Vlan1' && dev.ip) || '--');
+        if (ipDisp !== '--' && (intf.mask || dev.mask)) {
+          ipDisp += `/${IPUtils.maskToCidr ? IPUtils.maskToCidr(intf.mask || dev.mask) : '24'}`;
+        }
+        const macDisp = intf.mac || (dev.interfaces?.['FastEthernet0']?.mac) || '--';
+
+        const cable = sim.getCableOnPort(dev.id, pName);
+        if (cable || isUp || ipDisp !== '--' || pName === 'Vlan1' || pName === 'FastEthernet0/1' || pName === 'GigabitEthernet0/0/0') {
+          const shortName = pName.replace('GigabitEthernet', 'Gi').replace('FastEthernet', 'Fa').replace('Serial', 'Se');
+          intfRows.push({
+            name: shortName,
+            status: isUp ? 'Up' : 'Down',
+            ip: ipDisp,
+            mac: macDisp
+          });
+        }
+      }
+    }
+
+    if (intfRows.length === 0) return;
+
+    ctx.save();
+    const tooltipX = dev.x + 85;
+    const tooltipY = dev.y - 10;
+
+    const rowH = 15;
+    const headerH = 26;
+    const tableHeaderH = 18;
+    const totalH = headerH + tableHeaderH + (intfRows.length * rowH) + 8;
+    const totalW = 320;
+
+    // Shadow & background
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.96)';
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(tooltipX, tooltipY, totalW, totalH, 6);
+    } else {
+      ctx.rect(tooltipX, tooltipY, totalW, totalH);
+    }
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // Title
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 11px Inter, Arial, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${dev.hostname} (${dev.model || dev.type})`, tooltipX + 10, tooltipY + 17);
+
+    // Separator line
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(tooltipX + 6, tooltipY + headerH);
+    ctx.lineTo(tooltipX + totalW - 6, tooltipY + headerH);
+    ctx.stroke();
+
+    // Table Header
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'bold 9px Consolas, monospace';
+    let curY = tooltipY + headerH + 13;
+    ctx.fillText('PORT', tooltipX + 10, curY);
+    ctx.fillText('LINK', tooltipX + 65, curY);
+    ctx.fillText('IP ADDRESS', tooltipX + 105, curY);
+    ctx.fillText('MAC ADDRESS', tooltipX + 215, curY);
+
+    // Table Rows
+    ctx.font = '9px Consolas, monospace';
+    curY += 6;
+    for (const r of intfRows) {
+      curY += rowH;
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText(r.name, tooltipX + 10, curY);
+
+      ctx.fillStyle = r.status === 'Up' ? '#4ade80' : '#f87171';
+      ctx.fillText(r.status, tooltipX + 65, curY);
+
+      ctx.fillStyle = r.ip !== '--' ? '#38bdf8' : '#64748b';
+      ctx.fillText(r.ip, tooltipX + 105, curY);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(r.mac, tooltipX + 215, curY);
+    }
+
+    ctx.restore();
   }
 }
 

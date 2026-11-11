@@ -249,6 +249,7 @@
       this.activeFilter = '';
       this.activeInterface = 'all';
       this.capturing = true;
+      this.activeDeviceFilter = 'all';
       this.containerId = options.containerId || 'pcAppContainer';
 
       // Keep reference
@@ -268,6 +269,11 @@
       // Filter by device if not global
       if (!this.isGlobal && this.device) {
         list = list.filter(p => p.srcDevId === this.device.id || p.dstDevId === this.device.id || p.srcDevName === this.device.hostname || p.dstDevName === this.device.hostname || p.dstDevId === 'broadcast');
+      }
+
+      // Filter by selected device in global mode
+      if (this.isGlobal && this.activeDeviceFilter && this.activeDeviceFilter !== 'all') {
+        list = list.filter(p => p.srcDevId === this.activeDeviceFilter || p.dstDevId === this.activeDeviceFilter || p.srcDevName === this.activeDeviceFilter || p.dstDevName === this.activeDeviceFilter);
       }
 
       // Filter by selected interface
@@ -335,6 +341,15 @@
               <button class="pt-btn pt-btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="window.PXLWireshark.clearCapture()">
                 🗑️ Wissen
               </button>
+              <button class="pt-btn pt-btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="window.PXLWireshark.exportPacketsJson()" title="Exporteer pakketten als JSON bestand">
+                📥 Exporteer
+              </button>
+              ${this.isGlobal ? `
+                <select id="wsDeviceFilterSelect" onchange="window.PXLWireshark.setDeviceFilter(this.value)" style="background: #0f172a; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; font-size: 11px; padding: 3px 6px;">
+                  <option value="all" ${this.activeDeviceFilter === 'all' ? 'selected' : ''}>🌐 Alle Apparaten</option>
+                  ${this.renderDeviceFilterOptions()}
+                </select>
+              ` : ''}
               <div style="border-left: 1px solid #475569; height: 18px; margin: 0 4px;"></div>
               <!-- Test Traffic Generator -->
               <select id="wsTrafficGenSelect" onchange="window.PXLWireshark.handleGenerateTraffic(this.value); this.value='';" style="background: #0f172a; color: #e2e8f0; border: 1px solid #475569; border-radius: 4px; font-size: 11px; padding: 3px 6px;">
@@ -1001,6 +1016,35 @@
       if (packets.length > 0) {
         this.selectPacket(packets.length - 1);
       }
+    }
+
+    renderDeviceFilterOptions() {
+      const sim = this.getSim();
+      if (!sim || !sim.devices) return '';
+      return Object.values(sim.devices).map(d => `
+        <option value="${d.id}" ${this.activeDeviceFilter === d.id ? 'selected' : ''}>${d.hostname} (${d.model || d.type})</option>
+      `).join('');
+    }
+
+    setDeviceFilter(devId) {
+      this.activeDeviceFilter = devId;
+      this.selectedPacketIndex = null;
+      this.render();
+    }
+
+    exportPacketsJson() {
+      const packets = this.getPackets();
+      if (packets.length === 0) {
+        alert("Geen pakketten in de capture om te exporteren.");
+        return;
+      }
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(packets, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `wireshark_capture_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
     }
   }
 
