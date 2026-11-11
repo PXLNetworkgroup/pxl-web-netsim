@@ -717,9 +717,29 @@ def assign_exam_batch(exam_id, title, targets, time_limit_minutes=80, is_active=
     cursor = conn.cursor()
     count = 0
     for t in targets:
-        ttype = t.get('type', 'class')
-        tval = t.get('value', '').strip()
-        tcls = t.get('class', '').strip()
+        if isinstance(t, str):
+            if t.startswith('class:'):
+                ttype = 'class'
+                tval = t.split(':', 1)[1].strip()
+                tcls = tval
+            elif t.startswith('student:'):
+                ttype = 'student'
+                tval = t.split(':', 1)[1].strip()
+                tcls = ''
+            elif t == '*':
+                ttype = 'all'
+                tval = '*'
+                tcls = ''
+            else:
+                ttype = 'class'
+                tval = t.strip()
+                tcls = tval
+        elif isinstance(t, dict):
+            ttype = t.get('type', 'class')
+            tval = t.get('value', '').strip()
+            tcls = t.get('class', '').strip()
+        else:
+            continue
         if not tval:
             continue
         cursor.execute("""
