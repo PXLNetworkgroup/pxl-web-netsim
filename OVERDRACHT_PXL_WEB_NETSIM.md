@@ -167,6 +167,21 @@ G:\My Drive\antigravitylogs\pxl-web-netsim/
         └── teacher_studio.js            # Docentenportaal & rubric editor
 ```
 
+### C. Switch SVI Routing, Ping van/naar Switches en Telnet/SSH overal
+* **Oorzaak van het Ping-probleem:**
+  - Bij het instellen van IP-adressen op een Switch (Vlan1 SVI) en een PC kon je wel tussen PC's onderling pingen, maar niet naar of vanaf de switch (`No route to host` of `Echo request reached destination, but reply route failed`).
+  - Een Switch Virtual Interface (`Vlan1`) heeft geen fysieke kabel rechtstreeks aan zich gekoppeld; hij communiceert intern via de actieve fysieke poorten (`Fa0/1-24`, `Gi0/1-2`) in die VLAN. In de eerdere code retourneerde `getL2BroadcastDomain()` voor een switch SVI een lege array `[]`, waardoor ARP-resolutie en retourpakketten van de ping mislukten.
+  - Daarnaast startte `Vlan1` in de GUI voorheen met `shutdown: true`, waardoor een ingevoerd IP-adres pas werkte na het handmatig aanvinken van poort inschakelen.
+* **Geïmplementeerde Oplossingen:**
+  1. **SVI Broadcast Domain Fan-Out (`network_simulator.js`):** Bij start of ontvangst op een SVI (`Vlan1`) breidt de simulator het broadcast domein dynamisch uit naar alle fysieke switchpoorten in die VLAN. Omgekeerd wordt bij binnenkomst op een switchpoort het SVI management IP direct meegenomen in het domein.
+  2. **Automatische No Shutdown bij IP Config (`app.js`):** Zodra via de GUI een IP-adres wordt ingevuld op een switch SVI of pc/router poort, wordt `shutdown: false` automatisch geactiveerd (exact conform Cisco Packet Tracer gedrag).
+  3. **Telnet & SSH in alle Shells:**
+     - `telnet <ip> [port]` en `ssh [-l user] <ip>` geïmplementeerd in Windows Command Prompt (`pc_desktop.js`), Windows PowerShell (`powershell_engine.js`), Linux Terminal (`linux_cli.js`), PuTTY (`putty_app.js`) en Cisco IOS CLI (`cisco_cli.js`).
+     - Cisco CLI ondersteunt remote sessies (`activeRemoteSession`) met dynamische prompt-delegatie naar het externe apparaat.
+  4. **Geautomatiseerde Playwright Test Suite (`tests/test_switch_ping_telnet_ssh.py`):**
+     - Automatische end-to-end verificatietest via Microsoft Edge waarin PC1 (192.168.1.10) en PC2 (192.168.1.20) via straight-through kabels verbonden zijn met Switch0 (VLAN 1 = 192.168.1.2).
+     - Resultaten: PC1 ➔ Switch (4/4, 0% loss), Switch ➔ PC1 (4/4, 0% loss), PC1 ➔ PC2 (4/4, 0% loss), Telnet PC1 ➔ Switch (Actief), SSH PC1 ➔ Switch (Actief), Telnet Switch ➔ PC1 (Actief) — **100% PASSED**.
+
 ---
 
 ## 4. Hoe Verder Werken op het Andere Toestel?
