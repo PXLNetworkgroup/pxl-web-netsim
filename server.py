@@ -39,7 +39,15 @@ from backend.database import (
     get_assigned_exam_for_student,
     get_system_setting,
     set_system_setting,
-    get_db
+    get_db,
+    save_exam,
+    list_exams,
+    get_exam_by_id,
+    delete_exam,
+    assign_exam_batch,
+    get_import_queue,
+    clear_import_queue,
+    get_students_grouped_by_class
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -348,7 +356,100 @@ def teacher_scores_export():
     )
 
 
-# --- TEACHER TAB 3: TEST ASSIGNMENTS, TIME LIMITS & EXAM RESET ---
+# --- TEACHER TAB 3: TEST & ASSIGNMENT MANAGEMENT, BATCH TARGETING & RESET ---
+@app.route("/api/teacher/exams", methods=["GET"])
+def teacher_list_exams():
+    """Lists all available exams in SQLite database (course labs, PKA imports, presets, custom)."""
+    exams = list_exams()
+    return jsonify({"status": "success", "count": len(exams), "exams": exams})
+
+
+@app.route("/api/exam/<exam_id>", methods=["GET"])
+def get_exam_endpoint(exam_id):
+    """Retrieves full JSON configuration for any exam in the database."""
+    exam = get_exam_by_id(exam_id)
+    if not exam:
+        return jsonify({"error": f"Examen '{exam_id}' niet gevonden in database"}), 404
+    return jsonify({"status": "success", "exam": exam})
+
+
+@app.route("/api/teacher/exam/save", methods=["POST"])
+def teacher_save_exam():
+    """Saves or updates an exam in SQLite database, enforcing mandatory title."""
+    data = request.get_json(force=True) or {}
+    title = data.get("title", "").strip()
+    if not title:
+        return jsonify({"error": "Examen / opdracht naam is verplicht!"}), 400
+
+    exam_id = data.get("id", "").strip()
+    instructions = data.get("instructions", "")
+    topology = data.get("topology") or data.get("initialTopology") or {}
+    rubric = data.get("rubric") or []
+    time_limit = int(data.get("time_limit_minutes") or data.get("timeLimitMinutes") or 80)
+    category = data.get("category", "custom")
+    created_by = session.get("username", "teacher")
+
+    try:
+        saved_id = save_exam(
+            exam_id=exam_id,
+            title=title,
+            instructions=instructions,
+            topology=topology,
+            rubric=rubric,
+            time_limit_minutes=time_limit,
+            category=category,
+            created_by=created_by
+        )
+        return jsonify({
+            "success": True,
+            "exam_id": saved_id,
+            "title": title,
+            "message": f"Examen '{title}' succesvol opgeslagen in database."
+        })
+    except Exception as e:
+        return jsonify({"error": f"Fout bij opslaan in database: {str(e)}"}), 500
+
+
+@app.route("/api/teacher/exam/delete", methods=["POST"])
+def teacher_delete_exam():
+    data = request.get_json(force=True) or {}
+    exam_id = data.get("id", "").strip()
+    if not exam_id:
+        return jsonify({"error": "Examen ID ontbreekt"}), 400
+    success = delete_exam(exam_id)
+    return jsonify({"success": success})
+
+
+@app.route("/api/teacher/students-by-class", methods=["GET"])
+def teacher_students_by_class():
+    """Returns all students grouped by class for hierarchical tree checkboxes in assignments tab."""
+    classes = get_students_grouped_by_class()
+    return jsonify({"status": "success", "count": len(classes), "classes": classes})
+
+
+@app.route("/api/teacher/exam/assign-targets", methods=["POST"])
+def teacher_assign_targets():
+    """Batch-assigns an exam to student groups (classes) and/or individual students."""
+    data = request.get_json(force=True) or {}
+    exam_id = data.get("exam_id", "").strip()
+    title = data.get("title", "").strip() or exam_id
+    targets = data.get("targets", [])
+    time_limit = int(data.get("time_limit_minutes", 80))
+    is_active = 1 if data.get("is_active", True) else 0
+
+    if not exam_id:
+        return jsonify({"error": "Examen ID is verplicht"}), 400
+    if not targets:
+        return jsonify({"error": "Selecteer minstens één klas of student"}), 400
+
+    cnt = assign_exam_batch(exam_id, title, targets, time_limit_minutes=time_limit, is_active=is_active)
+    return jsonify({
+        "success": True,
+        "count": cnt,
+        "message": f"Opdracht '{title}' succesvol opengezet voor {cnt} doelgroep(en)/student(en) met {time_limit} min tijdslimiet."
+    })
+
+
 @app.route("/api/teacher/exam/assignments", methods=["GET", "POST"])
 def teacher_exam_assignments():
     if request.method == "POST":
@@ -357,6 +458,7 @@ def teacher_exam_assignments():
         title = data.get("title", "").strip() or exam_id
         target_type = data.get("target_type", "class")  # 'class', 'student', 'all'
         target_values = data.get("target_values", [])  # list of classes or usernames
+        target_class = data.get("target_class", "")
         time_limit = int(data.get("time_limit_minutes", 80))
         is_active = 1 if data.get("is_active", True) else 0
 
@@ -364,11 +466,11 @@ def teacher_exam_assignments():
             return jsonify({"error": "Examen ID is verplicht"}), 400
 
         if target_type == 'all' or not target_values:
-            assign_exam(exam_id, title, 'all', '*', time_limit, is_active)
+            assign_exam(exam_id, title, 'all', '*', '', time_limit, is_active)
         else:
             for val in target_values:
                 if str(val).strip():
-                    assign_exam(exam_id, title, target_type, str(val).strip(), time_limit, is_active)
+                    assign_exam(exam_id, title, target_type, str(val).strip(), target_class, time_limit, is_active)
 
         return jsonify({"success": True, "message": f"Examen '{title}' succesvol toegewezen met tijdslimiet van {time_limit} min."})
     else:
@@ -414,11 +516,25 @@ def teacher_reset_exam():
     })
 
 
+# --- TOEVOEG WACHTRIJ APIS ---
+@app.route("/api/teacher/import-queue", methods=["GET"])
+def teacher_import_queue():
+    queue = get_import_queue()
+    return jsonify({"queue": queue, "total": len(queue)})
+
+
+@app.route("/api/teacher/import-queue/clear", methods=["POST"])
+def teacher_import_queue_clear():
+    clear_import_queue()
+    return jsonify({"success": True, "message": "Toevoeg-wachtrij leeggemaakt."})
+
+
 # --- PKA IMPORT & SUBMISSION ---
 @app.route("/api/convert-pka", methods=["POST"])
 def convert_pka_endpoint():
     """
     Receives an uploaded .pka or .pkt file, decrypts Twofish, and returns WebNetSim exam JSON.
+    If 'title' is provided and 'save_to_db' is true, immediately saves to SQLite exams table.
     """
     if "file" not in request.files:
         return jsonify({"error": "Geen bestand meegestuurd"}), 400
@@ -427,9 +543,32 @@ def convert_pka_endpoint():
     if not uploaded_file.filename:
         return jsonify({"error": "Bestandsnaam ontbreekt"}), 400
 
+    title = request.form.get("title", "").strip()
+    save_to_db = str(request.form.get("save_to_db", "false")).lower() == "true"
+
     try:
         content = uploaded_file.read()
         exam_json = convert_pka_to_netsim(content, uploaded_file.filename)
+
+        if title:
+            exam_json["title"] = title
+
+        if save_to_db:
+            if not title:
+                return jsonify({"error": "Examen / opdracht naam is verplicht bij opslaan in database!"}), 400
+
+            save_exam(
+                exam_id=exam_json.get("id"),
+                title=title,
+                instructions=exam_json.get("instructions", ""),
+                topology=exam_json.get("topology") or exam_json.get("initialTopology"),
+                rubric=exam_json.get("rubric", []),
+                time_limit_minutes=exam_json.get("timeLimitMinutes", 80),
+                category="pka_import",
+                created_by=session.get("username", "teacher")
+            )
+            exam_json["saved_in_db"] = True
+
         return jsonify(exam_json)
     except Exception as e:
         return jsonify({"error": f"Fout bij verwerken van Packet Tracer bestand: {str(e)}"}), 500

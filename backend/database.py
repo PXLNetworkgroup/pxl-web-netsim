@@ -34,6 +34,69 @@ def _add_column_if_not_exists(cursor, table_name, column_name, col_type):
     if column_name.lower() not in cols:
         cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {col_type};")
 
+def seed_course_labs():
+    """Populates all Network Essentials course labs and presets into the SQLite exams table."""
+    conn = get_db()
+    cursor = conn.cursor()
+    labs_dir = os.path.join(DB_DIR, 'course_labs')
+    if os.path.isdir(labs_dir):
+        for fname in sorted(os.listdir(labs_dir)):
+            if fname.lower().endswith('.json'):
+                fpath = os.path.join(labs_dir, fname)
+                try:
+                    with open(fpath, 'r', encoding='utf-8') as f:
+                        lab_data = json.load(f)
+                    lab_id = lab_data.get('id') or lab_data.get('code')
+                    if not lab_id:
+                        continue
+                    code = lab_data.get('code', '')
+                    title = lab_data.get('title') or code or lab_id
+                    if code and not title.startswith(code):
+                        display_title = f"{code}: {title}"
+                    else:
+                        display_title = title
+                    instr = lab_data.get('instructions', '')
+                    time_limit = lab_data.get('timeLimitMinutes', 45)
+                    topo = lab_data.get('initialTopology', {})
+                    rubric = lab_data.get('rubric', [])
+
+                    cursor.execute("""
+                        INSERT INTO exams (id, title, instructions, topology_json, rubric_json, time_limit_minutes, is_active, category, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, 1, 'course_lab', 'Gert Van Waeyenberg')
+                        ON CONFLICT(id) DO UPDATE SET
+                            title = excluded.title,
+                            instructions = excluded.instructions,
+                            topology_json = excluded.topology_json,
+                            rubric_json = excluded.rubric_json,
+                            time_limit_minutes = excluded.time_limit_minutes,
+                            category = 'course_lab';
+                    """, (lab_id, display_title, instr, json.dumps(topo), json.dumps(rubric), time_limit))
+                except Exception as e:
+                    print(f"Error seeding course lab {fname}: {e}")
+
+    # Also seed standard preset exams if not exist
+    presets = [
+        ('01_pxl_standard', 'PXL SNE - Praktijkproef: Netwerken 1 Routing & Switching Basis',
+         'Configureer de router en switch volgens het adresseringsschema. Zorg dat PC1 en PC2 kunnen pingen.',
+         80, 'PXL SNE Team'),
+        ('02_cabling_scratch', 'PXL SNE - Praktijkproef: Zelfstandig Bekabelen & Basisconfiguratie',
+         'Plaats een Router (4331), een Switch (2960) en een PC. Verbind via correcte kabels en configureer IP.',
+         60, 'PXL SNE Team'),
+        ('03_wireless_lan', 'PXL SNE - Wireless LAN (WLAN) Setup met Access Point & WPA2-PSK',
+         'Verbind AP met de switch, configureer SSID PXL-Guest en verbind de laptop draadloos.',
+         45, 'PXL SNE Team')
+    ]
+    for pid, ptitle, pinstr, ptime, pauthor in presets:
+        cursor.execute("SELECT id FROM exams WHERE id = ?", (pid,))
+        if not cursor.fetchone():
+            cursor.execute("""
+                INSERT INTO exams (id, title, instructions, topology_json, rubric_json, time_limit_minutes, is_active, category, created_by)
+                VALUES (?, ?, ?, '{}', '[]', ?, 1, 'preset', ?)
+            """, (pid, ptitle, pinstr, ptime, pauthor))
+
+    conn.commit()
+    conn.close()
+
 def init_db():
     conn = get_db()
     cursor = conn.cursor()
@@ -93,10 +156,15 @@ def init_db():
         rubric_json TEXT,
         time_limit_minutes INTEGER DEFAULT 80,
         is_active INTEGER DEFAULT 1,
-        created_by TEXT,
+        category TEXT DEFAULT 'custom', -- 'course_lab', 'pka_import', 'preset', 'custom'
+        created_by TEXT DEFAULT 'teacher',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
+
+    _add_column_if_not_exists(cursor, 'exams', 'is_active', "INTEGER DEFAULT 1")
+    _add_column_if_not_exists(cursor, 'exams', 'category', "TEXT DEFAULT 'custom'")
+    _add_column_if_not_exists(cursor, 'exams', 'created_by', "TEXT DEFAULT 'teacher'")
 
     # Exam assignments table: open exams for classes or students with time limit
     cursor.execute("""
@@ -106,10 +174,27 @@ def init_db():
         title TEXT NOT NULL DEFAULT '',
         target_type TEXT NOT NULL, -- 'class', 'student', or 'all'
         target_value TEXT NOT NULL, -- e.g. '1SNEb', '12603952', '*'
+        target_class TEXT DEFAULT '', -- e.g. '1SNEb' when target_type='student'
         time_limit_minutes INTEGER DEFAULT 80,
         is_active INTEGER DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE (exam_id, target_type, target_value)
+    );
+    """)
+
+    _add_column_if_not_exists(cursor, 'exam_assignments', 'target_class', "TEXT DEFAULT ''")
+
+    # Toevoeg-wachtrij table: audit queue of all added student accounts with their class name
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS import_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        full_name TEXT NOT NULL,
+        class_group TEXT NOT NULL,
+        program TEXT DEFAULT '',
+        academic_year TEXT DEFAULT '2026-27',
+        source TEXT DEFAULT 'manual', -- 'manual', 'blackboard_csv', 'seed'
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
 
@@ -167,7 +252,26 @@ def init_db():
                     except Exception as e:
                         print(f"Error auto-seeding {fname}: {e}")
 
+    # Backfill import_queue with existing students if empty
+    cursor.execute("SELECT count(*) FROM import_queue")
+    iq_cnt = cursor.fetchone()[0]
+    if iq_cnt == 0:
+        cursor.execute("SELECT username, full_name, class_group, program, academic_year, created_at FROM users WHERE role = 'student'")
+        all_students = cursor.fetchall()
+        for s in all_students:
+            cursor.execute("""
+                INSERT INTO import_queue (username, full_name, class_group, program, academic_year, source, created_at)
+                VALUES (?, ?, ?, ?, ?, 'seed', ?)
+            """, (s['username'], s['full_name'], s['class_group'] or '', s['program'] or '', s['academic_year'] or '2026-27', s['created_at']))
+        conn.commit()
+
     conn.close()
+
+    # Seed all Network Essentials course labs into SQLite exams table
+    try:
+        seed_course_labs()
+    except Exception as e:
+        print(f"Error seeding course labs: {e}")
 
 def authenticate_user(username, password):
     conn = get_db()
@@ -220,6 +324,12 @@ def create_or_update_user(username, password, full_name, role='student', class_g
         """, (username.strip(), p_hash, full_name.strip(), role, class_group.strip(),
               first_name.strip(), last_name.strip(), academic_year.strip(), program.strip(), raw_display_name.strip()))
         user_id = cursor.lastrowid
+
+    if role == 'student':
+        cursor.execute("""
+            INSERT INTO import_queue (username, full_name, class_group, program, academic_year, source, created_at)
+            VALUES (?, ?, ?, ?, ?, 'manual', CURRENT_TIMESTAMP)
+        """, (username.strip(), full_name.strip(), class_group.strip(), program.strip(), academic_year.strip()))
 
     conn.commit()
     conn.close()
@@ -355,6 +465,12 @@ def import_blackboard_csv(csv_text, default_password='PXL2026!'):
                     """, (parsed['username'], p_hash, parsed['full_name'], parsed['class_group'],
                           parsed['first_name'], parsed['last_name'], parsed['academic_year'], parsed['program'], parsed['raw_display_name']))
                     created += 1
+
+                # Record in import_queue
+                cursor.execute("""
+                    INSERT INTO import_queue (username, full_name, class_group, program, academic_year, source, created_at)
+                    VALUES (?, ?, ?, ?, ?, 'blackboard_csv', CURRENT_TIMESTAMP)
+                """, (parsed['username'], parsed['full_name'], parsed['class_group'], parsed['program'], parsed['academic_year']))
             except Exception as e:
                 errors.append(f"Regel {idx} ({parsed['username']}): {str(e)}")
 
@@ -382,6 +498,12 @@ def import_blackboard_csv(csv_text, default_password='PXL2026!'):
                         VALUES (?, ?, ?, 'student', ?)
                     """, (uname, p_hash, fname, cgroup))
                     created += 1
+
+                # Record in import_queue
+                cursor.execute("""
+                    INSERT INTO import_queue (username, full_name, class_group, program, academic_year, source, created_at)
+                    VALUES (?, ?, ?, '', '2026-27', 'blackboard_csv', CURRENT_TIMESTAMP)
+                """, (uname, fname, cgroup))
             except Exception as e:
                 errors.append(f"Regel {idx} ({uname}): {str(e)}")
 
@@ -568,20 +690,200 @@ def list_students_with_progress(exam_id='01_pxl_standard', class_groups=None, se
     return students
 
 # --- EXAM ASSIGNMENT MANAGEMENT ---
-def assign_exam(exam_id, title, target_type, target_value, time_limit_minutes=80, is_active=1):
+def assign_exam(exam_id, title, target_type, target_value, target_class='', time_limit_minutes=80, is_active=1):
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO exam_assignments (exam_id, title, target_type, target_value, time_limit_minutes, is_active, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO exam_assignments (exam_id, title, target_type, target_value, target_class, time_limit_minutes, is_active, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(exam_id, target_type, target_value) DO UPDATE SET
             title = excluded.title,
+            target_class = excluded.target_class,
             time_limit_minutes = excluded.time_limit_minutes,
             is_active = excluded.is_active;
-    """, (exam_id, title, target_type, target_value, time_limit_minutes, is_active))
+    """, (exam_id, title, target_type, target_value, target_class, time_limit_minutes, is_active))
     conn.commit()
     conn.close()
     return True
+
+def assign_exam_batch(exam_id, title, targets, time_limit_minutes=80, is_active=1):
+    """
+    Assigns exam to multiple targets at once.
+    targets is a list of dicts: [{'type': 'class', 'value': '1SNEb', 'class': '1SNEb'}, ...]
+    """
+    if not targets:
+        return 0
+    conn = get_db()
+    cursor = conn.cursor()
+    count = 0
+    for t in targets:
+        ttype = t.get('type', 'class')
+        tval = t.get('value', '').strip()
+        tcls = t.get('class', '').strip()
+        if not tval:
+            continue
+        cursor.execute("""
+            INSERT INTO exam_assignments (exam_id, title, target_type, target_value, target_class, time_limit_minutes, is_active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(exam_id, target_type, target_value) DO UPDATE SET
+                title = excluded.title,
+                target_class = excluded.target_class,
+                time_limit_minutes = excluded.time_limit_minutes,
+                is_active = excluded.is_active;
+        """, (exam_id, title, ttype, tval, tcls, time_limit_minutes, is_active))
+        count += 1
+    conn.commit()
+    conn.close()
+    return count
+
+# --- EXAMS MANAGEMENT & PERSISTENCE ---
+def save_exam(exam_id, title, instructions='', topology=None, rubric=None, time_limit_minutes=80, is_active=1, category='custom', created_by='teacher'):
+    if not title or not title.strip():
+        raise ValueError("Examen/opdracht naam is verplicht")
+    if not exam_id or not exam_id.strip():
+        clean_name = re.sub(r'[^a-zA-Z0-9_]', '_', title.lower().strip())[:30]
+        exam_id = f"{clean_name}_{int(datetime.now().timestamp())}"
+
+    conn = get_db()
+    cursor = conn.cursor()
+    topo_str = json.dumps(topology) if isinstance(topology, (dict, list)) else (topology or '{}')
+    rubric_str = json.dumps(rubric) if isinstance(rubric, list) else (rubric or '[]')
+
+    cursor.execute("""
+        INSERT INTO exams (id, title, instructions, topology_json, rubric_json, time_limit_minutes, is_active, category, created_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE SET
+            title = excluded.title,
+            instructions = excluded.instructions,
+            topology_json = excluded.topology_json,
+            rubric_json = excluded.rubric_json,
+            time_limit_minutes = excluded.time_limit_minutes,
+            is_active = excluded.is_active,
+            category = excluded.category,
+            created_by = excluded.created_by;
+    """, (exam_id.strip(), title.strip(), instructions or '', topo_str, rubric_str, time_limit_minutes, is_active, category, created_by))
+    conn.commit()
+    conn.close()
+    return exam_id.strip()
+
+def list_exams():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, title, instructions, time_limit_minutes, is_active, category, created_by, created_at,
+               LENGTH(rubric_json) as rubric_len
+        FROM exams
+        ORDER BY CASE category WHEN 'pka_import' THEN 1 WHEN 'custom' THEN 2 WHEN 'course_lab' THEN 3 ELSE 4 END, title ASC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_exam_by_id(exam_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM exams WHERE id = ?", (exam_id.strip(),))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    try:
+        topo = json.loads(row['topology_json'] or '{}')
+    except Exception:
+        topo = {}
+    try:
+        rubric = json.loads(row['rubric_json'] or '[]')
+    except Exception:
+        rubric = []
+    return {
+        'id': row['id'],
+        'title': row['title'],
+        'instructions': row['instructions'] or '',
+        'topology': topo,
+        'initialTopology': topo,
+        'rubric': rubric,
+        'time_limit_minutes': row['time_limit_minutes'] or 80,
+        'timeLimitMinutes': row['time_limit_minutes'] or 80,
+        'is_active': bool(row['is_active']),
+        'category': row['category'] or 'custom',
+        'created_by': row['created_by'] or 'teacher',
+        'created_at': row['created_at']
+    }
+
+def delete_exam(exam_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM exams WHERE id = ?", (exam_id.strip(),))
+    cnt = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return cnt > 0
+
+# --- TOEVOEG WACHTRIJ (AUDIT QUEUE) ---
+def add_to_import_queue(username, full_name, class_group, program='', academic_year='2026-27', source='manual'):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO import_queue (username, full_name, class_group, program, academic_year, source, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    """, (username.strip(), full_name.strip(), class_group.strip(), program.strip(), academic_year.strip(), source))
+    conn.commit()
+    conn.close()
+
+def get_import_queue(limit=500):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, username, full_name, class_group, program, academic_year, source, created_at
+        FROM import_queue
+        ORDER BY id DESC
+        LIMIT ?
+    """, (limit,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def clear_import_queue():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM import_queue")
+    conn.commit()
+    conn.close()
+    return True
+
+# --- HIERARCHICAL STUDENTS BY CLASS ---
+def get_students_grouped_by_class():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, username, full_name, first_name, last_name, academic_year, program, class_group
+        FROM users
+        WHERE role = 'student'
+        ORDER BY class_group ASC, last_name ASC, first_name ASC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+
+    groups = {}
+    for r in rows:
+        cg = r['class_group'] or 'Algemeen'
+        if cg not in groups:
+            groups[cg] = {
+                'class_name': cg,
+                'program': r['program'] or '',
+                'academic_year': r['academic_year'] or '2026-27',
+                'students': []
+            }
+        groups[cg]['students'].append({
+            'id': r['id'],
+            'username': r['username'],
+            'full_name': r['full_name'],
+            'first_name': r['first_name'] or '',
+            'last_name': r['last_name'] or '',
+            'program': r['program'] or '',
+            'class_group': cg
+        })
+    return list(groups.values())
 
 def get_exam_assignments(exam_id=None):
     conn = get_db()

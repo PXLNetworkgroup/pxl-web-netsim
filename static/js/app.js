@@ -1844,6 +1844,19 @@ class PXLNetSimApp {
           const lab = window.PXL_COURSE_LABS ? window.PXL_COURSE_LABS.find(l => l.id === asg.exam_id || l.code === asg.exam_id) : null;
           if (lab) {
             this.loadCourseLab(lab.id);
+          } else if (this.presetExams && this.presetExams[asg.exam_id]) {
+            this.loadExam(this.presetExams[asg.exam_id]);
+          } else {
+            // Load custom or PKA exam directly from SQLite database
+            try {
+              const exRes = await fetch(`/api/exam/${encodeURIComponent(asg.exam_id)}`);
+              const exData = await exRes.json();
+              if (exData.status === 'success' && exData.exam) {
+                this.loadExam(exData.exam);
+              }
+            } catch (err) {
+              console.warn('Could not load custom exam from DB:', err);
+            }
           }
         }
         this.showToast(`📋 Toegewezen examen: ${asg.title || asg.exam_id} (${asg.time_limit_minutes} min)`);

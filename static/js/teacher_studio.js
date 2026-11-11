@@ -23,6 +23,12 @@ class TeacherStudio {
     this.scoresClassFilter = new Set();
     this.activeSubtab = 'users';
     this.scoresRefreshTimer = null;
+    this.selectedAssignmentTargets = new Set();
+    this.expandedClassGroups = new Set();
+    this.cachedTreeClasses = [];
+    this.cachedImportQueue = [];
+    this.allDbExams = [];
+    this.isQueueCollapsed = false;
   }
 
   openStudioModal() {
@@ -66,7 +72,7 @@ class TeacherStudio {
         <div class="pt-studio-tabs" style="display: flex; background: #f1f5f9; border-bottom: 2px solid #cbd5e1; padding: 0 10px; overflow-x: auto;">
           <button class="pt-tab-btn active" id="tabBtnUsers" onclick="window.PXLApp.teacherStudio.switchTab('users')">👥 1. Studenten & Klassen</button>
           <button class="pt-tab-btn" id="tabBtnScores" onclick="window.PXLApp.teacherStudio.switchTab('scores')">📊 2. Scores & Voortgang</button>
-          <button class="pt-tab-btn" id="tabBtnExamMgmt" onclick="window.PXLApp.teacherStudio.switchTab('exam_mgmt')">⏱️ 3. Testen & Toewijzen</button>
+          <button class="pt-tab-btn" id="tabBtnExamMgmt" onclick="window.PXLApp.teacherStudio.switchTab('exam_mgmt')">📋 3. Opdrachten</button>
           <button class="pt-tab-btn" id="tabBtnGeneral" onclick="window.PXLApp.teacherStudio.switchTab('general')">⚙️ 4. Examen Ontwerpen</button>
           <button class="pt-tab-btn" id="tabBtnTopology" onclick="window.PXLApp.teacherStudio.switchTab('topology')">📸 5. Topologie Snapshot</button>
           <button class="pt-tab-btn" id="tabBtnRubric" onclick="window.PXLApp.teacherStudio.switchTab('rubric')">⚡ 6. Rubric & PKA</button>
@@ -125,8 +131,26 @@ class TeacherStudio {
               </div>
             </div>
 
+            <!-- Toevoeg-Wachtrij Panel (Audit Queue van toegevoegde accounts met klasnaam) -->
+            <div id="studioImportQueuePanel" style="margin-bottom: 14px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 10px 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 13px; font-weight: 700; color: #166534;">📋 Toevoeg-Wachtrij (Recent Toegevoegde Accounts per Klas)</span>
+                  <span id="queueTotalBadge" style="background: #16a34a; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: bold;">0 accounts in wachtrij</span>
+                </div>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <input type="text" id="queueSearchInput" placeholder="🔍 Filter wachtrij op klas of student..." class="pt-input" style="padding: 3px 8px; font-size: 11px; width: 220px;" oninput="window.PXLApp.teacherStudio.filterImportQueue()">
+                  <button class="pt-btn pt-btn-sm" style="font-size: 11px; padding: 3px 8px;" title="Wachtrij vernieuwen" onclick="window.PXLApp.teacherStudio.loadImportQueue()">🔄</button>
+                  <button class="pt-btn pt-btn-sm" id="btnToggleQueueView" style="font-size: 11px; padding: 3px 8px;" onclick="window.PXLApp.teacherStudio.toggleImportQueueView()">▲ Inklappen</button>
+                </div>
+              </div>
+              <div id="importQueueTableContainer" style="max-height: 140px; overflow-y: auto; border: 1px solid #bbf7d0; border-radius: 6px; background: #fff;">
+                <div style="padding: 10px; text-align: center; color: #64748b; font-size: 11px;">Wachtrij laden...</div>
+              </div>
+            </div>
+
             <!-- Students Table Container -->
-            <div id="studioStudentsListContainer" style="max-height: 440px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 6px;">
+            <div id="studioStudentsListContainer" style="max-height: 320px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 6px;">
               <div style="padding: 30px; text-align: center; color: #64748b;">⏳ Studentenlijst ophalen uit database...</div>
             </div>
           </div>
@@ -169,60 +193,115 @@ class TeacherStudio {
             </div>
           </div>
 
-          <!-- TAB 3: TESTEN BEHEREN & OPENZETTEN & RESET -->
+          <!-- TAB 3: OPDRACHTEN & EXAMEN MANAGEMENT -->
           <div id="studioTabExamMgmt" class="pt-studio-pane" style="display: none;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px;">
-              <!-- Assign Exam Box -->
-              <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px;">
-                <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #0284c7;">🚀 Test / Examen Openzetten voor Klassen</h4>
-                <div class="pt-form-group" style="margin-bottom: 10px;">
-                  <label style="font-size: 11px; font-weight: 600;">Kies Examen / Lab:</label>
-                  <select id="mgmtAssignExamSelect" class="pt-input" style="width: 100%; font-size: 12px;"></select>
+            <!-- Top Controls: Choose Exam, Time Limit & Openzet Knop -->
+            <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                <h4 style="margin: 0; font-size: 13px; color: #0284c7; display: flex; align-items: center; gap: 6px;">
+                  <span>📋</span> <span>Opdracht / Examen Toewijzen & Openzetten</span>
+                </h4>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <button class="pt-btn pt-btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="window.PXLApp.teacherStudio.loadExamMgmtTab()">
+                    🔄 Verversen
+                  </button>
                 </div>
-                <div class="pt-form-group" style="margin-bottom: 10px;">
-                  <label style="font-size: 11px; font-weight: 600;">Tijdslimiet (minuten):</label>
-                  <input type="number" id="mgmtAssignTimeLimit" class="pt-input" value="80" min="5" max="360" style="width: 100px; font-size: 12px;">
-                </div>
-                <div class="pt-form-group" style="margin-bottom: 10px;">
-                  <label style="font-size: 11px; font-weight: 600;">Doelgroep Klassen (vink aan):</label>
-                  <div id="mgmtClassCheckboxes" style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 90px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 6px; border-radius: 4px; background: #fff;"></div>
-                </div>
-                <button class="pt-btn pt-btn-primary" style="width: 100%; padding: 8px; font-size: 12px;" onclick="window.PXLApp.teacherStudio.submitExamAssignment()">
-                  ✅ Examen Openzetten voor Geselecteerde Klassen
-                </button>
               </div>
 
-              <!-- Reset Exam Box -->
-              <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 14px;">
-                <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #b91c1c;">🔄 Examen Resetten (Opnieuw Laten Beginnen)</h4>
-                <p style="font-size: 11px; color: #7f1d1d; margin-bottom: 10px;">
-                  Selecteer hieronder studenten van wie je de examenvoortgang en scores wilt wissen. De student kan daarna met een schone lei opnieuw beginnen.
-                </p>
-                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                  <select id="mgmtResetClassSelect" class="pt-input" style="font-size: 12px; flex: 1;" onchange="window.PXLApp.teacherStudio.populateResetStudentsList()">
-                    <option value="">Kies klas om studenten te tonen...</option>
-                  </select>
+              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: flex-end;">
+                <div>
+                  <label style="font-size: 11px; font-weight: 700; color: #334155;">Kies Opdracht / Examen uit Database:</label>
+                  <select id="mgmtAssignExamSelect" class="pt-input" style="width: 100%; font-size: 12px; padding: 5px 8px; margin-top: 2px;" onchange="window.PXLApp.teacherStudio.onSelectedExamChanged()"></select>
                 </div>
-                <div id="mgmtResetStudentsList" style="max-height: 110px; overflow-y: auto; border: 1px solid #fca5a5; border-radius: 4px; background: #fff; padding: 6px; font-size: 11px; margin-bottom: 10px;">
-                  <span style="color: #94a3b8;">Kies eerst een klas hierboven.</span>
+                <div>
+                  <label style="font-size: 11px; font-weight: 700; color: #334155;">⏱️ Tijdslimiet (min):</label>
+                  <input type="number" id="mgmtAssignTimeLimit" class="pt-input" value="80" min="5" max="360" style="width: 100%; font-size: 12px; padding: 5px 8px; margin-top: 2px;">
                 </div>
-                <button class="pt-btn pt-btn-danger" style="width: 100%; padding: 8px; font-size: 12px; background: #dc2626; color: #fff;" onclick="window.PXLApp.teacherStudio.resetSelectedStudentsExam()">
-                  🗑️ Examen Resetten voor Geselecteerde Studenten
-                </button>
+                <div style="display: flex; align-items: center; padding-bottom: 6px;">
+                  <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                    <input type="checkbox" id="mgmtAssignActiveToggle" checked>
+                    <span>Direct Actief</span>
+                  </label>
+                </div>
+                <div>
+                  <button class="pt-btn pt-btn-primary" style="padding: 6px 16px; font-size: 12px; font-weight: 700; background: #0284c7;" onclick="window.PXLApp.teacherStudio.submitTargetAssignments()">
+                    🚀 Opdracht Openzetten
+                  </button>
+                </div>
               </div>
             </div>
 
-            <!-- Active Assignments List -->
-            <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #1e293b;">📋 Actieve Examen Toewijzingen</h4>
-            <div id="studioAssignmentsTableContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 6px;">
-              <div style="padding: 15px; text-align: center; color: #64748b;">Toewijzingen laden...</div>
+            <!-- Target Selection Tree: Classes and Students with Persistent Checked State -->
+            <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                <div>
+                  <span style="font-size: 12px; font-weight: 700; color: #0f172a;">🎯 Selecteer Doelgroep (Vink Klassen en/of Studenten aan):</span>
+                  <div style="font-size: 11px; color: #64748b;">Je kunt meerdere groepen openen en aanvinken; selecties blijven strikt onthouden bij in-/uitklappen.</div>
+                </div>
+                <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
+                  <span id="mgmtSelectionSummaryBadge" style="font-size: 11px; font-weight: bold; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px;">0 geselecteerd</span>
+                  <button class="pt-btn pt-btn-sm" style="font-size: 10px; padding: 2px 6px;" onclick="window.PXLApp.teacherStudio.selectAllAssignmentTargets(true)">✅ Alles Aan</button>
+                  <button class="pt-btn pt-btn-sm" style="font-size: 10px; padding: 2px 6px;" onclick="window.PXLApp.teacherStudio.selectAllAssignmentTargets(false)">❌ Geen</button>
+                  <button class="pt-btn pt-btn-sm" style="font-size: 10px; padding: 2px 6px;" onclick="window.PXLApp.teacherStudio.toggleExpandAllClasses(true)">📂 Alles Open</button>
+                  <button class="pt-btn pt-btn-sm" style="font-size: 10px; padding: 2px 6px;" onclick="window.PXLApp.teacherStudio.toggleExpandAllClasses(false)">📁 Alles Dicht</button>
+                </div>
+              </div>
+
+              <!-- Filter Input -->
+              <div style="margin-bottom: 8px;">
+                <input type="text" id="mgmtTreeSearchInput" placeholder="🔍 Filter doelgroep op klasnaam of studentennaam..." class="pt-input" style="width: 100%; box-sizing: border-box; padding: 4px 8px; font-size: 11px;" oninput="window.PXLApp.teacherStudio.filterAssignmentTree()">
+              </div>
+
+              <!-- Class & Student Tree Container -->
+              <div id="mgmtClassTreeContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; background: #f8fafc;">
+                <div style="padding: 15px; text-align: center; color: #64748b; font-size: 11px;">Klassen en studenten ophalen uit database...</div>
+              </div>
+            </div>
+
+            <!-- Bottom Section: Active Assignments & Reset -->
+            <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 12px;">
+              <!-- Active Assignments List -->
+              <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px;">
+                <h4 style="margin: 0 0 6px 0; font-size: 12px; color: #1e293b; font-weight: 700;">📋 Actieve Opdracht Toewijzingen</h4>
+                <div id="studioAssignmentsTableContainer" style="max-height: 150px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                  <div style="padding: 10px; text-align: center; color: #64748b; font-size: 11px;">Toewijzingen laden...</div>
+                </div>
+              </div>
+
+              <!-- Reset Student Exam Box -->
+              <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px;">
+                <h4 style="margin: 0 0 4px 0; font-size: 12px; color: #b91c1c; font-weight: 700;">🔄 Examen Resetten (Opnieuw Beginnen)</h4>
+                <p style="font-size: 10px; color: #7f1d1d; margin: 0 0 6px 0;">
+                  Wis opgeslagen werk en scores van studenten zodat ze opnieuw kunnen starten.
+                </p>
+                <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                  <select id="mgmtResetClassSelect" class="pt-input" style="font-size: 11px; flex: 1; padding: 3px;" onchange="window.PXLApp.teacherStudio.populateResetStudentsList()">
+                    <option value="">Kies klas om studenten te tonen...</option>
+                  </select>
+                </div>
+                <div id="mgmtResetStudentsList" style="max-height: 80px; overflow-y: auto; border: 1px solid #fca5a5; border-radius: 4px; background: #fff; padding: 4px; font-size: 11px; margin-bottom: 6px;">
+                  <span style="color: #94a3b8;">Kies eerst een klas hierboven.</span>
+                </div>
+                <button class="pt-btn pt-btn-danger" style="width: 100%; padding: 5px; font-size: 11px; background: #dc2626; color: #fff;" onclick="window.PXLApp.teacherStudio.resetSelectedStudentsExam()">
+                  🗑️ Examen Resetten voor Geselecteerde Studenten
+                </button>
+              </div>
             </div>
           </div>
 
           <!-- TAB 4: GENERAL EXAM SETTINGS -->
           <div id="studioTabGeneral" class="pt-studio-pane" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div>
+                <span style="font-size: 13px; font-weight: 700; color: #1e293b;">⚙️ Examen Ontwerpen & Opslaan</span>
+                <div style="font-size: 11px; color: #64748b;">Sla ontworpen praktijkproeven op in de database zodat ze direct toewijsbaar zijn in Tab 3 Opdrachten.</div>
+              </div>
+              <button class="pt-btn pt-btn-primary" style="padding: 6px 16px; font-size: 12px; background: #0284c7;" onclick="window.PXLApp.teacherStudio.saveCurrentExamToDb()">
+                💾 Examen Opslaan in Database
+              </button>
+            </div>
             <div class="pt-form-group">
-              <label>Examen Titel:</label>
+              <label style="font-weight: 700;">Examen Titel * (Verplicht voor database):</label>
               <input type="text" id="studioExamTitle" class="pt-input" placeholder="bv. PXL SNE - Examen Netwerken 1: Routing & Switching">
             </div>
             <div class="pt-form-row" style="display: flex; gap: 12px; flex-wrap: wrap;">
@@ -290,11 +369,17 @@ class TeacherStudio {
             <!-- PKA Import Box -->
             <div class="pt-pka-dropzone" style="background: #f8fafc; border: 1.5px dashed #0284c7; border-radius: 8px; padding: 14px;">
               <div style="font-weight: 700; font-size: 13px; color: #0284c7; margin-bottom: 4px;">📦 Importeer een bestaand Cisco Packet Tracer bestand (.PKA / .PKT)</div>
-              <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0;">Upload Packet Tracer v7, v8 of v9.0.1+. De Twofish crypto pipeline decodeert de XML en haalt apparaten en rubric op.</p>
+              <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0;">Upload Packet Tracer v7, v8 of v9.0.1+. Twofish decodeert de XML. Vul een verplichte naam in om direct in de database op te slaan.</p>
+
+              <div style="margin-bottom: 8px;">
+                <label style="font-size: 11px; font-weight: 700; color: #0369a1;">🏷️ Naam voor examen / opdracht * (Verplicht voor database):</label>
+                <input type="text" id="studioPkaTitleInput" class="pt-input" placeholder="bv. PXL SNE - Packet Tracer Routing Lab 1" style="width: 100%; box-sizing: border-box; font-size: 12px; margin-top: 2px;">
+              </div>
+
               <div style="display: flex; gap: 10px; align-items: center;">
-                <input type="file" id="studioPkaFileInput" accept=".pka,.pkt" class="pt-file-input" style="font-size: 11px;">
-                <button class="pt-btn pt-btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="window.PXLApp.teacherStudio.uploadPkaFile()">
-                  🚀 Converteer & Laad in NetSim
+                <input type="file" id="studioPkaFileInput" accept=".pka,.pkt" class="pt-file-input" style="font-size: 11px; flex: 1;">
+                <button class="pt-btn pt-btn-primary" style="padding: 6px 14px; font-size: 12px; background: #0284c7;" onclick="window.PXLApp.teacherStudio.uploadPkaFile()">
+                  💾 Converteer & Opslaan in Database
                 </button>
               </div>
               <div id="studioPkaStatus" class="pt-status-msg" style="margin-top: 6px; font-size: 12px;"></div>
@@ -307,7 +392,10 @@ class TeacherStudio {
           <button class="pt-btn pt-btn-secondary" onclick="window.PXLApp.teacherStudio.exportExamJson()">
             💾 Download Examen (.json)
           </button>
-          <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.teacherStudio.applyExamToSession()">
+          <button class="pt-btn pt-btn-primary" style="background: #0284c7;" onclick="window.PXLApp.teacherStudio.saveCurrentExamToDb()">
+            💾 Sla Examen op in Database
+          </button>
+          <button class="pt-btn pt-btn-primary" style="background: #059669;" onclick="window.PXLApp.teacherStudio.applyExamToSession()">
             ✅ Activeer dit Examen in NetSim
           </button>
         </div>
@@ -411,9 +499,94 @@ class TeacherStudio {
       }
 
       await this.loadStudentsTable();
+      await this.loadImportQueue();
     } catch (e) {
       console.warn('Error loading classes:', e);
     }
+  }
+
+  // --- TOEVOEG WACHTRIJ (AUDIT QUEUE) ---
+  async loadImportQueue() {
+    const container = document.getElementById('importQueueTableContainer');
+    const badge = document.getElementById('queueTotalBadge');
+    if (!container) return;
+
+    try {
+      const res = await fetch('/api/teacher/import-queue');
+      const data = await res.json();
+      this.cachedImportQueue = data.queue || [];
+      if (badge) badge.innerText = `${this.cachedImportQueue.length} accounts in wachtrij`;
+      this.renderImportQueue(this.cachedImportQueue);
+    } catch (e) {
+      container.innerHTML = `<div style="padding: 10px; color: #ef4444; font-size: 11px;">Fout bij laden van wachtrij: ${e.message}</div>`;
+    }
+  }
+
+  renderImportQueue(items) {
+    const container = document.getElementById('importQueueTableContainer');
+    if (!container) return;
+
+    if (!items || items.length === 0) {
+      container.innerHTML = `<div style="padding: 12px; text-align: center; color: #94a3b8; font-size: 11px;">Geen accounts in de toevoeg-wachtrij.</div>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+        <thead>
+          <tr style="background: #ecfdf5; border-bottom: 1.5px solid #a7f3d0; text-align: left; position: sticky; top: 0; z-index: 1;">
+            <th style="padding: 5px 8px;">Tijdstip</th>
+            <th style="padding: 5px 8px;">Login / Studentnr</th>
+            <th style="padding: 5px 8px;">Naam</th>
+            <th style="padding: 5px 8px;">Klasnaam</th>
+            <th style="padding: 5px 8px;">Richting</th>
+            <th style="padding: 5px 8px;">Bron</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map(q => `
+            <tr style="border-bottom: 1px solid #f0fdf4;">
+              <td style="padding: 4px 8px; color: #64748b; font-family: monospace;">${(q.created_at || '').substring(0, 16)}</td>
+              <td style="padding: 4px 8px; font-weight: bold; font-family: monospace; color: #0f172a;">${q.username}</td>
+              <td style="padding: 4px 8px; font-weight: 600;">${q.full_name}</td>
+              <td style="padding: 4px 8px;"><span style="background: #e0f2fe; color: #0369a1; padding: 1px 6px; border-radius: 4px; font-weight: bold;">${q.class_group}</span></td>
+              <td style="padding: 4px 8px; color: #475569;">${q.program || '-'}</td>
+              <td style="padding: 4px 8px;">
+                <span style="background: ${q.source === 'blackboard_csv' ? '#dbeafe' : (q.source === 'manual' ? '#fef3c7' : '#f1f5f9')};
+                             color: ${q.source === 'blackboard_csv' ? '#1d4ed8' : (q.source === 'manual' ? '#b45309' : '#475569')};
+                             padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 600;">
+                  ${q.source === 'blackboard_csv' ? 'Blackboard CSV' : (q.source === 'manual' ? 'Handmatig' : 'Systeem Seed')}
+                </span>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  filterImportQueue() {
+    const q = (document.getElementById('queueSearchInput')?.value || '').toLowerCase().trim();
+    if (!q) {
+      this.renderImportQueue(this.cachedImportQueue);
+      return;
+    }
+    const filtered = this.cachedImportQueue.filter(item => {
+      return (item.username || '').toLowerCase().includes(q) ||
+             (item.full_name || '').toLowerCase().includes(q) ||
+             (item.class_group || '').toLowerCase().includes(q) ||
+             (item.program || '').toLowerCase().includes(q);
+    });
+    this.renderImportQueue(filtered);
+  }
+
+  toggleImportQueueView() {
+    const container = document.getElementById('importQueueTableContainer');
+    const btn = document.getElementById('btnToggleQueueView');
+    if (!container) return;
+    this.isQueueCollapsed = !this.isQueueCollapsed;
+    container.style.display = this.isQueueCollapsed ? 'none' : 'block';
+    if (btn) btn.innerText = this.isQueueCollapsed ? '▼ Uitklappen' : '▲ Inklappen';
   }
 
   async loadStudentsTable() {
@@ -677,12 +850,22 @@ class TeacherStudio {
     // Populate exams dropdown
     const examSelect = document.getElementById('scoresExamSelect');
     if (examSelect) {
+      if (!this.allDbExams || this.allDbExams.length === 0) {
+        try {
+          const res = await fetch('/api/teacher/exams');
+          const data = await res.json();
+          this.allDbExams = data.exams || [];
+        } catch (e) {}
+      }
       const currentExam = this.app.activeExam ? this.app.activeExam.id : '01_pxl_standard';
-      const labs = window.PXL_COURSE_LABS || [];
-      let opts = `<option value="01_pxl_standard">01_pxl_standard (Standaard Examen)</option>`;
-      labs.forEach(l => {
-        opts += `<option value="${l.id}" ${l.id === currentExam ? 'selected' : ''}>${l.code || l.id}: ${l.title}</option>`;
-      });
+      let opts = '';
+      if (this.allDbExams && this.allDbExams.length > 0) {
+        this.allDbExams.forEach(e => {
+          opts += `<option value="${e.id}" ${e.id === currentExam ? 'selected' : ''}>${e.title}</option>`;
+        });
+      } else {
+        opts = `<option value="01_pxl_standard">01_pxl_standard (Standaard Examen)</option>`;
+      }
       examSelect.innerHTML = opts;
     }
 
@@ -799,37 +982,34 @@ class TeacherStudio {
     window.open(url, '_blank');
   }
 
-  // --- TAB 3: EXAM ASSIGNMENTS, TIME LIMIT & RESET ---
+  // --- TAB 3: OPDRACHTEN & EXAMEN TOEWIJZEN ---
   async loadExamMgmtTab() {
-    // Populate exams select
-    const examSelect = document.getElementById('mgmtAssignExamSelect');
-    if (examSelect) {
-      const labs = window.PXL_COURSE_LABS || [];
-      let opts = `<option value="01_pxl_standard">01_pxl_standard: Standaard Routing & Switching Lab</option>`;
-      labs.forEach(l => {
-        opts += `<option value="${l.id}">${l.code || l.id}: ${l.title}</option>`;
-      });
-      examSelect.innerHTML = opts;
+    // 1. Fetch all exams from SQLite database (course labs, PKA imports, presets, custom)
+    try {
+      const res = await fetch('/api/teacher/exams');
+      const data = await res.json();
+      this.allDbExams = data.exams || [];
+      this.populateExamSelect(this.allDbExams);
+    } catch (e) {
+      console.warn('Error fetching exams from database:', e);
     }
 
-    // Populate target classes checkboxes
+    // 2. Fetch hierarchical students by class
+    try {
+      const resTree = await fetch('/api/teacher/students-by-class');
+      const dataTree = await resTree.json();
+      this.cachedTreeClasses = dataTree.classes || [];
+      this.renderAssignmentTree();
+    } catch (e) {
+      console.warn('Error fetching students by class:', e);
+    }
+
+    // 3. Populate reset class select
     if (this.allClasses.length === 0) {
       const res = await fetch('/api/teacher/classes');
       const data = await res.json();
       this.allClasses = data.classes || [];
     }
-
-    const cbContainer = document.getElementById('mgmtClassCheckboxes');
-    if (cbContainer) {
-      cbContainer.innerHTML = this.allClasses.map(c => `
-        <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; padding: 2px 6px; background: #f1f5f9; border-radius: 4px;">
-          <input type="checkbox" class="mgmt-class-cb" value="${c}">
-          <strong>${c}</strong>
-        </label>
-      `).join('');
-    }
-
-    // Populate reset class select
     const resetSelect = document.getElementById('mgmtResetClassSelect');
     if (resetSelect) {
       resetSelect.innerHTML = `<option value="">Kies klas om studenten te tonen...</option>` +
@@ -839,37 +1019,294 @@ class TeacherStudio {
     await this.loadAssignmentsTable();
   }
 
-  async submitExamAssignment() {
-    const examId = document.getElementById('mgmtAssignExamSelect')?.value;
-    const timeLimit = parseInt(document.getElementById('mgmtAssignTimeLimit')?.value, 10) || 80;
-    const selectedClasses = [];
-    document.querySelectorAll('.mgmt-class-cb:checked').forEach(cb => selectedClasses.push(cb.value));
+  populateExamSelect(exams) {
+    const examSelect = document.getElementById('mgmtAssignExamSelect');
+    if (!examSelect) return;
 
-    if (selectedClasses.length === 0) {
-      alert('Vink minstens één klas aan om dit examen voor open te zetten.');
+    const courseLabs = exams.filter(e => e.category === 'course_lab');
+    const pkaExams = exams.filter(e => e.category === 'pka_import');
+    const customExams = exams.filter(e => e.category === 'custom');
+    const presetExams = exams.filter(e => e.category === 'preset');
+
+    let html = '';
+
+    if (pkaExams.length > 0) {
+      html += `<optgroup label="📦 Geüploade PKA / PKT Opdrachten (${pkaExams.length})">`;
+      pkaExams.forEach(e => {
+        html += `<option value="${e.id}" data-time="${e.time_limit_minutes || 80}">📦 ${e.title} (${e.time_limit_minutes || 80} min)</option>`;
+      });
+      html += `</optgroup>`;
+    }
+
+    if (customExams.length > 0) {
+      html += `<optgroup label="✏️ Eigen Ontworpen Examens (${customExams.length})">`;
+      customExams.forEach(e => {
+        html += `<option value="${e.id}" data-time="${e.time_limit_minutes || 80}">✏️ ${e.title} (${e.time_limit_minutes || 80} min)</option>`;
+      });
+      html += `</optgroup>`;
+    }
+
+    if (courseLabs.length > 0) {
+      html += `<optgroup label="📚 Network Essentials Cursuslabo's (${courseLabs.length})">`;
+      courseLabs.forEach(e => {
+        html += `<option value="${e.id}" data-time="${e.time_limit_minutes || 45}">📚 ${e.title} (${e.time_limit_minutes || 45} min)</option>`;
+      });
+      html += `</optgroup>`;
+    }
+
+    if (presetExams.length > 0) {
+      html += `<optgroup label="⚡ Standaard Presets (${presetExams.length})">`;
+      presetExams.forEach(e => {
+        html += `<option value="${e.id}" data-time="${e.time_limit_minutes || 80}">⚡ ${e.title} (${e.time_limit_minutes || 80} min)</option>`;
+      });
+      html += `</optgroup>`;
+    }
+
+    examSelect.innerHTML = html;
+    this.onSelectedExamChanged();
+  }
+
+  onSelectedExamChanged() {
+    const examSelect = document.getElementById('mgmtAssignExamSelect');
+    const timeLimitInput = document.getElementById('mgmtAssignTimeLimit');
+    if (!examSelect || !timeLimitInput) return;
+    const selectedOpt = examSelect.selectedOptions[0];
+    if (selectedOpt && selectedOpt.dataset.time) {
+      timeLimitInput.value = selectedOpt.dataset.time;
+    }
+  }
+
+  renderAssignmentTree() {
+    const container = document.getElementById('mgmtClassTreeContainer');
+    const badge = document.getElementById('mgmtSelectionSummaryBadge');
+    if (!container) return;
+
+    if (!this.cachedTreeClasses || this.cachedTreeClasses.length === 0) {
+      container.innerHTML = `<div style="padding: 15px; text-align: center; color: #64748b; font-size: 11px;">Geen klassen beschikbaar.</div>`;
+      return;
+    }
+
+    const searchQuery = (document.getElementById('mgmtTreeSearchInput')?.value || '').toLowerCase().trim();
+
+    let totalSelectedStudents = 0;
+    let totalSelectedClasses = 0;
+
+    const cardsHtml = this.cachedTreeClasses.map(c => {
+      const className = c.class_name;
+      const students = c.students || [];
+
+      // Check how many students in this class match search query
+      const matchingStudents = searchQuery
+        ? students.filter(s => (s.username || '').toLowerCase().includes(searchQuery) ||
+                               (s.full_name || '').toLowerCase().includes(searchQuery) ||
+                               className.toLowerCase().includes(searchQuery))
+        : students;
+
+      if (searchQuery && matchingStudents.length === 0 && !className.toLowerCase().includes(searchQuery)) {
+        return ''; // hidden by search filter
+      }
+
+      // Check selection state
+      const selectedStudentsInClass = students.filter(s => this.selectedAssignmentTargets.has('student:' + s.username));
+      const isClassDirectlyChecked = this.selectedAssignmentTargets.has('class:' + className);
+      const isAllStudentsSelected = students.length > 0 && selectedStudentsInClass.length === students.length;
+      const isPartiallySelected = selectedStudentsInClass.length > 0 && !isAllStudentsSelected;
+
+      if (isClassDirectlyChecked || isAllStudentsSelected) {
+        totalSelectedClasses++;
+      }
+      totalSelectedStudents += selectedStudentsInClass.length;
+
+      const isExpanded = this.expandedClassGroups.has(className);
+
+      const ratioColor = (isClassDirectlyChecked || isAllStudentsSelected)
+        ? '#15803d'
+        : (isPartiallySelected ? '#d97706' : '#64748b');
+      const ratioBg = (isClassDirectlyChecked || isAllStudentsSelected)
+        ? '#dcfce7'
+        : (isPartiallySelected ? '#fef3c7' : '#f1f5f9');
+
+      return `
+        <div class="mgmt-class-card" style="border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 6px; background: #fff; overflow: hidden;">
+          <!-- Class Header Row -->
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: ${isExpanded ? '#f1f5f9' : '#fff'}; border-bottom: ${isExpanded ? '1px solid #e2e8f0' : 'none'};">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="pt-btn pt-btn-sm" style="font-size: 11px; padding: 2px 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer;" onclick="window.PXLApp.teacherStudio.toggleExpandClass('${className}')">
+                ${isExpanded ? '▼' : '▶'}
+              </button>
+              <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #0f172a;">
+                <input type="checkbox" class="class-target-cb" value="${className}"
+                  ${(isClassDirectlyChecked || isAllStudentsSelected) ? 'checked' : ''}
+                  onchange="window.PXLApp.teacherStudio.toggleSelectClassTarget('${className}', this.checked)">
+                <span>Klas ${className}</span>
+                <span style="font-size: 11px; font-weight: normal; color: #64748b;">(${c.program || ''} • ${students.length} studenten)</span>
+              </label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; background: ${ratioBg}; color: ${ratioColor};">
+                ${selectedStudentsInClass.length} / ${students.length} studenten
+              </span>
+            </div>
+          </div>
+
+          <!-- Unfolded Student List -->
+          ${isExpanded ? `
+            <div class="mgmt-student-list" style="padding: 6px 12px; background: #fafafa; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px; max-height: 140px; overflow-y: auto;">
+              ${(searchQuery ? matchingStudents : students).map(s => {
+                const isStudentChecked = this.selectedAssignmentTargets.has('student:' + s.username);
+                return `
+                  <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; padding: 2px 4px; border-radius: 4px; background: ${isStudentChecked ? '#eff6ff' : '#fff'}; border: 1px solid ${isStudentChecked ? '#bfdbfe' : '#e2e8f0'}; cursor: pointer;">
+                    <input type="checkbox" class="student-target-cb" value="${s.username}"
+                      ${isStudentChecked ? 'checked' : ''}
+                      onchange="window.PXLApp.teacherStudio.toggleSelectStudentTarget('${className}', '${s.username}', this.checked)">
+                    <span style="font-family: monospace; font-weight: bold; color: #1e40af;">${s.username}</span>
+                    <span style="color: #334155; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s.full_name || s.last_name}</span>
+                  </label>
+                `;
+              }).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = cardsHtml || `<div style="padding: 15px; text-align: center; color: #94a3b8; font-size: 11px;">Geen resultaten voor '${searchQuery}'</div>`;
+
+    if (badge) {
+      badge.innerText = `${totalSelectedClasses} klas(sen), ${totalSelectedStudents} student(en) geselecteerd`;
+    }
+  }
+
+  toggleExpandClass(className) {
+    if (this.expandedClassGroups.has(className)) {
+      this.expandedClassGroups.delete(className);
+    } else {
+      this.expandedClassGroups.add(className);
+    }
+    this.renderAssignmentTree();
+  }
+
+  toggleExpandAllClasses(expand) {
+    if (expand) {
+      this.cachedTreeClasses.forEach(c => this.expandedClassGroups.add(c.class_name));
+    } else {
+      this.expandedClassGroups.clear();
+    }
+    this.renderAssignmentTree();
+  }
+
+  toggleSelectClassTarget(className, checked) {
+    const classData = this.cachedTreeClasses.find(c => c.class_name === className);
+    if (checked) {
+      this.selectedAssignmentTargets.add('class:' + className);
+      if (classData && classData.students) {
+        classData.students.forEach(s => this.selectedAssignmentTargets.add('student:' + s.username));
+      }
+    } else {
+      this.selectedAssignmentTargets.delete('class:' + className);
+      if (classData && classData.students) {
+        classData.students.forEach(s => this.selectedAssignmentTargets.delete('student:' + s.username));
+      }
+    }
+    this.renderAssignmentTree();
+  }
+
+  toggleSelectStudentTarget(className, username, checked) {
+    if (checked) {
+      this.selectedAssignmentTargets.add('student:' + username);
+    } else {
+      this.selectedAssignmentTargets.delete('student:' + username);
+      this.selectedAssignmentTargets.delete('class:' + className);
+    }
+
+    const classData = this.cachedTreeClasses.find(c => c.class_name === className);
+    if (classData && classData.students) {
+      const allSelected = classData.students.length > 0 && classData.students.every(s => this.selectedAssignmentTargets.has('student:' + s.username));
+      if (allSelected) {
+        this.selectedAssignmentTargets.add('class:' + className);
+      }
+    }
+    this.renderAssignmentTree();
+  }
+
+  selectAllAssignmentTargets(select) {
+    if (select) {
+      this.cachedTreeClasses.forEach(c => {
+        this.selectedAssignmentTargets.add('class:' + c.class_name);
+        if (c.students) {
+          c.students.forEach(s => this.selectedAssignmentTargets.add('student:' + s.username));
+        }
+      });
+    } else {
+      this.selectedAssignmentTargets.clear();
+    }
+    this.renderAssignmentTree();
+  }
+
+  filterAssignmentTree() {
+    this.renderAssignmentTree();
+  }
+
+  async submitTargetAssignments() {
+    const examSelect = document.getElementById('mgmtAssignExamSelect');
+    const examId = examSelect?.value;
+    const examTitle = examSelect?.selectedOptions[0]?.text || examId;
+    const timeLimit = parseInt(document.getElementById('mgmtAssignTimeLimit')?.value, 10) || 80;
+    const isActive = document.getElementById('mgmtAssignActiveToggle')?.checked !== false;
+
+    if (!examId) {
+      alert('Selecteer een examen of opdracht uit de lijst.');
+      return;
+    }
+
+    if (this.selectedAssignmentTargets.size === 0) {
+      alert('Vink minstens één klas of student aan in de doelgroep-selectie.');
+      return;
+    }
+
+    // Build target list
+    const targets = [];
+    this.cachedTreeClasses.forEach(c => {
+      const className = c.class_name;
+      const isClassChecked = this.selectedAssignmentTargets.has('class:' + className);
+      if (isClassChecked) {
+        targets.push({ type: 'class', value: className, class: className });
+      } else {
+        (c.students || []).forEach(s => {
+          if (this.selectedAssignmentTargets.has('student:' + s.username)) {
+            targets.push({ type: 'student', value: s.username, class: className });
+          }
+        });
+      }
+    });
+
+    if (targets.length === 0) {
+      alert('Geen doelgroep geselecteerd.');
       return;
     }
 
     try {
-      const res = await fetch('/api/teacher/exam/assignments', {
+      const cleanTitle = examTitle.replace(/^[📦✏️📚⚡]\s*/, '').replace(/\s*\(\d+\s*min\)$/, '');
+      const res = await fetch('/api/teacher/exam/assign-targets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           exam_id: examId,
-          title: examId,
-          target_type: 'class',
-          target_values: selectedClasses,
+          title: cleanTitle,
+          targets: targets,
           time_limit_minutes: timeLimit,
-          is_active: true
+          is_active: isActive
         })
       });
       const data = await res.json();
       if (data.success) {
-        this.app.showToast(`✅ Examen ${examId} opengezet voor ${selectedClasses.join(', ')} (${timeLimit} min)`);
+        this.app.showToast(`✅ ${data.message}`);
         await this.loadAssignmentsTable();
+      } else {
+        alert('Fout: ' + (data.error || 'Kon toewijzing niet opslaan'));
       }
     } catch (err) {
-      alert('Fout: ' + err.message);
+      alert('Netwerkfout: ' + err.message);
     }
   }
 
@@ -1238,6 +1675,7 @@ class TeacherStudio {
 
   async uploadPkaFile() {
     const fileInput = document.getElementById('studioPkaFileInput');
+    const titleInput = document.getElementById('studioPkaTitleInput');
     const statusEl = document.getElementById('studioPkaStatus');
     if (!fileInput.files || fileInput.files.length === 0) {
       statusEl.innerText = '⚠️ Selecteer eerst een .pka of .pkt bestand.';
@@ -1245,12 +1683,26 @@ class TeacherStudio {
       return;
     }
 
+    const title = titleInput ? titleInput.value.trim() : '';
+    if (!title) {
+      statusEl.innerHTML = '<span style="color: #ef4444; font-weight: bold;">⚠️ Examen/opdracht naam is verplicht! Vul hierboven een naam in om op te slaan in de database.</span>';
+      if (titleInput) {
+        titleInput.focus();
+        titleInput.style.borderColor = '#ef4444';
+      }
+      alert('Examen/opdracht naam is verplicht! Geef een naam op voor dit Packet Tracer bestand.');
+      return;
+    }
+    if (titleInput) titleInput.style.borderColor = '#0284c7';
+
     const file = fileInput.files[0];
-    statusEl.innerText = `Decoderen van ${file.name} met Twofish crypto...`;
+    statusEl.innerText = `Decoderen van ${file.name} met Twofish crypto & opslaan in database...`;
     statusEl.style.color = '#38bdf8';
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('title', title);
+    formData.append('save_to_db', 'true');
 
     try {
       const response = await fetch('/api/convert-pka', {
@@ -1258,7 +1710,8 @@ class TeacherStudio {
         body: formData
       });
       if (!response.ok) {
-        throw new Error(`Server fout (${response.status})`);
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `Server fout (${response.status})`);
       }
       const examData = await response.json();
       this.examDraft = examData;
@@ -1266,10 +1719,51 @@ class TeacherStudio {
         this.examDraft.initialTopology = examData.topology;
       }
       this.populateStudioFields();
-      statusEl.innerHTML = `<span style="color: #16a34a; font-weight: bold;">✅ Bestand succesvol geconverteerd! Rubric en startsituatie geladen.</span>`;
+      statusEl.innerHTML = `<span style="color: #16a34a; font-weight: bold;">✅ Examen '${title}' succesvol gedecodeerd & opgeslagen in SQLite database! Direct toewijsbaar in Tab 3 Opdrachten.</span>`;
+      this.app.showToast(`💾 Examen '${title}' opgeslagen in database!`);
     } catch (err) {
       statusEl.innerText = `❌ Fout bij converteren: ${err.message}`;
       statusEl.style.color = '#ef4444';
+    }
+  }
+
+  async saveCurrentExamToDb() {
+    this.syncFormDraft();
+    const title = (this.examDraft.title || '').trim();
+    if (!title || title.toLowerCase() === 'pxl examen' || title.toLowerCase() === 'nieuw cisco praktijkexamen') {
+      const promptTitle = prompt('Voer een unieke naam in voor dit examen / deze opdracht (verplicht voor database):', title !== 'PXL Examen' ? title : '');
+      if (!promptTitle || !promptTitle.trim()) {
+        alert('⚠️ Examen/opdracht naam is verplicht! Opslaan geannuleerd.');
+        return;
+      }
+      this.examDraft.title = promptTitle.trim();
+      const titleEl = document.getElementById('studioExamTitle');
+      if (titleEl) titleEl.value = this.examDraft.title;
+    }
+
+    try {
+      const res = await fetch('/api/teacher/exam/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: this.examDraft.id,
+          title: this.examDraft.title,
+          instructions: this.examDraft.instructions,
+          topology: this.examDraft.initialTopology,
+          rubric: this.examDraft.rubric,
+          time_limit_minutes: this.examDraft.timeLimitMinutes || 80,
+          category: 'custom'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.app.showToast(`💾 Examen '${data.title}' succesvol opgeslagen in database!`);
+        alert(`✅ Examen '${data.title}' is opgeslagen in de database en kan nu worden toegewezen in Tab 3 Opdrachten.`);
+      } else {
+        alert('Fout bij opslaan: ' + (data.error || 'Onbekende fout'));
+      }
+    } catch (e) {
+      alert('Netwerkfout bij opslaan: ' + e.message);
     }
   }
 }
