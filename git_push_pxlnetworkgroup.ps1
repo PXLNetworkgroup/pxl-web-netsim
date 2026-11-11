@@ -74,7 +74,7 @@ $pushRes = & $gitCmd push -u origin main 2>&1
 Write-Host $pushRes
 
 # Reset remote back to clean public URL without embedding token in git config
-& git remote set-url origin $publicUrl
+& $gitCmd remote set-url origin $publicUrl
 
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Green

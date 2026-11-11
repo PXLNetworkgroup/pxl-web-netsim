@@ -41,14 +41,7 @@ if ($currentProject -like "*(unset)*" -or [string]::IsNullOrWhiteSpace($currentP
 }
 
 if (-not $currentProject) {
-    Write-Host ""
-    Write-Host "Beschikbare Google Cloud Projecten ophalen..." -ForegroundColor Yellow
-    & $gcloudPath projects list
-    Write-Host ""
-    $projectId = Read-Host "Kies een bestaand Project ID hierboven (bijv. precise-ether-507014-h7)"
-    if ([string]::IsNullOrWhiteSpace($projectId)) {
-        $projectId = "precise-ether-507014-h7"
-    }
+    $projectId = "precise-ether-507014-h7"
     & $gcloudPath config set project $projectId
     $currentProject = $projectId
 }
