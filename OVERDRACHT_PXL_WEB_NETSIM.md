@@ -74,6 +74,34 @@ Alle onderstaande labs zijn voorgeprogrammeerd met rubrieken en selecteerbaar vi
 - AI & Docenten Handleiding: [`LAB_AUTHORING_GUIDE.md`](LAB_AUTHORING_GUIDE.md)
 - Schema Template: [`PXL_LAB_TEMPLATE.json`](PXL_LAB_TEMPLATE.json)
 
+### G. Individuele Studentensessies, 10-Seconden Evaluatie & Docenten Examenbeheer (11 nov 2026)
+1. **Volledige Blackboard Studentenlijsten Geïmporteerd (328 studenten):**
+   - Bronbestanden: `gc_2627-GRSNE-41SNE1010_columns_2026-11-11-11-53-46.csv` (115 studenten) en `gc_2627-PBTIN-41TIN1230_columns_2026-11-11-11-52-24.csv` (213 studenten).
+   - Ingeladen in SQLite database `data/netsim.db` met studentnummer / login als unieke sleutel (bv. `12603952` voor Matteo Abbiusi, `12603594` voor Mohammed Ait El Fassi).
+   - Standaard studentenwachtwoord: `PXL2026!`.
+2. **Tab 1 in Teacher Studio: Studenten & Klassen (Gebruikersbeheer):**
+   - Live zoekbalk en klasfilter (`1SNEa`, `1SNEb`, `1TINa`, `1TINb`, etc.).
+   - Manuele toevoegfunctie voor nieuwe studenten (`➕ Student Toevoegen`).
+   - Manuele en bulk-verwijderfunctie (`🗑️ Verwijderen`).
+   - **Verplaatsen via Dropdown:** Selecteer studenten via selectievakjes, kies een doelklas uit het dropdownmenu en klik op `Verplaatsen`.
+   - Blackboard CSV-importondersteuning met directe verwerking van het PXL formaat `Achternaam (Academiejaar - Richting - Klas),Voornaam,Gebruikersnaam`.
+3. **Tab 2 in Teacher Studio: Scores & Voortgang (Live Evaluatie):**
+   - Multi-select filter met interactieve selectievakjes per klas (meerdere klassen tegelijk te selecteren, incl. *Alles Selecteren*).
+   - Real-time scoretabel met live scores, percentages en auto-save status.
+   - **Exporteerfunctie:** 1-klik exportknop die een direct in Blackboard Grade Center / Excel in te laden CSV genereert met alle kolommen.
+4. **Tab 3 in Teacher Studio: Testen & Toewijzen (Openzetten, Tijdslimiet & Reset):**
+   - Selecteer een examen of lab uit de cursus en stel een tijdslimiet in (bv. 80 minuten).
+   - Wijs toe aan specifieke klassen of studenten d.m.v. selectievakjes.
+   - Tabel met actieve toewijzingen en live Aan/Uit schakelaar.
+   - **Examen Resetten:** Selecteer een of meerdere studenten om hun examenvoortgang en opgeslagen werk te wissen zodat ze met een schone lei opnieuw kunnen starten.
+5. **10-Seconden Running-Config Evaluatie & Auto-Save:**
+   - Evaluatie-engine scant elke 10 seconden de actieve devices en running-config.
+   - Slaat topologie, rubric scores en running-config snapshots elke 10 seconden op naar de serverdatabase.
+   - Studenten laden bij inloggen direct hun eigen individuele sessie en krijgen automatisch de ingestelde tijdslimiet van hun klas.
+6. **Lokale Testomgeving Geconfigureerd:**
+   - Python 3.12, Flask, PyCryptodome en MinGit geïnstalleerd op dit toestel.
+   - 1-klik starter script `start_local.bat` toegevoegd (start direct op `http://localhost:8080`).
+
 ---
 
 ## 3. Belangrijke Bestanden & Structuur
