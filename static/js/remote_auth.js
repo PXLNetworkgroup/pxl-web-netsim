@@ -580,6 +580,8 @@ class RemoteAuthSession {
     let realParser = null;
     if (this.targetDev.type === 'hpe_switch') {
       realParser = new HpeCLIParser(this.targetDev, this.print, this.updatePrompt, this.triggerScoreUpdate);
+    } else if (this.targetDev.type === 'wlc') {
+      realParser = new AireOSCLIParser(this.targetDev, this.print, this.updatePrompt, this.triggerScoreUpdate);
     } else if (this.targetDev.type === 'mikrotik') {
       realParser = new MikroTikCLIParser(this.targetDev, this.print, this.updatePrompt, this.triggerScoreUpdate);
     } else if (this.targetDev.type === 'openwrt') {

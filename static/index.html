@@ -166,11 +166,12 @@
         <button class="pt-tab-btn" id="tabBtnConfig" onclick="window.PXLApp.switchDeviceModalTab('config')">Config (GUI)</button>
         <button class="pt-tab-btn active" id="tabBtnCli" onclick="window.PXLApp.switchDeviceModalTab('cli')">CLI (Cisco IOS)</button>
         <button class="pt-tab-btn" id="tabBtnDesktop" onclick="window.PXLApp.switchDeviceModalTab('desktop')" style="display:none;">Desktop (Apps)</button>
-        <button class="pt-tab-btn" id="tabBtnServices" onclick="window.PXLApp.switchDeviceModalTab('services')" style="display:none;">Services (HTTP/DNS/FTP)</button>
+        <button class="pt-tab-btn" id="tabBtnServices" onclick="window.PXLApp.switchDeviceModalTab('services')" style="display:none;">Services (HTTP/DHCP/DNS/LDAP/FTP)</button>
         <button class="pt-tab-btn" id="tabBtnWebFig" onclick="window.PXLApp.switchDeviceModalTab('webfig')" style="display:none; background: #0284c7; color: white;">🌐 WebFig</button>
         <button class="pt-tab-btn" id="tabBtnHpeWeb" onclick="window.PXLApp.switchDeviceModalTab('hpeweb')" style="display:none; background: #ff7900; color: white;">🌐 Aruba Web GUI</button>
         <button class="pt-tab-btn" id="tabBtnWrtWeb" onclick="window.PXLApp.switchDeviceModalTab('wrtweb')" style="display:none; background: #0284c7; color: white;">🌐 WRT300N GUI</button>
         <button class="pt-tab-btn" id="tabBtnWlcWeb" onclick="window.PXLApp.switchDeviceModalTab('wlcweb')" style="display:none; background: #0c4a6e; color: #38bdf8; border: 1px solid #0284c7;">🌐 WLC 3504 GUI</button>
+        <button class="pt-tab-btn" id="tabBtnApWeb" onclick="window.PXLApp.switchDeviceModalTab('apweb')" style="display:none; background: #0369a1; color: white;">🌐 AP Web GUI</button>
       </div>
 
       <div class="pt-device-body">
@@ -183,6 +184,7 @@
         <div class="pt-modal-pane" id="modalPaneHpeweb"></div>
         <div class="pt-modal-pane" id="modalPaneWrtweb"></div>
         <div class="pt-modal-pane" id="modalPaneWlcweb"></div>
+        <div class="pt-modal-pane" id="modalPaneApweb"></div>
       </div>
     </div>
   </div>
@@ -269,6 +271,7 @@
   <script src="js/putty_app.js?v=20261111_v5"></script>
   <script src="js/pc_wireless_app.js?v=20261111_v9"></script>
   <script src="js/wireless_router_web.js?v=20261111_v9"></script>
+  <script src="js/aireos_cli.js?v=20261111_v10"></script>
   <script src="js/pc_desktop.js?v=20261111_v5"></script>
   <script src="js/powershell_engine.js?v=20261111_v5"></script>
   <script src="js/network_simulator.js?v=20261111_v5"></script>

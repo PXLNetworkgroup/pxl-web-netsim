@@ -421,6 +421,7 @@ class PXLNetSimApp {
     const isServer = (device.type === 'server');
     const isWrt = (device.type === 'wireless_router');
     const isWlc = (device.type === 'wlc');
+    const isAp = (device.type === 'wireless_ap');
     const cliTabBtn = document.getElementById('tabBtnCli');
     const desktopTabBtn = document.getElementById('tabBtnDesktop');
     const servicesTabBtn = document.getElementById('tabBtnServices');
@@ -428,6 +429,7 @@ class PXLNetSimApp {
     const hpeWebTabBtn = document.getElementById('tabBtnHpeWeb');
     const wrtWebTabBtn = document.getElementById('tabBtnWrtWeb');
     const wlcWebTabBtn = document.getElementById('tabBtnWlcWeb');
+    const apWebTabBtn = document.getElementById('tabBtnApWeb');
 
     if (cliTabBtn) {
       cliTabBtn.style.display = (isHost || isWrt) ? 'none' : 'inline-block';
@@ -438,9 +440,9 @@ class PXLNetSimApp {
       } else if (device.type === 'hpe_switch') {
         cliTabBtn.innerText = 'CLI (ArubaOS-S)';
       } else if (device.type === 'wlc') {
-        cliTabBtn.innerText = 'CLI (Cisco WLC)';
+        cliTabBtn.innerText = 'CLI (AireOS)';
       } else if (device.type === 'internet_cloud' || device.type === 'internet_simulated' || device.type === 'internet_public') {
-        cliTabBtn.innerText = device.type === 'internet_public' ? 'Status (Internet Public NAT)' : 'Status (Het Internet)';
+        cliTabBtn.innerText = '🌐 Uitleg & Aansluiting (RFC 3849)';
       } else {
         cliTabBtn.innerText = 'CLI (Cisco IOS)';
       }
@@ -451,6 +453,7 @@ class PXLNetSimApp {
     if (hpeWebTabBtn) hpeWebTabBtn.style.display = (device.type === 'hpe_switch') ? 'inline-block' : 'none';
     if (wrtWebTabBtn) wrtWebTabBtn.style.display = isWrt ? 'inline-block' : 'none';
     if (wlcWebTabBtn) wlcWebTabBtn.style.display = isWlc ? 'inline-block' : 'none';
+    if (apWebTabBtn) apWebTabBtn.style.display = isAp ? 'inline-block' : 'none';
 
     // Switch to primary operational tab
     if (isServer) {
@@ -461,8 +464,8 @@ class PXLNetSimApp {
       this.switchDeviceModalTab('wrtweb');
     } else if (isWlc) {
       this.switchDeviceModalTab('wlcweb');
-    } else if (device.type === 'wireless_ap') {
-      this.switchDeviceModalTab('config');
+    } else if (isAp) {
+      this.switchDeviceModalTab('apweb');
     } else {
       this.switchDeviceModalTab('cli');
     }
@@ -477,7 +480,7 @@ class PXLNetSimApp {
   }
 
   switchDeviceModalTab(tabKey) {
-    const tabs = ['physical', 'config', 'cli', 'desktop', 'services', 'webfig', 'hpeweb', 'wrtweb', 'wlcweb'];
+    const tabs = ['physical', 'config', 'cli', 'desktop', 'services', 'webfig', 'hpeweb', 'wrtweb', 'wlcweb', 'apweb'];
     tabs.forEach(t => {
       const pane = document.getElementById(`modalPane${t.charAt(0).toUpperCase() + t.slice(1)}`);
       if (pane) pane.classList.remove('active');
@@ -499,6 +502,18 @@ class PXLNetSimApp {
     if (tabKey === 'hpeweb') this.renderHpeWebTab();
     if (tabKey === 'wrtweb') this.renderWrtWebTab();
     if (tabKey === 'wlcweb') this.renderWlcWebTab();
+    if (tabKey === 'apweb') this.renderApWebTab();
+  }
+
+  renderApWebTab() {
+    const dev = this.activeDevice;
+    const container = document.getElementById('modalPaneApweb');
+    if (!dev || !container) return;
+    if (typeof window.renderApWebInterfaceHtml === 'function') {
+      container.innerHTML = window.renderApWebInterfaceHtml(dev, this.sim);
+    } else {
+      container.innerHTML = '<div style="padding:20px; color:#fff;">Cisco Aironet AP Web GUI module niet geladen.</div>';
+    }
   }
 
   renderWrtWebTab() {
@@ -903,70 +918,144 @@ class PXLNetSimApp {
     const container = document.getElementById('modalPaneCli');
     if (!dev || !container) return;
 
-    // Internet Gateway Views (Public NAT / Simulated / Hybrid)
+    // Internet Gateway Views (Public NAT / Simulated / Hybrid - CCNA RFC 3849 Range: 209.165.200.224/30)
     if (dev.type === 'internet_cloud' || dev.type === 'internet_simulated' || dev.type === 'internet_public') {
       const isPublicOnly = (dev.type === 'internet_public');
       const isSimOnly = (dev.type === 'internet_simulated');
       const isLive = isPublicOnly ? true : (isSimOnly ? false : this.sim.liveInternetEnabled);
 
       container.innerHTML = `
-        <div style="background: #0f172a; color: #f8fafc; padding: 25px; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 15px; margin-bottom: 18px;">
+        <div style="background: #0f172a; color: #f8fafc; padding: 22px; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-height: 80vh; overflow-y: auto;">
+          <!-- Top Cloud Header -->
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 14px; margin-bottom: 16px;">
             <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 32px;">🌐</span>
+              <span style="font-size: 36px;">☁️</span>
               <div>
-                <h3 style="margin: 0; color: #38bdf8;">
-                  ${isPublicOnly ? 'Het Internet (Public NAT Bridge)' : (isSimOnly ? 'Het Internet (Gesimuleerd • Examen)' : 'Het Internet (PXL Global Cloud Gateway)')}
+                <h3 style="margin: 0; color: #38bdf8; font-size: 18px;">
+                  ${isPublicOnly ? 'Het Internet (Public NAT Bridge • Live WAN)' : (isSimOnly ? 'Het Internet (Gesimuleerd • CCNA RFC 3849)' : 'Het Internet (PXL Global Cloud Gateway)')}
                 </h3>
                 <span style="font-size: 12px; color: #94a3b8;">
-                  ${isPublicOnly ? 'Fysieke Netwerkadapter &bull; Echte Internettoegang' : (isSimOnly ? 'Gesloten Simulatiewebsite &bull; Examenveilig' : 'Virtuele WAN Gateway &bull; PXL NetSim')}
+                  ISP Uplink: <code>209.165.200.225/30</code> &bull; Anycast DNS: <code>8.8.8.8</code>, <code>1.1.1.1</code>
                 </span>
               </div>
             </div>
-            <div style="background: ${isLive ? '#065f46' : '#1e3a8a'}; color: ${isLive ? '#34d399' : '#60a5fa'}; font-weight: bold; font-size: 12px; padding: 5px 14px; border-radius: 20px; border: 1px solid ${isLive ? '#059669' : '#3b82f6'};">
-              ${isLive ? '● LIVE INTERNET NAT (FYSIEKE ADAPTER)' : '● GESIMULEERD INTERNET (EXAMENMODUS)'}
+            <div style="background: ${isLive ? '#065f46' : '#1e3a8a'}; color: ${isLive ? '#34d399' : '#60a5fa'}; font-weight: bold; font-size: 11.5px; padding: 5px 14px; border-radius: 20px; border: 1px solid ${isLive ? '#059669' : '#3b82f6'};">
+              ${isLive ? '● LIVE INTERNET NAT (ECHTE TOEGANG)' : '● GESIMULEERD CCNA INTERNET'}
             </div>
           </div>
 
+          <!-- Connection Diagram Visual Banner -->
+          <div style="background: #020617; border: 1px solid #1e293b; border-radius: 6px; padding: 12px; margin-bottom: 16px; font-family: monospace; font-size: 11.5px; line-height: 1.6; color: #cbd5e1; text-align: center;">
+            <span style="color: #38bdf8; font-weight: bold;">[Klant Edge Router]</span> <span style="color: #64748b;">(Gi0/0/0: 209.165.200.226/30)</span>
+            &nbsp;─── <span style="color: #22c55e; font-weight: bold;">[Koperkabel]</span> ───&gt;&nbsp;
+            <span style="color: #38bdf8; font-weight: bold;">[ISP Cloud]</span> <span style="color: #64748b;">(Gi0: 209.165.200.225/30)</span>
+            &nbsp;───&gt;&nbsp;
+            <span style="color: #f59e0b; font-weight: bold;">[8.8.8.8 / 1.1.1.1]</span>
+          </div>
+
+          <!-- CCNA RFC 3849 Standard Roles & IP Table -->
+          <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+            <h4 style="margin: 0 0 8px; color: #38bdf8; font-size: 13px;">📋 Bekende Publieke Internetadressen (Cisco Curriculum & Packet Tracer Standaard):</h4>
+            <div style="font-size: 12px; color: #94a3b8; margin-bottom: 10px;">
+              In Cisco CCNA en Packet Tracer simuleert men een ISP-router met het officiële <strong>RFC 3849</strong> subnet <code>209.165.200.224/30</code> (masker <code>255.255.255.252</code>):
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11.5px;">
+              <thead>
+                <tr style="background: #0f172a; border-bottom: 2px solid #475569; text-align: left;">
+                  <th style="padding: 6px 10px;">Rol</th>
+                  <th style="padding: 6px 10px;">Interface</th>
+                  <th style="padding: 6px 10px;">IP-adres / Subnet</th>
+                  <th style="padding: 6px 10px;">Doel / Functie</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid #334155;">
+                  <td style="padding: 6px 10px; font-weight: bold; color: #38bdf8;">Klant Edge Router</td>
+                  <td style="padding: 6px 10px; font-family: monospace;">Gig0/0/0 (WAN)</td>
+                  <td style="padding: 6px 10px; font-weight: bold; color: #22c55e;">209.165.200.226/30</td>
+                  <td style="padding: 6px 10px; color: #cbd5e1;">Externe interface (NAT Outside)</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #334155;">
+                  <td style="padding: 6px 10px; font-weight: bold; color: #38bdf8;">ISP Cloud (Dit Apparaat)</td>
+                  <td style="padding: 6px 10px; font-family: monospace;">GigabitEthernet0</td>
+                  <td style="padding: 6px 10px; font-weight: bold; color: #38bdf8;">209.165.200.225/30</td>
+                  <td style="padding: 6px 10px; color: #cbd5e1;">Default Gateway voor de klant</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #334155;">
+                  <td style="padding: 6px 10px; font-weight: bold; color: #f59e0b;">Google Anycast DNS</td>
+                  <td style="padding: 6px 10px; font-family: monospace;">Loopback0</td>
+                  <td style="padding: 6px 10px; font-weight: bold; color: #f59e0b;">8.8.8.8/32</td>
+                  <td style="padding: 6px 10px; color: #cbd5e1;">Pingbaar doel & DNS resolutie</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #334155;">
+                  <td style="padding: 6px 10px; font-weight: bold; color: #f59e0b;">Cloudflare DNS</td>
+                  <td style="padding: 6px 10px; font-family: monospace;">Loopback1</td>
+                  <td style="padding: 6px 10px; font-weight: bold; color: #f59e0b;">1.1.1.1/32</td>
+                  <td style="padding: 6px 10px; color: #cbd5e1;">Pingbaar doel & DNS resolutie</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 10px; font-weight: bold; color: #a78bfa;">Cisco CCNA Webserver</td>
+                  <td style="padding: 6px 10px; font-family: monospace;">Loopback2</td>
+                  <td style="padding: 6px 10px; font-weight: bold; color: #a78bfa;">209.165.200.230/30</td>
+                  <td style="padding: 6px 10px; color: #cbd5e1;">Gesimuleerde HTTP website</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Step-by-Step Connection & Cisco IOS CLI Instructions -->
+          <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+            <h4 style="margin: 0 0 8px; color: #22c55e; font-size: 13px;">⚙️ Hoe sluit je dit aan? (Cisco IOS Configuratie):</h4>
+            <ol style="padding-left: 20px; font-size: 12px; color: #e2e8f0; line-height: 1.6; margin: 0;">
+              <li>
+                <strong>Kabel aansluiten:</strong> Sluit een koperkabel (Straight-Through of Cross-Over) aan tussen de WAN-poort van de router (bv. <code>GigabitEthernet0/0/0</code>) en de wolk (<code>GigabitEthernet0</code>).
+              </li>
+              <li>
+                <strong>WAN-interface en Default Route instellen op de router:</strong>
+                <pre style="background: #020617; color: #38bdf8; padding: 10px; border-radius: 4px; font-size: 11px; margin: 6px 0; overflow-x: auto;">
+Router> enable
+Router# configure terminal
+Router(config)# interface GigabitEthernet0/0/0
+Router(config-if)# ip address 209.165.200.226 255.255.255.252
+Router(config-if)# no shutdown
+Router(config-if)# exit
+Router(config)# ip route 0.0.0.0 0.0.0.0 209.165.200.225
+Router(config)# exit
+Router# ping 209.165.200.225
+Router# ping 8.8.8.8</pre>
+              </li>
+              <li>
+                <strong>NAT Overload (PAT) configureren (zodat interne pc's kunnen pingen en surfen):</strong>
+                <pre style="background: #020617; color: #38bdf8; padding: 10px; border-radius: 4px; font-size: 11px; margin: 6px 0; overflow-x: auto;">
+Router(config)# interface GigabitEthernet0/0/0
+Router(config-if)# ip nat outside
+Router(config-if)# exit
+Router(config)# interface GigabitEthernet0/0/1
+Router(config-if)# ip nat inside
+Router(config-if)# exit
+Router(config)# access-list 1 permit 192.168.1.0 0.0.0.255
+Router(config)# ip nat inside source list 1 interface GigabitEthernet0/0/0 overload</pre>
+              </li>
+            </ol>
+          </div>
+
+          <!-- Live vs Simulated Internet Mode Switch -->
           ${(!isPublicOnly && !isSimOnly) ? `
-            <!-- Interactive Live Internet NAT Gateway Switch (Hybrid Device) -->
-            <div style="background: #1e293b; padding: 16px 20px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">
-              <div style="max-width: 65%;">
-                <strong style="color: #38bdf8; font-size: 14px;">🌐 Fysieke Internet NAT Bridge Schakelaar:</strong>
-                <div style="font-size: 12px; color: #94a3b8; margin-top: 3px; line-height: 1.4;">
-                  Koppel deze wolk aan de fysieke adapter van de server (Google Cloud Run / Host).
+            <div style="background: #1e293b; padding: 14px 18px; border-radius: 8px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="color: #38bdf8; font-size: 13px;">🌐 Live NAT Adapter Wisselaar:</strong>
+                <div style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;">
+                  Schakel om tussen afgesloten CCNA simulatie en echte live HTTP/DNS toegang via de serveradapter.
                 </div>
               </div>
-              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; background: #0f172a; padding: 8px 16px; border-radius: 24px; border: 2px solid ${isLive ? '#10b981' : '#475569'};">
-                <input type="checkbox" id="chkLiveInternetModal" ${isLive ? 'checked' : ''} onchange="window.PXLApp.toggleLiveInternet(this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
-                <span style="font-weight: 800; font-size: 12px; color: ${isLive ? '#34d399' : '#cbd5e1'};">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; background: #0f172a; padding: 6px 14px; border-radius: 20px; border: 2px solid ${isLive ? '#10b981' : '#475569'};">
+                <input type="checkbox" id="chkLiveInternetModal" ${isLive ? 'checked' : ''} onchange="window.PXLApp.toggleLiveInternet(this.checked)" style="width: 16px; height: 16px; cursor: pointer;">
+                <span style="font-weight: 800; font-size: 11.5px; color: ${isLive ? '#34d399' : '#cbd5e1'};">
                   ${isLive ? 'LIVE NAT AAN' : 'SIMULATIE'}
                 </span>
               </label>
             </div>
-          ` : `
-            <div style="background: ${isLive ? '#064e3b' : '#172554'}; padding: 14px 18px; border-radius: 8px; border: 1px solid ${isLive ? '#059669' : '#1d4ed8'}; margin-bottom: 18px;">
-              <strong style="color: ${isLive ? '#a7f3d0' : '#bfdbfe'}; font-size: 13px;">
-                ${isLive ? '🌐 Vaste Publieke NAT Interface Actief:' : '🔒 Vaste Gesimuleerde Omgeving Actief:'}
-              </strong>
-              <p style="margin: 4px 0 0; font-size: 12.5px; color: #e2e8f0; line-height: 1.5;">
-                ${isLive
-                  ? 'Dit apparaat is een <strong>fysieke NAT-gateway</strong>. Alle netwerkaanvragen (HTTP, DNS, ping/TCP probes) worden daadwerkelijk uitgestuurd via de netwerkadapter van de server (Google Cloud / Localhost).'
-                  : 'Dit apparaat simuleert een <strong>afgesloten internetomgeving</strong>. Elk IP-adres en elke domeinnaam toont de interne landingspagina <em>"Welkom op het Internet"</em> met het PXL-symbool. Veilig voor examens en offline klassen.'}
-              </p>
-            </div>
-          `}
-
-          <div style="margin-top: 15px;">
-            <h4 style="color: #38bdf8; margin-bottom: 10px; font-size: 13px;">Beschikbare Internet Ingress Poorten:</h4>
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-              ${Object.entries(dev.interfaces).map(([p, intf]) => `
-                <div style="background: #1e293b; padding: 10px; border-radius: 6px; border: 1px solid #334155; font-size: 12px;">
-                  <strong style="color: #38bdf8;">${p}</strong>: ${intf.ip || 'DHCP/WAN'} <span style="color: #64748b;">(${intf.description})</span>
-                </div>
-              `).join('')}
-            </div>
-          </div>
+          ` : ''}
         </div>
       `;
       return;
@@ -1045,6 +1134,24 @@ class PXLNetSimApp {
       if (!dev.history || dev.history.length === 0) {
         screen.innerHTML = `HP J9773A 2530-24G Switch\nSoftware revision YA.16.10.0018\nCopyright (C) 1991-2026 Hewlett Packard Enterprise Development LP\n\nPress any key or enter commands. Type '?' or 'help' for command reference.\n\n`;
       }
+    } else if (dev.type === 'wlc') {
+      this.activeTerminalParser = new AireOSCLIParser(
+        dev,
+        (text) => {
+          screen.innerHTML += `${text}\n`;
+          dev.terminalBuffer = (dev.terminalBuffer || '') + `${text}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => {
+          prompt.innerText = this.activeTerminalParser.getPrompt();
+        },
+        () => this.triggerScoreUpdate()
+      );
+      if (!dev.terminalBuffer) {
+        dev.terminalBuffer = `(Cisco Controller)\nCisco 3504 Wireless LAN Controller\nSoftware Version: 8.10.190.0 (AireOS)\nType '?' or 'help' for command summary.\n\n`;
+      }
+      screen.innerHTML = dev.terminalBuffer;
+      prompt.innerText = this.activeTerminalParser.getPrompt();
     } else {
       this.activeTerminalParser = new CiscoCLIParser(
         dev,
@@ -1231,31 +1338,40 @@ class PXLNetSimApp {
     if (!dev || !viewport) return;
 
     if (appKey === 'ipconfig') {
+      const isDhcp = !!dev.dhcpEnabled;
       viewport.innerHTML = `
         <div class="pt-app-window">
-          <h4>IP Configuration</h4>
-          <div class="pt-form-group">
-            <label>IPv4 Configuration:</label>
-            <label><input type="radio" name="ipMode" ${!dev.dhcpEnabled ? 'checked' : ''} onchange="window.PXLApp.activeDevice.dhcpEnabled=false"> Static</label>
-            <label><input type="radio" name="ipMode" ${dev.dhcpEnabled ? 'checked' : ''} onchange="window.PXLApp.activeDevice.dhcpEnabled=true"> DHCP</label>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+            <h4 style="margin: 0; color: #0f172a; font-size: 14px;">⚙️ IP Configuration</h4>
+            <span id="dhcpStatusIndicator" style="font-size: 11.5px; font-weight: 600; color: ${isDhcp ? (dev.ip?.startsWith('169.254') ? '#d97706' : '#16a34a') : '#64748b'};">
+              ${isDhcp ? (dev.ip?.startsWith('169.254') ? '⚠️ APIPA Actief (Geen DHCP Server)' : '🟢 DHCP Actief (IP Verleend)') : 'Statische IP-modus'}
+            </span>
+          </div>
+          <div class="pt-form-group" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 14px;">
+            <label style="font-weight: 700; color: #334155; margin-right: 15px;">IP Configuration Mode:</label>
+            <label style="cursor: pointer; margin-right: 15px;"><input type="radio" name="ipMode" ${!isDhcp ? 'checked' : ''} onchange="window.PXLApp.triggerPcDhcpRadio(false)"> Static</label>
+            <label style="cursor: pointer;"><input type="radio" name="ipMode" ${isDhcp ? 'checked' : ''} onchange="window.PXLApp.triggerPcDhcpRadio(true)"> DHCP</label>
           </div>
           <div class="pt-form-group">
             <label>IPv4 Address:</label>
-            <input type="text" class="pt-input" id="pcIpInput" value="${dev.ip || ''}">
+            <input type="text" class="pt-input" id="pcIpInput" value="${dev.ip || ''}" ${isDhcp ? 'readonly style="background:#f1f5f9; color:#475569;"' : ''}>
           </div>
           <div class="pt-form-group">
             <label>Subnet Mask:</label>
-            <input type="text" class="pt-input" id="pcMaskInput" value="${dev.mask || ''}">
+            <input type="text" class="pt-input" id="pcMaskInput" value="${dev.mask || ''}" ${isDhcp ? 'readonly style="background:#f1f5f9; color:#475569;"' : ''}>
           </div>
           <div class="pt-form-group">
             <label>Default Gateway:</label>
-            <input type="text" class="pt-input" id="pcGwInput" value="${dev.gateway || ''}">
+            <input type="text" class="pt-input" id="pcGwInput" value="${dev.gateway || ''}" ${isDhcp ? 'readonly style="background:#f1f5f9; color:#475569;"' : ''}>
           </div>
           <div class="pt-form-group">
             <label>DNS Server:</label>
-            <input type="text" class="pt-input" id="pcDnsInput" value="${dev.dns || '8.8.8.8'}">
+            <input type="text" class="pt-input" id="pcDnsInput" value="${dev.dns || '8.8.8.8'}" ${isDhcp ? 'readonly style="background:#f1f5f9; color:#475569;"' : ''}>
           </div>
-          <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.savePcIpConfig()">Opslaan & Toepassen</button>
+          <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.savePcIpConfig()">Opslaan & Toepassen</button>
+            ${isDhcp ? `<button class="pt-btn pt-btn-secondary" onclick="window.PXLApp.triggerPcDhcpRadio(true)">🔄 DHCP Vernieuwen</button>` : ''}
+          </div>
         </div>
       `;
     } else if (appKey === 'cmd') {
@@ -1549,6 +1665,58 @@ Type 'help', 'ip a', or 'python3' to get started.
     }
   }
 
+  triggerPcDhcpRadio(isDhcp) {
+    const dev = this.activeDevice;
+    if (!dev) return;
+    dev.dhcpEnabled = isDhcp;
+
+    const ipInput = document.getElementById('pcIpInput');
+    const maskInput = document.getElementById('pcMaskInput');
+    const gwInput = document.getElementById('pcGwInput');
+    const dnsInput = document.getElementById('pcDnsInput');
+    const statusEl = document.getElementById('dhcpStatusIndicator');
+
+    if (isDhcp) {
+      if (ipInput) { ipInput.readOnly = true; ipInput.style.background = '#f1f5f9'; ipInput.style.color = '#475569'; }
+      if (maskInput) { maskInput.readOnly = true; maskInput.style.background = '#f1f5f9'; maskInput.style.color = '#475569'; }
+      if (gwInput) { gwInput.readOnly = true; gwInput.style.background = '#f1f5f9'; gwInput.style.color = '#475569'; }
+      if (dnsInput) { dnsInput.readOnly = true; dnsInput.style.background = '#f1f5f9'; dnsInput.style.color = '#475569'; }
+      if (statusEl) { statusEl.innerHTML = '⏳ DHCP Discover / Request verzenden...'; statusEl.style.color = '#0284c7'; }
+
+      setTimeout(() => {
+        const res = this.sim.requestDhcp(dev.id);
+        if (res.success) {
+          if (ipInput) ipInput.value = res.ip;
+          if (maskInput) maskInput.value = res.mask;
+          if (gwInput) gwInput.value = res.gateway;
+          if (dnsInput) dnsInput.value = res.dns;
+          if (statusEl) {
+            statusEl.innerHTML = `🟢 DHCP geslaagd! (${res.ip} via ${res.serverName})`;
+            statusEl.style.color = '#16a34a';
+          }
+          this.showToast(`✅ DHCP IP-adres ontvangen: ${res.ip}`);
+        } else {
+          if (ipInput) ipInput.value = dev.ip || '169.254.x.x';
+          if (maskInput) maskInput.value = dev.mask || '255.255.0.0';
+          if (gwInput) gwInput.value = '';
+          if (statusEl) {
+            statusEl.innerHTML = `⚠️ DHCP mislukt. APIPA actief (${dev.ip})`;
+            statusEl.style.color = '#d97706';
+          }
+          this.showToast(`⚠️ Geen DHCP-server gevonden (APIPA ${dev.ip})`);
+        }
+        this.triggerScoreUpdate();
+      }, 150);
+    } else {
+      if (ipInput) { ipInput.readOnly = false; ipInput.style.background = '#ffffff'; ipInput.style.color = '#0f172a'; }
+      if (maskInput) { maskInput.readOnly = false; maskInput.style.background = '#ffffff'; maskInput.style.color = '#0f172a'; }
+      if (gwInput) { gwInput.readOnly = false; gwInput.style.background = '#ffffff'; gwInput.style.color = '#0f172a'; }
+      if (dnsInput) { dnsInput.readOnly = false; dnsInput.style.background = '#ffffff'; dnsInput.style.color = '#0f172a'; }
+      if (statusEl) { statusEl.innerHTML = 'Statische IP-modus'; statusEl.style.color = '#64748b'; }
+      this.triggerScoreUpdate();
+    }
+  }
+
   savePcIpConfig() {
     const dev = this.activeDevice;
     if (!dev) return;
@@ -1699,17 +1867,74 @@ Type 'help', 'ip a', or 'python3' to get started.
     }, 3500);
   }
 
-  // --- SERVER SERVICES (HTTP WEB, DNS, FTP) ---
+  // --- SERVER SERVICES (HTTP WEB, DHCP, DNS, LDAP, FTP) ---
   renderServicesTab() {
     const dev = this.activeDevice;
     const container = document.getElementById('modalPaneServices');
     if (!dev || !container) return;
 
     if (!dev.services) {
-      dev.services = {
-        http: { enabled: true, port: 80, content: '<h1>PXL Web Server</h1>' },
-        dns: { enabled: true, records: [{ name: 'www.pxl.be', type: 'A', ip: dev.ip || '172.16.1.10' }] },
-        ftp: { enabled: true, users: [{ username: 'cisco', password: 'cisco', permissions: 'RWDNL' }], files: [] }
+      dev.services = {};
+    }
+    if (!dev.services.http) {
+      dev.services.http = { enabled: true, port: 80, content: '<h1>PXL Web Server</h1>' };
+    }
+    if (!dev.services.dhcp) {
+      dev.services.dhcp = {
+        enabled: true,
+        poolName: 'serverPool',
+        gateway: dev.gateway || '172.16.1.1',
+        dns: dev.ip || '172.16.1.10',
+        startIp: '172.16.1.100',
+        mask: '255.255.255.0',
+        maxUsers: 50,
+        tftpServer: '0.0.0.0',
+        wlcIp: '10.10.0.254',
+        pools: [{ name: 'serverPool', gateway: dev.gateway || '172.16.1.1', dns: dev.ip || '172.16.1.10', startIp: '172.16.1.100', mask: '255.255.255.0', maxUsers: 50 }],
+        leases: []
+      };
+    }
+    if (!dev.services.dns) {
+      dev.services.dns = {
+        enabled: true,
+        records: [
+          { name: 'www.pxl.be', type: 'A', ip: dev.ip || '172.16.1.10' },
+          { name: 'cisco.pxl', type: 'A', ip: dev.ip || '172.16.1.10' },
+          { name: 'web.pxl.local', type: 'CNAME', target: 'www.pxl.be' }
+        ],
+        forwarders: { enabled: true, primary: '8.8.8.8', secondary: '1.1.1.1' }
+      };
+    }
+    if (!dev.services.dns.forwarders) {
+      dev.services.dns.forwarders = { enabled: true, primary: '8.8.8.8', secondary: '1.1.1.1' };
+    }
+    if (!dev.services.ldap) {
+      dev.services.ldap = {
+        enabled: true,
+        domain: 'pxl.local',
+        dcName: 'DC01-PXL',
+        baseDn: 'dc=pxl,dc=local',
+        radiusPort: 1812,
+        radiusSecret: 'PXL_Secret2026!',
+        users: [
+          { username: 'student1', password: 'PXL2026!', fullName: 'PXL Student (1TIN-A)', group: 'Domain Users,WiFi-Students', role: 'Student' },
+          { username: 'student', password: 'PXL2026!', fullName: 'PXL Student Generic', group: 'Domain Users,WiFi-Students', role: 'Student' },
+          { username: 'pxl-student', password: '2025_PXL!', fullName: 'PXL Course Student', group: 'Domain Users,WiFi-Students', role: 'Student' },
+          { username: 'david', password: 'PXL_Teacher2026!', fullName: 'David Parren (Docent & Netwerkbeheerder)', group: 'Domain Admins,Enterprise Admins', role: 'Teacher' },
+          { username: 'teacher', password: 'SinterklaasOp6December', fullName: 'PXL Docent', group: 'Domain Admins,WiFi-Staff', role: 'Teacher' },
+          { username: 'Administrator', password: 'PXL_Admin2026!', fullName: 'Built-in Administrator', group: 'Domain Admins,Schema Admins', role: 'Administrator' }
+        ]
+      };
+    }
+    if (!dev.services.ftp) {
+      dev.services.ftp = {
+        enabled: true,
+        users: [{ username: 'cisco', password: 'cisco', permissions: 'RWDNL' }, { username: 'anonymous', password: '', permissions: 'R' }],
+        files: [
+          { name: 'c4300-universalk9-mz.SPA.154-3.M2.bin', size: '12402176 bytes' },
+          { name: 'pxl-lab-oefening.pka', size: '45020 bytes' },
+          { name: 'sample.txt', size: '1024 bytes' }
+        ]
       };
     }
 
@@ -1720,7 +1945,9 @@ Type 'help', 'ip a', or 'python3' to get started.
         <div class="pt-services-sidebar">
           <h4 style="font-size: 11px; text-transform: uppercase; color: #94a3b8; padding-left: 8px; margin: 4px 0 10px;">Server Diensten</h4>
           <button class="pt-service-nav-btn ${sub === 'http' ? 'active' : ''}" onclick="window.PXLApp.switchServiceSubtab('http')">🌐 HTTP / Web</button>
+          <button class="pt-service-nav-btn ${sub === 'dhcp' ? 'active' : ''}" onclick="window.PXLApp.switchServiceSubtab('dhcp')">📡 DHCP Server</button>
           <button class="pt-service-nav-btn ${sub === 'dns' ? 'active' : ''}" onclick="window.PXLApp.switchServiceSubtab('dns')">🔎 DNS Service</button>
+          <button class="pt-service-nav-btn ${sub === 'ldap' ? 'active' : ''}" onclick="window.PXLApp.switchServiceSubtab('ldap')">👥 LDAP / Active Directory</button>
           <button class="pt-service-nav-btn ${sub === 'ftp' ? 'active' : ''}" onclick="window.PXLApp.switchServiceSubtab('ftp')">📁 FTP Service</button>
         </div>
         <div class="pt-service-content">
@@ -1764,7 +1991,6 @@ Type 'help', 'ip a', or 'python3' to get started.
           <span style="margin-left: auto; color: #64748b; font-size: 12px;">Poort: 80 &bull; Ondersteunt: HTML, CSS, JSON, TXT</span>
         </div>
 
-        <!-- File Selector & Actions Bar -->
         <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
           <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
             <label style="font-weight: 600; font-size: 13px; color: #334155;">Actief Bestand:</label>
@@ -1790,45 +2016,285 @@ Type 'help', 'ip a', or 'python3' to get started.
           <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.saveHttpContent()">💾 '${this.currentHttpFile}' Opslaan & Publiceren</button>
         </div>
       `;
+    } else if (sub === 'dhcp') {
+      const dhcp = dev.services.dhcp;
+      const pool = (dhcp.pools && dhcp.pools.length > 0) ? dhcp.pools[0] : dhcp;
+
+      return `
+        <h3>📡 DHCP Server Service (Cisco Packet Tracer Style)</h3>
+        <div class="pt-service-status-bar">
+          <span>Dienst Status:</span>
+          <label><input type="radio" name="srvDhcp" ${dhcp.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceDhcp(true)"> Ingeschakeld (On)</label>
+          <label><input type="radio" name="srvDhcp" ${!dhcp.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceDhcp(false)"> Uitgeschakeld (Off)</label>
+          <span style="margin-left: auto; color: #64748b; font-size: 12px;">Interface: <strong>FastEthernet0</strong></span>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+          <h4 style="margin: 0 0 12px; color: #0284c7; font-size: 13px;">DHCP Pool Eigenschappen:</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Pool Name:</label>
+              <input type="text" id="dhcpPoolNameInput" class="pt-input" value="${pool.name || dhcp.poolName || 'serverPool'}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Default Gateway:</label>
+              <input type="text" id="dhcpGwInput" class="pt-input" value="${pool.gateway || dev.gateway || '172.16.1.1'}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">DNS Server:</label>
+              <input type="text" id="dhcpDnsInput" class="pt-input" value="${pool.dns || dev.ip || '172.16.1.10'}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Start IP Address:</label>
+              <input type="text" id="dhcpStartIpInput" class="pt-input" value="${pool.startIp || dhcp.startIp || '172.16.1.100'}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Subnet Mask:</label>
+              <input type="text" id="dhcpMaskInput" class="pt-input" value="${pool.mask || dhcp.mask || '255.255.255.0'}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Maximum number of Users:</label>
+              <input type="number" id="dhcpMaxUsersInput" class="pt-input" value="${pool.maxUsers || dhcp.maxUsers || 50}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">TFTP Server:</label>
+              <input type="text" id="dhcpTftpInput" class="pt-input" value="${dhcp.tftpServer || '0.0.0.0'}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">WLC IP Address:</label>
+              <input type="text" id="dhcpWlcInput" class="pt-input" value="${dhcp.wlcIp || '10.10.0.254'}" style="width: 100%;">
+            </div>
+          </div>
+          <div style="margin-top: 14px; display: flex; gap: 10px;">
+            <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.saveDhcpConfig()">💾 Opslaan / Toepassen Pool</button>
+          </div>
+        </div>
+
+        <h4 style="margin: 16px 0 8px; color: #1e293b; font-size: 13px;">Actieve DHCP Leases (Verleende IP-adressen):</h4>
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 12px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
+                <th style="padding: 6px 10px;">Client Hostname</th>
+                <th style="padding: 6px 10px;">Toegewezen IP</th>
+                <th style="padding: 6px 10px;">MAC Adres</th>
+                <th style="padding: 6px 10px;">Leasetijd / Tijdstip</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(!dhcp.leases || dhcp.leases.length === 0) ? `
+                <tr><td colspan="4" style="padding: 12px; text-align: center; color: #94a3b8; font-style: italic;">Nog geen actieve DHCP leases geregistreerd. Verbind een client via DHCP om leases te zien.</td></tr>
+              ` : dhcp.leases.map(l => `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 6px 10px; font-weight: 600; color: #0284c7;">💻 ${l.hostname || 'Client'}</td>
+                  <td style="padding: 6px 10px; font-family: monospace; font-weight: 600;">${l.ip}</td>
+                  <td style="padding: 6px 10px; font-family: monospace; color: #475569;">${l.mac}</td>
+                  <td style="padding: 6px 10px; color: #64748b;">${l.timestamp || l.expires || 'Actief'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="pt-btn pt-btn-secondary" style="font-size: 11px;" onclick="window.PXLApp.renderServicesTab()">🔄 Verversen</button>
+          <button class="pt-btn pt-btn-secondary" style="font-size: 11px; color: #ef4444; border-color: #fca5a5;" onclick="window.PXLApp.clearDhcpLeases()">🗑️ Wis Leases</button>
+        </div>
+      `;
     } else if (sub === 'dns') {
       const dns = dev.services.dns;
+      if (!dns.forwarders) {
+        dns.forwarders = { enabled: true, primary: '8.8.8.8', secondary: '1.1.1.1' };
+      }
+
       return `
-        <h3>🔎 DNS Server Configuratie</h3>
+        <h3>🔎 DNS Server Service & Forwarders (Cisco Packet Tracer + Anycast / Live WAN)</h3>
         <div class="pt-service-status-bar">
           <span>Dienst Status:</span>
           <label><input type="radio" name="srvDns" ${dns.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceDns(true)"> Ingeschakeld (On)</label>
           <label><input type="radio" name="srvDns" ${!dns.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceDns(false)"> Uitgeschakeld (Off)</label>
         </div>
+
+        <!-- Add Resource Record Form -->
         <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
-          <h4 style="margin: 0 0 10px;">Nieuw Resource Record Toevoegen:</h4>
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="dnsNameInput" class="pt-input" placeholder="Domeinnaam (bv. www.pxl.be)" style="flex: 2;">
-            <select id="dnsTypeInput" class="pt-input" style="flex: 1;"><option value="A">A Record</option></select>
-            <input type="text" id="dnsIpInput" class="pt-input" placeholder="IP Adres (bv. 172.16.1.10)" style="flex: 2;">
+          <h4 style="margin: 0 0 10px; color: #0284c7; font-size: 13px;">Nieuw Resource Record Toevoegen:</h4>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="dnsNameInput" class="pt-input" placeholder="Domeinnaam (bv. www.pxl.be of portal.pxl.local)" style="flex: 2; min-width: 180px;">
+            <select id="dnsTypeInput" class="pt-input" style="flex: 1; min-width: 110px;" onchange="window.PXLApp.onDnsTypeChange(this.value)">
+              <option value="A">A Record (Host)</option>
+              <option value="CNAME">CNAME (Alias)</option>
+            </select>
+            <input type="text" id="dnsTargetInput" class="pt-input" placeholder="IP Adres (bv. 172.16.1.10)" style="flex: 2; min-width: 180px;">
             <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.addDnsRecord()">+ Toevoegen</button>
           </div>
         </div>
+
         <h4>Actieve DNS Records:</h4>
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px;">
-          <thead>
-            <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
-              <th style="padding: 6px 10px;">Domeinnaam</th>
-              <th style="padding: 6px 10px;">Type</th>
-              <th style="padding: 6px 10px;">IP Adres</th>
-              <th style="padding: 6px 10px; width: 60px;">Actie</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${dns.records.map((r, i) => `
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 6px 10px; font-weight: 600;">${r.name}</td>
-                <td style="padding: 6px 10px;">${r.type}</td>
-                <td style="padding: 6px 10px; font-family: monospace;">${r.ip}</td>
-                <td style="padding: 6px 10px;"><button class="pt-btn-del" onclick="window.PXLApp.deleteDnsRecord(${i})">🗑️</button></td>
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 16px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
+                <th style="padding: 6px 10px;">Domeinnaam</th>
+                <th style="padding: 6px 10px;">Type</th>
+                <th style="padding: 6px 10px;">Doel (IP / Host Alias)</th>
+                <th style="padding: 6px 10px; width: 60px;">Actie</th>
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              ${(dns.records || []).map((r, i) => `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 6px 10px; font-weight: 600; color: #0284c7;">${r.name}</td>
+                  <td style="padding: 6px 10px;"><span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">${r.type}</span></td>
+                  <td style="padding: 6px 10px; font-family: monospace;">${r.type === 'CNAME' ? (r.target || r.alias) : r.ip}</td>
+                  <td style="padding: 6px 10px;"><button class="pt-btn-del" onclick="window.PXLApp.deleteDnsRecord(${i})">🗑️</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- DNS FORWARDERS CARD -->
+        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 14px; margin-top: 10px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🌐</span>
+              <h4 style="margin: 0; color: #166534; font-size: 13px;">DNS Forwarders (Public Internet / Loopback Anycast)</h4>
+            </div>
+            <label style="font-size: 12px; font-weight: 600; color: #15803d; cursor: pointer;">
+              <input type="checkbox" id="dnsForwarderCheck" ${dns.forwarders?.enabled !== false ? 'checked' : ''} style="margin-right: 4px;"> Forwarding Ingeschakeld
+            </label>
+          </div>
+          <p style="font-size: 11.5px; color: #166534; margin: 0 0 10px; line-height: 1.45;">
+            Wanneer een client een domeinnaam opvraagt die niet lokaal in de zone staat (bijv. <code>google.com</code>, <code>pxl.be</code>), stuurt de server de query door naar deze publieke upstream forwarders.
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+            <div>
+              <label style="font-size: 11px; font-weight: 600; color: #14532d; display: block; margin-bottom: 3px;">Primaire Forwarder (Google Anycast):</label>
+              <input type="text" id="dnsFwdPrimary" class="pt-input" value="${dns.forwarders?.primary || '8.8.8.8'}" style="width: 100%; background: #ffffff;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: 600; color: #14532d; display: block; margin-bottom: 3px;">Secundaire Forwarder (Cloudflare Anycast):</label>
+              <input type="text" id="dnsFwdSecondary" class="pt-input" value="${dns.forwarders?.secondary || '1.1.1.1'}" style="width: 100%; background: #ffffff;">
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+            <span style="font-size: 11px; color: #15803d;">
+              ${this.sim.isLiveInternet ? '🟢 <strong>Live WAN Proxy:</strong> Verbinding met fysieke internet gateway actief.' : '🟡 <strong>Simulatie:</strong> Beantwoordt via virtuele 8.8.8.8 / 1.1.1.1 Loopbacks op Cloud RFC 3849.'}
+            </span>
+            <button class="pt-btn pt-btn-primary" style="background: #16a34a; border-color: #15803d;" onclick="window.PXLApp.saveDnsForwarders()">💾 Forwarders Opslaan</button>
+          </div>
+        </div>
+      `;
+    } else if (sub === 'ldap') {
+      const ldap = dev.services.ldap;
+      const studentUser = this.currentUser?.username || 'student1';
+      const studentFullName = this.currentUser?.full_name || 'PXL NetSim Student';
+
+      return `
+        <h3>👥 LDAP & Active Directory Domain Controller (DC01-PXL)</h3>
+        <div class="pt-service-status-bar">
+          <span>Dienst Status:</span>
+          <label><input type="radio" name="srvLdap" ${ldap.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceLdap(true)"> Ingeschakeld (On)</label>
+          <label><input type="radio" name="srvLdap" ${!ldap.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceLdap(false)"> Uitgeschakeld (Off)</label>
+          <span style="margin-left: auto; color: #64748b; font-size: 12px;">Domein: <strong>${ldap.domain || 'pxl.local'}</strong> &bull; Host: <strong>${ldap.dcName || 'DC01-PXL'}</strong></span>
+        </div>
+
+        <!-- Current Active Student Card -->
+        <div style="background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 20px;">🎓</span>
+              <div>
+                <div style="font-weight: 700; color: #1e40af; font-size: 13.5px;">Actieve Student Inlogaccount: <code>${studentUser}</code></div>
+                <div style="font-size: 11.5px; color: #3b82f6;">${studentFullName} &bull; Rol: Student</div>
+              </div>
+            </div>
+            <span style="background: #10b981; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">
+              ⚡ WI-FI 802.1X GEKOPPELD
+            </span>
+          </div>
+          <p style="font-size: 11.5px; color: #1e3a8a; margin: 4px 0 0; line-height: 1.45;">
+            Deze LDAP / Active Directory service valideert Wi-Fi clients (WPA2-Enterprise) en 802.1X supplicants <strong>automatisch tegen het account van de actieve student</strong> (<code>${studentUser}</code>) én onderstaande geregistreerde domeingebruikers.
+          </p>
+        </div>
+
+        <!-- RADIUS & Domain Configuration -->
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 14px;">
+          <h4 style="margin: 0 0 10px; color: #0284c7; font-size: 13px;">Active Directory & RADIUS Server Instellingen:</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+            <div>
+              <label style="font-size: 11px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">Domeinnaam (FQDN):</label>
+              <input type="text" id="ldapDomainInput" class="pt-input" value="${ldap.domain || 'pxl.local'}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">RADIUS Shared Secret:</label>
+              <input type="text" id="ldapSecretInput" class="pt-input" value="${ldap.radiusSecret || 'PXL_Secret2026!'}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">Auth Port (UDP):</label>
+              <input type="number" id="ldapPortInput" class="pt-input" value="${ldap.radiusPort || 1812}" style="width: 100%;">
+            </div>
+          </div>
+          <div style="margin-top: 10px;">
+            <button class="pt-btn pt-btn-secondary" style="font-size: 11.5px;" onclick="window.PXLApp.saveLdapConfig()">💾 RADIUS & Domeinconfiguratie Opslaan</button>
+          </div>
+        </div>
+
+        <!-- Add Domain User Form -->
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 14px;">
+          <h4 style="margin: 0 0 10px; color: #0284c7; font-size: 13px;">Nieuwe Domeingebruiker Toevoegen (Active Directory User):</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr 1fr auto; gap: 8px; align-items: end;">
+            <div>
+              <label style="font-size: 11px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">Gebruikersnaam:</label>
+              <input type="text" id="ldapNewUserInput" class="pt-input" placeholder="bv. janssens.j" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">Wachtwoord:</label>
+              <input type="text" id="ldapNewPwInput" class="pt-input" placeholder="Wachtwoord" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">Volledige Naam:</label>
+              <input type="text" id="ldapNewNameInput" class="pt-input" placeholder="Jan Janssens" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">OU / Groep:</label>
+              <select id="ldapNewGroupInput" class="pt-input" style="width: 100%;">
+                <option value="Domain Users,WiFi-Students">Studenten (WiFi-Students)</option>
+                <option value="Domain Admins,WiFi-Staff">Docenten (WiFi-Staff)</option>
+                <option value="Domain Admins">Domein Administrators</option>
+              </select>
+            </div>
+            <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.addLdapUser()">+ Toevoegen</button>
+          </div>
+        </div>
+
+        <!-- Active Directory Users Table -->
+        <h4>Actieve Domein Accounts in Active Directory (LDAP):</h4>
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
+                <th style="padding: 6px 10px;">Gebruikersnaam</th>
+                <th style="padding: 6px 10px;">Volledige Naam</th>
+                <th style="padding: 6px 10px;">Groep / Rol</th>
+                <th style="padding: 6px 10px;">Wachtwoord</th>
+                <th style="padding: 6px 10px; width: 60px;">Actie</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(ldap.users || []).map((u, i) => `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 6px 10px; font-weight: 600; color: #0284c7;">👤 ${u.username}</td>
+                  <td style="padding: 6px 10px;">${u.fullName || u.username}</td>
+                  <td style="padding: 6px 10px;"><span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${u.role || 'User'}</span> <code style="font-size: 10.5px; color: #64748b;">${u.group || ''}</code></td>
+                  <td style="padding: 6px 10px; font-family: monospace; color: #64748b;">••••••••</td>
+                  <td style="padding: 6px 10px;">
+                    ${u.username !== 'Administrator' ? `<button class="pt-btn-del" onclick="window.PXLApp.deleteLdapUser(${i})">🗑️</button>` : '<span style="color:#94a3b8; font-size:11px;">Vast</span>'}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
       `;
     } else if (sub === 'ftp') {
       const ftp = dev.services.ftp;
@@ -1841,7 +2307,7 @@ Type 'help', 'ip a', or 'python3' to get started.
         </div>
         <h4>Geregistreerde FTP Gebruikers:</h4>
         <div style="font-size: 12px; color: #475569; margin-bottom: 15px;">
-          ${ftp.users.map(u => `<div>👤 Gebruiker: <strong>${u.username}</strong> | Permissies: <code>${u.permissions}</code></div>`).join('')}
+          ${(ftp.users || []).map(u => `<div>👤 Gebruiker: <strong>${u.username}</strong> | Permissies: <code>${u.permissions}</code></div>`).join('')}
         </div>
         <h4>Beschikbare Bestanden op FTP Server:</h4>
         <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
@@ -1852,7 +2318,7 @@ Type 'help', 'ip a', or 'python3' to get started.
             </tr>
           </thead>
           <tbody>
-            ${ftp.files.map(f => `
+            ${(ftp.files || []).map(f => `
               <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 6px 10px; font-family: monospace;">${f.name}</td>
                 <td style="padding: 6px 10px; color: #64748b;">${f.size}</td>
@@ -1921,6 +2387,60 @@ Type 'help', 'ip a', or 'python3' to get started.
     }
   }
 
+  // --- DHCP SERVICE HELPERS ---
+  setServiceDhcp(val) {
+    if (this.activeDevice && this.activeDevice.services && this.activeDevice.services.dhcp) {
+      this.activeDevice.services.dhcp.enabled = val;
+      this.triggerScoreUpdate();
+    }
+  }
+
+  saveDhcpConfig() {
+    const dev = this.activeDevice;
+    if (!dev || !dev.services || !dev.services.dhcp) return;
+
+    const poolName = document.getElementById('dhcpPoolNameInput')?.value.trim() || 'serverPool';
+    const gateway = document.getElementById('dhcpGwInput')?.value.trim() || dev.gateway || '172.16.1.1';
+    const dns = document.getElementById('dhcpDnsInput')?.value.trim() || dev.ip || '172.16.1.10';
+    const startIp = document.getElementById('dhcpStartIpInput')?.value.trim() || '172.16.1.100';
+    const mask = document.getElementById('dhcpMaskInput')?.value.trim() || '255.255.255.0';
+    const maxUsers = parseInt(document.getElementById('dhcpMaxUsersInput')?.value.trim(), 10) || 50;
+    const tftpServer = document.getElementById('dhcpTftpInput')?.value.trim() || '0.0.0.0';
+    const wlcIp = document.getElementById('dhcpWlcInput')?.value.trim() || '10.10.0.254';
+
+    dev.services.dhcp.poolName = poolName;
+    dev.services.dhcp.gateway = gateway;
+    dev.services.dhcp.dns = dns;
+    dev.services.dhcp.startIp = startIp;
+    dev.services.dhcp.mask = mask;
+    dev.services.dhcp.maxUsers = maxUsers;
+    dev.services.dhcp.tftpServer = tftpServer;
+    dev.services.dhcp.wlcIp = wlcIp;
+
+    if (!dev.services.dhcp.pools) dev.services.dhcp.pools = [];
+    const existingIdx = dev.services.dhcp.pools.findIndex(p => p.name === poolName);
+    const poolObj = { name: poolName, gateway, dns, startIp, mask, maxUsers };
+    if (existingIdx !== -1) {
+      dev.services.dhcp.pools[existingIdx] = poolObj;
+    } else {
+      dev.services.dhcp.pools.push(poolObj);
+    }
+
+    this.renderServicesTab();
+    this.showToast(`✅ DHCP Pool '${poolName}' succesvol opgeslagen.`);
+    this.triggerScoreUpdate();
+  }
+
+  clearDhcpLeases() {
+    const dev = this.activeDevice;
+    if (dev?.services?.dhcp) {
+      dev.services.dhcp.leases = [];
+      this.renderServicesTab();
+      this.showToast('🗑️ DHCP leases gewist.');
+    }
+  }
+
+  // --- DNS SERVICE HELPERS ---
   setServiceDns(val) {
     if (this.activeDevice && this.activeDevice.services) {
       this.activeDevice.services.dns.enabled = val;
@@ -1928,19 +2448,45 @@ Type 'help', 'ip a', or 'python3' to get started.
     }
   }
 
+  onDnsTypeChange(val) {
+    const targetInput = document.getElementById('dnsTargetInput');
+    if (targetInput) {
+      if (val === 'CNAME') {
+        targetInput.placeholder = 'Doelhost / Alias FQDN (bv. www.pxl.be)';
+      } else {
+        targetInput.placeholder = 'IP Adres (bv. 172.16.1.10)';
+      }
+    }
+  }
+
   addDnsRecord() {
     const nameInput = document.getElementById('dnsNameInput');
-    const ipInput = document.getElementById('dnsIpInput');
-    if (!nameInput || !ipInput || !this.activeDevice) return;
+    const typeInput = document.getElementById('dnsTypeInput');
+    const targetInput = document.getElementById('dnsTargetInput');
+    if (!nameInput || !typeInput || !targetInput || !this.activeDevice) return;
+
     const name = nameInput.value.trim();
-    const ip = ipInput.value.trim();
-    if (!name || !IPUtils.isValidIp(ip)) {
-      this.showToast('⚠️ Voer een geldige domeinnaam en IPv4-adres in');
+    const type = typeInput.value.trim();
+    const val = targetInput.value.trim();
+
+    if (!name || !val) {
+      this.showToast('⚠️ Voer domeinnaam en doel in');
       return;
     }
-    this.activeDevice.services.dns.records.push({ name, type: 'A', ip });
+    if (type === 'A' && !IPUtils.isValidIp(val)) {
+      this.showToast('⚠️ Voer een geldig IPv4-adres in voor A record');
+      return;
+    }
+
+    if (!this.activeDevice.services.dns.records) this.activeDevice.services.dns.records = [];
+    if (type === 'CNAME') {
+      this.activeDevice.services.dns.records.push({ name, type: 'CNAME', target: val });
+    } else {
+      this.activeDevice.services.dns.records.push({ name, type: 'A', ip: val });
+    }
+
     this.renderServicesTab();
-    this.showToast(`✅ DNS Record '${name} -> ${ip}' toegevoegd`);
+    this.showToast(`✅ DNS Record '${name} [${type}] -> ${val}' toegevoegd`);
     this.triggerScoreUpdate();
   }
 
@@ -1948,6 +2494,92 @@ Type 'help', 'ip a', or 'python3' to get started.
     if (this.activeDevice && this.activeDevice.services) {
       this.activeDevice.services.dns.records.splice(idx, 1);
       this.renderServicesTab();
+      this.triggerScoreUpdate();
+    }
+  }
+
+  saveDnsForwarders() {
+    const dev = this.activeDevice;
+    if (!dev?.services?.dns) return;
+
+    const chk = document.getElementById('dnsForwarderCheck');
+    const pInput = document.getElementById('dnsFwdPrimary');
+    const sInput = document.getElementById('dnsFwdSecondary');
+
+    if (!dev.services.dns.forwarders) {
+      dev.services.dns.forwarders = {};
+    }
+    dev.services.dns.forwarders.enabled = chk ? chk.checked : true;
+    dev.services.dns.forwarders.primary = pInput ? pInput.value.trim() : '8.8.8.8';
+    dev.services.dns.forwarders.secondary = sInput ? sInput.value.trim() : '1.1.1.1';
+
+    this.showToast(`✅ DNS Forwarders opgeslagen (${dev.services.dns.forwarders.primary}, ${dev.services.dns.forwarders.secondary})`);
+    this.triggerScoreUpdate();
+  }
+
+  // --- LDAP / ACTIVE DIRECTORY SERVICE HELPERS ---
+  setServiceLdap(val) {
+    if (this.activeDevice?.services?.ldap) {
+      this.activeDevice.services.ldap.enabled = val;
+      this.triggerScoreUpdate();
+    }
+  }
+
+  saveLdapConfig() {
+    const dev = this.activeDevice;
+    if (!dev?.services?.ldap) return;
+
+    const dInput = document.getElementById('ldapDomainInput');
+    const sInput = document.getElementById('ldapSecretInput');
+    const pInput = document.getElementById('ldapPortInput');
+
+    if (dInput) dev.services.ldap.domain = dInput.value.trim();
+    if (sInput) dev.services.ldap.radiusSecret = sInput.value.trim();
+    if (pInput) dev.services.ldap.radiusPort = parseInt(pInput.value.trim(), 10) || 1812;
+
+    this.showToast('✅ Active Directory & RADIUS instellingen opgeslagen.');
+    this.triggerScoreUpdate();
+  }
+
+  addLdapUser() {
+    const dev = this.activeDevice;
+    if (!dev?.services?.ldap) return;
+
+    const uInput = document.getElementById('ldapNewUserInput');
+    const pInput = document.getElementById('ldapNewPwInput');
+    const nInput = document.getElementById('ldapNewNameInput');
+    const gInput = document.getElementById('ldapNewGroupInput');
+
+    const username = uInput ? uInput.value.trim() : '';
+    const password = pInput ? pInput.value.trim() : '';
+    const fullName = nInput ? nInput.value.trim() : username;
+    const group = gInput ? gInput.value : 'Domain Users,WiFi-Students';
+
+    if (!username || !password) {
+      this.showToast('⚠️ Gebruikersnaam en wachtwoord zijn verplicht');
+      return;
+    }
+
+    if (!dev.services.ldap.users) dev.services.ldap.users = [];
+    dev.services.ldap.users.push({
+      username,
+      password,
+      fullName: fullName || username,
+      group,
+      role: group.includes('Admins') ? 'Teacher' : 'Student'
+    });
+
+    this.renderServicesTab();
+    this.showToast(`✅ Domeingebruiker '${username}' toegevoegd aan Active Directory.`);
+    this.triggerScoreUpdate();
+  }
+
+  deleteLdapUser(idx) {
+    const dev = this.activeDevice;
+    if (dev?.services?.ldap?.users) {
+      const removed = dev.services.ldap.users.splice(idx, 1);
+      this.renderServicesTab();
+      this.showToast(`🗑️ Domeingebruiker '${removed[0]?.username}' verwijderd.`);
       this.triggerScoreUpdate();
     }
   }

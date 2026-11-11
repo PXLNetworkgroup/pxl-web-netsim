@@ -263,7 +263,7 @@ const CiscoIcons = {
       <text x="63" y="42" font-family="Arial, sans-serif" font-weight="bold" font-size="6.5" fill="#f8fafc" text-anchor="end">OpenWrt</text>
     </svg>`,
 
-  // Het Internet Global Cloud Simulator
+  // Het Internet Global Cloud Simulator (Hybrid / Default)
   internet_cloud: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 60" width="84" height="60">
       <defs>
         <linearGradient id="inetGrad" x1="0" y1="0" x2="0" y2="1">
@@ -278,6 +278,42 @@ const CiscoIcons = {
       <ellipse cx="42" cy="30" rx="5" ry="11" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
       <line x1="31" y1="30" x2="53" y2="30" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
       <text x="42" y="55" font-family="Arial, sans-serif" font-weight="bold" font-size="7.5" fill="#0369a1" text-anchor="middle">INTERNET</text>
+    </svg>`,
+
+  // Simulated Internet Cloud (Cisco Blue - CCNA RFC 3849 Range: 209.165.200.224/30)
+  internet_simulated: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 60" width="84" height="60">
+      <defs>
+        <linearGradient id="inetSimGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#38bdf8"/>
+          <stop offset="50%" stop-color="#0284c7"/>
+          <stop offset="100%" stop-color="#0369a1"/>
+        </linearGradient>
+      </defs>
+      <path d="M 24 45 L 62 45 A 14 14 0 0 0 64 18 A 18 18 0 0 0 31 16 A 16 16 0 0 0 17 33 A 12 12 0 0 0 24 45 Z"
+            fill="url(#inetSimGrad)" stroke="#e0f2fe" stroke-width="2"/>
+      <circle cx="42" cy="30" r="11" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.9"/>
+      <ellipse cx="42" cy="30" rx="5" ry="11" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
+      <line x1="31" y1="30" x2="53" y2="30" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
+      <rect x="22" y="48" width="40" height="9" rx="4.5" fill="#0f172a" stroke="#38bdf8" stroke-width="0.8"/>
+      <text x="42" y="55" font-family="Arial, sans-serif" font-weight="900" font-size="6" fill="#38bdf8" text-anchor="middle">SIM INTERNET</text>
+    </svg>`,
+
+  // Public Live Internet Cloud (Emerald Green - Real NAT Bridge)
+  internet_public: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 60" width="84" height="60">
+      <defs>
+        <linearGradient id="inetPubGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#34d399"/>
+          <stop offset="50%" stop-color="#059669"/>
+          <stop offset="100%" stop-color="#064e3b"/>
+        </linearGradient>
+      </defs>
+      <path d="M 24 45 L 62 45 A 14 14 0 0 0 64 18 A 18 18 0 0 0 31 16 A 16 16 0 0 0 17 33 A 12 12 0 0 0 24 45 Z"
+            fill="url(#inetPubGrad)" stroke="#d1fae5" stroke-width="2"/>
+      <circle cx="42" cy="30" r="11" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.9"/>
+      <ellipse cx="42" cy="30" rx="5" ry="11" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
+      <line x1="31" y1="30" x2="53" y2="30" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
+      <rect x="20" y="48" width="44" height="9" rx="4.5" fill="#022c22" stroke="#10b981" stroke-width="0.8"/>
+      <text x="42" y="55" font-family="Arial, sans-serif" font-weight="900" font-size="6" fill="#6ee7b7" text-anchor="middle">LIVE INTERNET</text>
     </svg>`,
 
   // HPE Aruba 2530 / 2930F Managed Switch
@@ -352,12 +388,16 @@ function getCiscoDeviceIcon(type, model = "") {
   if (t === 'laptop') return CiscoIcons.laptop;
   if (t === 'server') return CiscoIcons.server;
   if (t === 'mikrotik') return CiscoIcons.mikrotik;
-  if (t === 'openwrt') return CiscoIcons.openwrt;
-  if (t === 'internet_cloud' || t === 'internet') return CiscoIcons.internet_cloud;
-  if (t === 'cloud') return CiscoIcons.cloud;
+  if (t === 'internet_public' || (t.includes('internet') && t.includes('pub'))) return CiscoIcons.internet_public;
+  if (t === 'internet_simulated' || (t.includes('internet') && t.includes('sim'))) return CiscoIcons.internet_simulated;
+  if (t === 'internet_cloud' || t === 'internet' || t === 'cloud') return CiscoIcons.internet_cloud;
   return CiscoIcons.pc; // default PC
 }
 
+if (typeof window !== 'undefined') {
+  window.CiscoIcons = CiscoIcons;
+  window.getCiscoDeviceIcon = getCiscoDeviceIcon;
+}
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { CiscoIcons, getCiscoDeviceIcon };
 }

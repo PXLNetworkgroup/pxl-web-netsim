@@ -121,6 +121,35 @@ class CiscoDevice {
       this.defaultGateway = this.wlcConfig.mgmtGateway;
     }
 
+    // Standalone / Autonomous Access Point Configuration
+    if (this.type === 'wireless_ap') {
+      this.apConfig = options.apConfig || {
+        mode: options.apMode || 'autonomous', // 'autonomous' (Standalone) or 'lightweight' (CAPWAP/WLC)
+        ip: options.ip || '10.10.0.100',
+        mask: options.mask || '255.255.255.0',
+        gateway: options.gateway || '10.10.0.1',
+        dns: options.dns || '8.8.8.8',
+        webEnabled: true,
+        webPort: 80,
+        dhcpEnabled: options.dhcpEnabled !== undefined ? options.dhcpEnabled : true,
+        dhcpPool: {
+          startIp: '10.10.0.101',
+          mask: '255.255.255.0',
+          gateway: '10.10.0.100',
+          dns: '8.8.8.8',
+          maxUsers: 30
+        },
+        dhcpLeases: [],
+        authMode: options.authMode || 'WPA2-PSK', // 'Open', 'WPA2-PSK', 'WPA2-Enterprise'
+        passphrase: options.passphrase || 'PXL_Geheim2026!',
+        radiusServer: options.radiusServer || '10.10.0.10',
+        radiusSecret: options.radiusSecret || 'PXL_Secret2026!'
+      };
+      this.ip = this.apConfig.ip;
+      this.mask = this.apConfig.mask;
+      this.defaultGateway = this.apConfig.gateway;
+    }
+
     // Wireless Settings (for PCs, Laptops, Servers, Routers, and APs)
     const isWifiDevice = (this.type === 'laptop' || this.type === 'wireless_ap' || this.type === 'wireless_router' || this.type === 'wlc' || options.hasWireless || options.wirelessInstalled);
     this.wireless = {
@@ -144,7 +173,7 @@ class CiscoDevice {
       dhcpEnabled: options.dhcpEnabled !== undefined ? options.dhcpEnabled : true
     };
 
-    // Server Services (HTTP Web Server, DNS Server, FTP Server)
+    // Server Services (HTTP Web Server, DNS Server, DHCP Server, LDAP Domain Controller, FTP Server)
     this.services = options.services ? JSON.parse(JSON.stringify(options.services)) : {
       http: {
         enabled: this.type === 'server',
@@ -174,11 +203,48 @@ class CiscoDevice {
 </body>
 </html>`
       },
+      dhcp: {
+        enabled: this.type === 'server',
+        poolName: 'serverPool',
+        gateway: '172.16.1.1',
+        dns: '172.16.1.10',
+        startIp: '172.16.1.100',
+        mask: '255.255.255.0',
+        maxUsers: 50,
+        tftpServer: '0.0.0.0',
+        wlcIp: '10.10.0.254',
+        pools: [
+          { name: 'serverPool', gateway: '172.16.1.1', dns: '172.16.1.10', startIp: '172.16.1.100', mask: '255.255.255.0', maxUsers: 50 }
+        ],
+        leases: []
+      },
       dns: {
         enabled: this.type === 'server',
         records: [
           { name: 'www.pxl.be', type: 'A', ip: '172.16.1.10' },
-          { name: 'cisco.pxl', type: 'A', ip: '172.16.1.10' }
+          { name: 'cisco.pxl', type: 'A', ip: '172.16.1.10' },
+          { name: 'web.pxl.local', type: 'CNAME', target: 'www.pxl.be' }
+        ],
+        forwarders: {
+          enabled: true,
+          primary: '8.8.8.8',
+          secondary: '1.1.1.1'
+        }
+      },
+      ldap: {
+        enabled: this.type === 'server',
+        domain: 'pxl.local',
+        dcName: 'DC01-PXL',
+        baseDn: 'dc=pxl,dc=local',
+        radiusPort: 1812,
+        radiusSecret: 'PXL_Secret2026!',
+        users: [
+          { username: 'student1', password: 'PXL2026!', fullName: 'PXL Student (1TIN-A)', group: 'Domain Users,WiFi-Students', role: 'Student' },
+          { username: 'student', password: 'PXL2026!', fullName: 'PXL Student Generic', group: 'Domain Users,WiFi-Students', role: 'Student' },
+          { username: 'pxl-student', password: '2025_PXL!', fullName: 'PXL Course Student', group: 'Domain Users,WiFi-Students', role: 'Student' },
+          { username: 'david', password: 'PXL_Teacher2026!', fullName: 'David Parren (Docent & Netwerkbeheerder)', group: 'Domain Admins,Enterprise Admins', role: 'Teacher' },
+          { username: 'teacher', password: 'SinterklaasOp6December', fullName: 'PXL Docent', group: 'Domain Admins,WiFi-Staff', role: 'Teacher' },
+          { username: 'Administrator', password: 'PXL_Admin2026!', fullName: 'Built-in Administrator', group: 'Domain Admins,Schema Admins', role: 'Administrator' }
         ]
       },
       ftp: {
@@ -323,14 +389,25 @@ class CiscoDevice {
         'Console': { ip: "", mask: "", shutdown: false, description: "Serial Console Port", portType: 'console', mac: genMac('5254.00') }
       };
     } else if (this.type === 'internet_cloud' || this.type === 'internet_simulated' || this.type === 'internet_public') {
-      // Global Internet Gateway (Simulated or Public NAT Bridge)
+      // Global Internet Gateway (Cisco CCNA RFC 3849 WAN Subnet: 209.165.200.224/30)
       this.isPublic = (this.type === 'internet_public');
       this.interfaces = {
-        'WAN': { ip: "193.190.173.1", mask: "255.255.255.0", shutdown: false, description: this.isPublic ? "Public Internet NAT Bridge" : "Global Internet Backbone", mac: genMac('0001.64') },
-        'Ethernet0': { ip: "8.8.8.8", mask: "255.255.255.0", shutdown: false, description: "DNS Provider (Google)", mac: genMac('0001.64') },
-        'Ethernet1': { ip: "1.1.1.1", mask: "255.255.255.0", shutdown: false, description: "DNS Provider (Cloudflare)", mac: genMac('0001.64') },
-        'Ethernet2': { ip: "9.9.9.9", mask: "255.255.255.0", shutdown: false, description: "DNS Provider (Quad9)", mac: genMac('0001.64') },
-        'Ethernet3': { ip: "208.67.222.222", mask: "255.255.255.0", shutdown: false, description: "OpenDNS Gateway", mac: genMac('0001.64') }
+        'GigabitEthernet0': {
+          ip: "209.165.200.225",
+          mask: "255.255.255.252",
+          shutdown: false,
+          description: this.isPublic ? "ISP Uplink (Live NAT Bridge: 209.165.200.225/30)" : "ISP Uplink (CCNA RFC 3849: 209.165.200.225/30)",
+          mac: genMac('0001.64')
+        }
+      };
+      this.ip = "209.165.200.225";
+      this.mask = "255.255.255.252";
+      this.loopbacks = {
+        '8.8.8.8': 'Google Anycast DNS',
+        '1.1.1.1': 'Cloudflare Anycast DNS',
+        '9.9.9.9': 'Quad9 Anycast DNS',
+        '208.67.222.222': 'OpenDNS Anycast',
+        '209.165.200.230': 'Cisco CCNA Public Web Server'
       };
     }
 

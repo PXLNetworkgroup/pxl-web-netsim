@@ -241,7 +241,7 @@ class PCDesktopHandler {
     if (this.activeSshSession && this.activeSshSession.parser && typeof this.activeSshSession.parser.tabComplete === 'function') {
       return this.activeSshSession.parser.tabComplete(inputLine);
     }
-    const pcCommands = ['ipconfig', 'ipconfig /all', 'ping', 'tracert', 'nslookup', 'ssh admin@', 'telnet', 'ftp', 'cls'];
+    const pcCommands = ['ipconfig', 'ipconfig /all', 'ipconfig /renew', 'ipconfig /release', 'ping', 'tracert', 'nslookup', 'ssh admin@', 'telnet', 'ftp', 'cls'];
     const match = pcCommands.find(c => c.startsWith(inputLine.trim()));
     if (match) return match + ' ';
     return inputLine;
@@ -250,6 +250,53 @@ class PCDesktopHandler {
   handleIpconfig(args) {
     const dev = this.device;
     const isAll = args.includes('/all') || args.includes('-all');
+    const isRenew = args.includes('/renew') || args.includes('-renew');
+    const isRelease = args.includes('/release') || args.includes('-release');
+
+    const adapterName = dev.type === 'laptop' ? 'Wireless Network Connection' : 'Ethernet0';
+
+    if (isRelease) {
+      dev.ip = '0.0.0.0';
+      dev.mask = '0.0.0.0';
+      dev.gateway = '0.0.0.0';
+      for (const p of Object.keys(dev.interfaces)) {
+        if (dev.interfaces[p].ip) {
+          dev.interfaces[p].ip = '0.0.0.0';
+          dev.interfaces[p].mask = '0.0.0.0';
+        }
+      }
+      this.print("\nWindows IP Configuration\n");
+      this.print(`Ethernet adapter ${adapterName}:`);
+      this.print(`   Connection-specific DNS Suffix  . : `);
+      this.print(`   IPv4 Address. . . . . . . . . . . : 0.0.0.0`);
+      this.print(`   Subnet Mask . . . . . . . . . . . : 0.0.0.0`);
+      this.print(`   Default Gateway . . . . . . . . . :\n`);
+      return;
+    }
+
+    if (isRenew) {
+      this.print("\nWindows IP Configuration\n");
+      this.print(`DHCP Requesting IP lease for ${adapterName}...`);
+      if (window.PXLNetworkSim) {
+        const res = window.PXLNetworkSim.requestDhcp(dev.id);
+        if (res.success) {
+          this.print(`DHCP ACK received from ${res.serverName} (${res.serverIp || 'DHCP-Server'})\n`);
+          this.print(`Ethernet adapter ${adapterName}:`);
+          this.print(`   Connection-specific DNS Suffix  . : pxl.local`);
+          this.print(`   IPv4 Address. . . . . . . . . . . : ${res.ip}`);
+          this.print(`   Subnet Mask . . . . . . . . . . . : ${res.mask}`);
+          this.print(`   Default Gateway . . . . . . . . . : ${res.gateway}`);
+          this.print(`   DNS Servers . . . . . . . . . . . : ${res.dns}\n`);
+        } else {
+          this.print(`An error occurred while renewing interface ${adapterName} : unable to contact your DHCP server. Request has timed out.`);
+          this.print(`Autoconfiguration IPv4 Address (APIPA) . : ${dev.ip}`);
+          this.print(`Subnet Mask . . . . . . . . . . . : ${dev.mask}\n`);
+        }
+      } else {
+        this.print("Error: Network simulation engine not available.\n");
+      }
+      return;
+    }
 
     this.print("\nWindows IP Configuration\n");
     if (isAll) {
@@ -260,7 +307,7 @@ class PCDesktopHandler {
     }
 
     const intf = dev.interfaces['FastEthernet0'] || dev.interfaces['Wireless0'] || {};
-    this.print(`Ethernet adapter ${dev.type === 'laptop' ? 'Wireless Network Connection' : 'Ethernet0'}:`);
+    this.print(`Ethernet adapter ${adapterName}:`);
     this.print(`   Connection-specific DNS Suffix  . : `);
     if (isAll) {
       this.print(`   Physical Address. . . . . . . . . : ${intf.mac || '0050.7966.6801'}`);

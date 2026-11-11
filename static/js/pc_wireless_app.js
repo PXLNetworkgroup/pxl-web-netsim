@@ -325,9 +325,25 @@
                 </select>
               </div>
 
-              <div class="pt-form-group" id="cfgPassGroup" style="margin-bottom: 16px; ${w.authMode === 'Open' ? 'display:none;' : ''}">
+              <div class="pt-form-group" id="cfgPassGroup" style="margin-bottom: 16px; ${(w.authMode === 'Open' || w.authMode === 'WPA2-Enterprise') ? 'display:none;' : ''}">
                 <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">WPA2/WPA3 Wachtwoord (Pre-Shared Key):</label>
                 <input type="password" class="pt-input" id="cfgWifiPass" value="${w.passphrase || ''}" placeholder="Voer het Wi-Fi wachtwoord in" style="width: 100%; box-sizing: border-box;">
+              </div>
+
+              <!-- 802.1X Enterprise LDAP / RADIUS Credentials -->
+              <div id="cfgEnterpriseGroup" style="margin-bottom: 16px; padding: 12px; background: #0f172a; border-radius: 6px; border: 1px solid #0284c7; ${w.authMode === 'WPA2-Enterprise' ? 'display:block;' : 'display:none;'}">
+                <div style="font-size: 11.5px; font-weight: bold; color: #38bdf8; margin-bottom: 8px;">👥 802.1X EAP-PEAP Domein Inloggegevens (LDAP):</div>
+                <div style="margin-bottom: 8px;">
+                  <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 3px;">Domeingebruiker (Student / User):</label>
+                  <input type="text" class="pt-input" id="cfgWifiUser" value="${w.enterpriseUser || (window.PXLApp?.currentUser?.username) || 'student1'}" placeholder="bv. student1 of student" style="width: 100%; box-sizing: border-box;">
+                </div>
+                <div>
+                  <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 3px;">Wachtwoord:</label>
+                  <input type="password" class="pt-input" id="cfgWifiEntPass" value="${w.enterprisePass || 'PXL2026!'}" placeholder="Wachtwoord invoeren..." style="width: 100%; box-sizing: border-box;">
+                </div>
+                <div style="font-size: 10.5px; color: #6ee7b7; margin-top: 6px;">
+                  ✓ Geverifieerd via Server Active Directory / LDAP Service
+                </div>
               </div>
 
               <div class="pt-form-group" style="margin-bottom: 16px; padding: 10px; background: #0f172a; border-radius: 6px; border: 1px solid #334155;">
@@ -440,8 +456,10 @@
     handleAuthChange() {
       const sel = document.getElementById('cfgWifiAuth');
       const passGroup = document.getElementById('cfgPassGroup');
-      if (!sel || !passGroup) return;
-      passGroup.style.display = (sel.value === 'Open') ? 'none' : 'block';
+      const entGroup = document.getElementById('cfgEnterpriseGroup');
+      if (!sel) return;
+      if (passGroup) passGroup.style.display = (sel.value === 'Open' || sel.value === 'WPA2-Enterprise') ? 'none' : 'block';
+      if (entGroup) entGroup.style.display = (sel.value === 'WPA2-Enterprise') ? 'block' : 'none';
     },
 
     refreshScan(devId) {
@@ -504,14 +522,56 @@
       dev.wireless.authMode = authEl ? authEl.value : 'WPA2-PSK';
       dev.wireless.passphrase = passEl ? passEl.value.trim() : '';
 
+      // 802.1X Enterprise LDAP / RADIUS Verification
+      if (dev.wireless.authMode === 'WPA2-Enterprise') {
+        const userEl = document.getElementById('cfgWifiUser');
+        const entPassEl = document.getElementById('cfgWifiEntPass');
+        const entUser = userEl ? userEl.value.trim() : '';
+        const entPass = entPassEl ? entPassEl.value.trim() : '';
+
+        // Find AP or Server IP
+        let radServerIp = '10.10.0.10';
+        let radSecret = 'PXL_Secret2026!';
+
+        // Search for any AP broadcasting this SSID or server with LDAP
+        for (const d of Object.values(sim.devices)) {
+          if (d.type === 'wireless_ap' && d.wireless?.ssid === dev.wireless.ssid) {
+            radServerIp = d.apConfig?.radiusServer || radServerIp;
+            radSecret = d.apConfig?.radiusSecret || radSecret;
+            break;
+          }
+          if (d.type === 'server' && d.services?.ldap?.enabled) {
+            radServerIp = d.ip;
+            radSecret = d.services.ldap.radiusSecret || radSecret;
+          }
+        }
+
+        const authRes = sim.authenticateRadiusLdap(radServerIp, radSecret, entUser, entPass);
+        if (!authRes.success) {
+          if (window.PXLApp) {
+            window.PXLApp.showToast(`❌ 802.1X Authenticatie geweigerd: ${authRes.reason}`);
+          }
+          dev.wireless.associatedAp = null;
+          dev.wireless.enterpriseUser = entUser;
+          sim.updateWirelessAssociations();
+          window.PXLApp.canvasWorkspace.render();
+          return;
+        }
+
+        dev.wireless.enterpriseUser = entUser;
+        dev.wireless.enterprisePass = entPass;
+        dev.wireless.passphrase = entPass;
+      }
+
       sim.updateWirelessAssociations();
 
       if (window.PXLApp) {
         if (dev.wireless.associatedAp) {
           const ap = sim.devices[dev.wireless.associatedAp];
-          window.PXLApp.showToast(`📶 Succesvol verbonden met ${dev.wireless.ssid} via ${ap?.hostname || 'Access Point'}!`);
+          const isEnt = dev.wireless.authMode === 'WPA2-Enterprise';
+          window.PXLApp.showToast(`📶 Verbonden met ${dev.wireless.ssid} via ${ap?.hostname || 'AP'}! ${isEnt ? `(802.1X LDAP: ${dev.wireless.enterpriseUser})` : ''}`);
         } else {
-          window.PXLApp.showToast(`⚠️ Kan niet verbinden met ${dev.wireless.ssid}. Controleer SSID, wachtwoord of afstand.`);
+          window.PXLApp.showToast(`⚠️ Kan niet verbinden met ${dev.wireless.ssid}. Controleer SSID, beveiliging of afstand.`);
         }
         activeTab = 'link_info';
         window.PXLApp.openPcApp('wireless');
