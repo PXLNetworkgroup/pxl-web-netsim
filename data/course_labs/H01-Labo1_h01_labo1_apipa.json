@@ -15,9 +15,9 @@
         "type": "laptop",
         "x": 180,
         "y": 200,
-        "dhcpEnabled": true,
-        "ip": "169.254.1.10",
-        "mask": "255.255.0.0",
+        "dhcpEnabled": false,
+        "ip": "",
+        "mask": "",
         "gateway": "",
         "dns": ""
       },

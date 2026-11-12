@@ -149,6 +149,7 @@ class CanvasWorkspace {
     if (type === 'paloalto') prefix = 'PA';
     if (type === 'opnsense') prefix = 'OPNsense';
     if (type === 'pfsense') prefix = 'pfSense';
+    if (type === 'watchguard') prefix = 'WatchGuard';
     if (type === 'cloud_wan') prefix = 'Cloud';
 
     const id = `${prefix}${count}`;

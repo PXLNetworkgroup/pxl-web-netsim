@@ -39,13 +39,7 @@
             "shutdown": false
           }
         },
-        "staticRoutes": [
-          {
-            "network": "192.168.2.0",
-            "mask": "255.255.255.0",
-            "nextHop": "10.0.0.2"
-          }
-        ]
+        "staticRoutes": []
       },
       {
         "id": "Router1",
@@ -65,13 +59,7 @@
             "shutdown": false
           }
         },
-        "staticRoutes": [
-          {
-            "network": "192.168.1.0",
-            "mask": "255.255.255.0",
-            "nextHop": "10.0.0.1"
-          }
-        ]
+        "staticRoutes": []
       },
       {
         "id": "PC1",

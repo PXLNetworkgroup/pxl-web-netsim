@@ -19,4 +19,4 @@ tests/screenshots/
 check_ha_*.ps1
 remote_*.py
 run_*.py
-
+scratch/

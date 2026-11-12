@@ -361,7 +361,8 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
       { type: 'fortigate', model: 'FortiGate-60F', label: 'FortiGate (FortiOS)', category: 'firewalls' },
       { type: 'paloalto', model: 'PA-440', label: 'Palo Alto (PAN-OS)', category: 'firewalls' },
       { type: 'opnsense', model: 'OPNsense 24.1', label: 'OPNsense 24.1', category: 'firewalls' },
-      { type: 'pfsense', model: 'pfSense Plus 23.09', label: 'pfSense Plus', category: 'firewalls' }
+      { type: 'pfsense', model: 'pfSense Plus 23.09', label: 'pfSense Plus', category: 'firewalls' },
+      { type: 'watchguard', model: 'FireboxV', label: 'WatchGuard FireboxV', category: 'firewalls' }
     ];
 
     if (!this.activeShelfCategory) {
@@ -593,6 +594,20 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     await this.loadExamById(val);
   }
 
+  loadCourseLab(idOrFile) {
+    if (!window.PXL_COURSE_LABS) return false;
+    const clean = (idOrFile || '').replace(/\.json$/i, '');
+    const lab = window.PXL_COURSE_LABS.find(l => 
+      l.id === clean || l.code === clean || l.id === idOrFile || 
+      (clean && clean.includes(l.id)) || (l.id && l.id.includes(clean))
+    );
+    if (lab) {
+      this.loadExam(lab);
+      return true;
+    }
+    return false;
+  }
+
   async loadExamById(examId) {
     const examSelect = document.getElementById('examSelector');
     if (examSelect) examSelect.value = examId;
@@ -602,9 +617,7 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
       return;
     }
 
-    const clab = window.PXL_COURSE_LABS ? window.PXL_COURSE_LABS.find(l => l.id === examId || l.code === examId) : null;
-    if (clab) {
-      this.loadCourseLab(clab.id);
+    if (this.loadCourseLab(examId)) {
       return;
     }
 
@@ -694,6 +707,7 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     const panWebTabBtn = document.getElementById('tabBtnPanWeb');
     const opnWebTabBtn = document.getElementById('tabBtnOpnWeb');
     const pfWebTabBtn = document.getElementById('tabBtnPfWeb');
+    const wgWebTabBtn = document.getElementById('tabBtnWgWeb');
 
     if (cliTabBtn) {
       cliTabBtn.style.display = (isHost || isWrt) ? 'none' : 'inline-block';
@@ -715,6 +729,8 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
         cliTabBtn.innerText = 'Console (OPNsense)';
       } else if (device.type === 'pfsense') {
         cliTabBtn.innerText = 'Console (pfSense)';
+      } else if (device.type === 'watchguard') {
+        cliTabBtn.innerText = 'CLI (Fireware OS)';
       } else if (device.type === 'internet_cloud' || device.type === 'internet_simulated' || device.type === 'internet_public' || device.type === 'cloud_wan') {
         cliTabBtn.innerText = '🌐 Uitleg & Aansluiting';
       } else {
@@ -732,6 +748,7 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     if (panWebTabBtn) panWebTabBtn.style.display = (device.type === 'paloalto') ? 'inline-block' : 'none';
     if (opnWebTabBtn) opnWebTabBtn.style.display = (device.type === 'opnsense') ? 'inline-block' : 'none';
     if (pfWebTabBtn) pfWebTabBtn.style.display = (device.type === 'pfsense') ? 'inline-block' : 'none';
+    if (wgWebTabBtn) wgWebTabBtn.style.display = (device.type === 'watchguard') ? 'inline-block' : 'none';
 
     // Switch to primary operational tab
     if (isServer) {
@@ -758,7 +775,7 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
   }
 
   switchDeviceModalTab(tabKey) {
-    const tabs = ['physical', 'config', 'cli', 'desktop', 'services', 'webfig', 'hpeweb', 'wrtweb', 'wlcweb', 'apweb', 'fortiweb', 'panweb', 'opnweb', 'pfweb'];
+    const tabs = ['physical', 'config', 'cli', 'desktop', 'services', 'webfig', 'hpeweb', 'wrtweb', 'wlcweb', 'apweb', 'fortiweb', 'panweb', 'opnweb', 'pfweb', 'wgweb'];
     tabs.forEach(t => {
       const pane = document.getElementById(`modalPane${t.charAt(0).toUpperCase() + t.slice(1)}`);
       if (pane) pane.classList.remove('active');
@@ -786,6 +803,7 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     if (tabKey === 'panweb' && window.FirewallGuiRenderers) window.FirewallGuiRenderers.renderPanWebTab(dev, document.getElementById('modalPanePanweb'));
     if (tabKey === 'opnweb' && window.FirewallGuiRenderers) window.FirewallGuiRenderers.renderOpnWebTab(dev, document.getElementById('modalPaneOpnweb'));
     if (tabKey === 'pfweb' && window.FirewallGuiRenderers) window.FirewallGuiRenderers.renderPfWebTab(dev, document.getElementById('modalPanePfweb'));
+    if (tabKey === 'wgweb' && window.FirewallGuiRenderers) window.FirewallGuiRenderers.renderWatchGuardWebTab(dev, document.getElementById('modalPaneWgweb'));
   }
 
   renderApWebTab() {
@@ -1671,6 +1689,24 @@ Router(config)# ip nat inside source list 1 interface GigabitEthernet0/0/0 overl
         screen.innerHTML = dev.terminalBuffer;
         prompt.innerText = this.activeTerminalParser.getPrompt();
       }
+    } else if (dev.type === 'watchguard') {
+      this.activeTerminalParser = new WatchGuardCLIParser(
+        dev,
+        (text) => {
+          screen.innerHTML += `${text}\n`;
+          dev.terminalBuffer = (dev.terminalBuffer || '') + `${text}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => {
+          prompt.innerText = this.activeTerminalParser.getPrompt();
+        },
+        () => this.triggerScoreUpdate()
+      );
+      if (!dev.terminalBuffer) {
+        dev.terminalBuffer = `WatchGuard FireboxV (Fireware OS v12.10.2 Build 684201)\nType '?' or 'help' for command summary.\n\n`;
+      }
+      screen.innerHTML = dev.terminalBuffer;
+      prompt.innerText = this.activeTerminalParser.getPrompt();
     } else if (dev.type === 'cloud_wan') {
       this.activeTerminalParser = {
         getPrompt: () => 'Cloud-WAN> ',

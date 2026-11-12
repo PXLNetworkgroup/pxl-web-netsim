@@ -27,13 +27,7 @@
             "shutdown": false
           }
         },
-        "staticRoutes": [
-          {
-            "network": "192.168.200.0",
-            "mask": "255.255.255.0",
-            "nextHop": "10.0.0.2"
-          }
-        ]
+        "staticRoutes": []
       },
       {
         "id": "MikroTik-R2",
@@ -53,13 +47,7 @@
             "shutdown": false
           }
         },
-        "staticRoutes": [
-          {
-            "network": "192.168.100.0",
-            "mask": "255.255.255.0",
-            "nextHop": "10.0.0.1"
-          }
-        ]
+        "staticRoutes": []
       },
       {
         "id": "PC-Team1",

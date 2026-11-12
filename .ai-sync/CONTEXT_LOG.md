@@ -3,6 +3,54 @@
 
 ---
 
+## [2026-11-12 12:55] • WATCHGUARD FIREBOXV, 0% NUL-SCORE STARTGARANTIE & AI OPDRACHT GENERATOR
+**Auteur / Agent:** David Parren & Antigravity (Host-PC)  
+**Status Lock:** FREE (Vrijgegeven na succesvolle verificatie)  
+**Git Branch:** `main`  
+**Live Cloud Run URL:** `https://pxl-web-netsim-1088457364327.europe-west1.run.app`  
+
+### 1. Wat is er gebouwd en gewijzigd?
+* **WatchGuard FireboxV Toegevoegd (`watchguard`):**
+  * Geïntegreerd in de categorie `🛡️ Firewall & Security` op de apparatenbalk.
+  * Vector SVG-icoon (`CiscoIcons.watchguard`) met authentiek WatchGuard Firebox-rood (`#c8102e`), wit schild-embleem en 8 GigabitEthernet RJ-45 interfaces + Console.
+  * Dedicated interfaces: `eth0 (External)`, `eth1 (Trusted)`, `eth2 (Optional)`, `eth3` t/m `eth7`.
+  * Authentieke Fireware OS CLI (`WatchGuardCLIParser`): `WG>`, `WG#`, `WG(config)#`, `WG(config-if-ethX)#`, commando's `show status`, `show interface`, `show run`, `show ip route`, `interface ethX`, `ip address <ip> <mask>`, `shutdown`, `no shutdown`, `ping`.
+  * **WatchGuard Fireware Web UI Tab (`modalPaneWgweb`):** Dashboard met Appliance Information (Model FireboxV, Fireware v12.10.2, CPU/Memory/Uptime), live Interface Status en Active Firewall Policies (Packet Filter & Proxy).
+* **Gegarandeerde Nul-score (0%) bij Start van Alle Testen & Examens:**
+  * Oorzaak opgelost: `grading_engine.js` viel bij onbekende check types terug op `passed: true` en controleerde afwijkende type-aliassen onvolledig.
+  * Oorzaak opgelost: In start-topologieën van course labs stonden voorgeconfigureerde IP-adressen, hostnames of statische routes die al punten opleverden bij opening.
+  * Alle 18 course lab JSON-bestanden (`data/course_labs/*.json`), de browser client repo (`static/js/course_labs.js`) én alle 26 database-examens in SQLite (`data/netsim.db`) opgeschoond.
+  * 100% van alle labs en examens geauditeerd: **starten nu gegarandeerd op exact 0%**.
+* **Teacher Studio Hernieuwd & AI Opdracht Generator:**
+  * Tabblad "5. Examen ontwerpen" (`#studioTabGeneral`) definitief verwijderd; resterende tabs netjes genummerd 1 t/m 6.
+  * Onder Tab 6 (`⚡ 6. Rubric, PKA & AI Generator`) een complete **AI Opdracht Generator** ingebouwd:
+    * JSON Schema & Copilot/ChatGPT prompt template kopieerknop en downloadknop.
+    * Textarea en `.json` bestandsupload voor AI-gegenereerde JSON.
+    * Interactieve Markdown preview en metadata editor.
+    * Dynamische Rubric matrix editor (punten wijzigen, criteria toevoegen/verwijderen).
+    * Knop `🧪 Test Opdracht (100% Validatie & 0% Garantie)`: controleert apparaten, bekabeling, syntax en simuleert of de opdracht gegarandeerd op 0% start.
+    * Knop `🧹 Maak Starttopologie Schoon`: stript automatisch getoetste instellingen uit het draft.
+    * Knop `💾 Opslaan in Database`: maakt de opdracht direct persistent beschikbaar als Lab of Toets via `/api/teacher/exam/save`.
+* **Geautomatiseerde E2E Playwright Test (`tests/test_watchguard_and_ai_generator.py`):**
+  * Volledige end-to-end verificatie: WatchGuard plaatsing + CLI + Web UI, 0% startscore verificatie, tab-structuur Teacher Studio, template generatie, JSON preview & rubric editor, validatietest en DB opslag: **alle 6 stappen 100% geslaagd**.
+
+### 2. Gewijzigde Bestanden:
+* `static/index.html` (WatchGuard GUI tab & pane)
+* `static/js/app.js` (WatchGuard shelf item, modal routing, terminal parser binding, `loadCourseLab`)
+* `static/js/canvas_workspace.js` (WatchGuard device prefix `WatchGuardX`)
+* `static/js/cisco_device.js` (WatchGuard hardware- en interface configuratie)
+* `static/js/cisco_icons.js` (WatchGuard SVG vectoricoon)
+* `static/js/firewall_security.js` (WatchGuardCLIParser & renderWatchGuardWebTab)
+* `static/js/grading_engine.js` (0% startscore validatie, strict check defaults, interface_ip & dns verfijnd)
+* `static/js/course_labs.js` & `data/course_labs/*.json` (Alle 18 labs geschoond naar 0% start)
+* `data/netsim.db` (Alle 26 examens geschoond naar 0% start)
+* `static/js/teacher_studio.js` (AI Opdracht Generator UI, template generator, preview editor, 100% validator, Tab 5 verwijderd)
+* `.gitignore` (toegevoegd: `scratch/`)
+* `tests/test_watchguard_and_ai_generator.py` (Nieuwe geautomatiseerde E2E testsuite)
+* `.ai-sync/LOCK.json` & `.ai-sync/CONTEXT_LOG.md`
+
+---
+
 ## [2026-11-12 12:10] • 6 APPARATEN-CATEGORIEËN, 5 NEXT-GEN/OPEN SOURCE FIREWALLS & SAMENWERKINGSSYSTEEM
 **Auteur / Agent:** David Parren & Antigravity (Host-PC)  
 **Status Lock:** FREE (Vrijgegeven na afronding)  

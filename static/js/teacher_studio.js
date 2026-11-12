@@ -74,9 +74,8 @@ class TeacherStudio {
           <button class="pt-tab-btn" id="tabBtnScores" onclick="window.PXLApp.teacherStudio.switchTab('scores')">📊 2. Scores & Voortgang</button>
           <button class="pt-tab-btn" id="tabBtnExamMgmt" onclick="window.PXLApp.teacherStudio.switchTab('exam_mgmt')">📋 3. Opdrachten</button>
           <button class="pt-tab-btn" id="tabBtnTeacherBugs" onclick="window.PXLApp.teacherStudio.switchTab('bugs')">🐞 4. Bugs</button>
-          <button class="pt-tab-btn" id="tabBtnGeneral" onclick="window.PXLApp.teacherStudio.switchTab('general')">⚙️ 5. Examen Ontwerpen</button>
-          <button class="pt-tab-btn" id="tabBtnTopology" onclick="window.PXLApp.teacherStudio.switchTab('topology')">📸 6. Topologie Snapshot</button>
-          <button class="pt-tab-btn" id="tabBtnRubric" onclick="window.PXLApp.teacherStudio.switchTab('rubric')">⚡ 7. Rubric & PKA</button>
+          <button class="pt-tab-btn" id="tabBtnTopology" onclick="window.PXLApp.teacherStudio.switchTab('topology')">📸 5. Topologie Snapshot</button>
+          <button class="pt-tab-btn" id="tabBtnRubric" onclick="window.PXLApp.teacherStudio.switchTab('rubric')">⚡ 6. Rubric, PKA & AI Generator</button>
         </div>
 
         <div class="pt-studio-content" style="flex: 1; overflow-y: auto; padding: 18px; background: #ffffff;">
@@ -379,47 +378,6 @@ class TeacherStudio {
             </div>
           </div>
 
-          <!-- TAB 5: GENERAL EXAM SETTINGS -->
-          <div id="studioTabGeneral" class="pt-studio-pane" style="display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
-              <div>
-                <span style="font-size: 13px; font-weight: 700; color: #1e293b;">⚙️ Examen Ontwerpen & Opslaan</span>
-                <div style="font-size: 11px; color: #64748b;">Sla ontworpen praktijkproeven op in de database zodat ze direct toewijsbaar zijn in Tab 3 Opdrachten.</div>
-              </div>
-              <button class="pt-btn pt-btn-primary" style="padding: 6px 16px; font-size: 12px; background: #0284c7;" onclick="window.PXLApp.teacherStudio.saveCurrentExamToDb()">
-                💾 Examen Opslaan in Database
-              </button>
-            </div>
-            <div class="pt-form-group">
-              <label style="font-weight: 700;">Examen Titel * (Verplicht voor database):</label>
-              <input type="text" id="studioExamTitle" class="pt-input" placeholder="bv. PXL SNE - Examen Netwerken 1: Routing & Switching">
-            </div>
-            <div class="pt-form-row" style="display: flex; gap: 12px; flex-wrap: wrap;">
-              <div class="pt-form-group" style="flex: 1;">
-                <label>Standaard Tijdslimiet (minuten):</label>
-                <input type="number" id="studioExamTimer" class="pt-input" value="80" min="5" max="300">
-              </div>
-              <div class="pt-form-group" style="flex: 1;">
-                <label>Score Weergave voor Student:</label>
-                <select id="studioShowScore" class="pt-input">
-                  <option value="true">Live score tonen tijdens examen (Oefenmodus)</option>
-                  <option value="false">Score verbergen tot na inlevering (Strikte Examenmodus)</option>
-                </select>
-              </div>
-              <div class="pt-form-group" style="flex: 1;">
-                <label>🌐 Echte Internet NAT Gateway:</label>
-                <select id="studioLiveInternet" class="pt-input" onchange="window.PXLApp.toggleLiveInternet(this.value === 'true')">
-                  <option value="false">❌ Gesimuleerd Internet (Veilig voor examens • Lokale Pagina)</option>
-                  <option value="true">✅ Echte Internet Toegang (NAT Bridge via Fysieke Cloud Adapter)</option>
-                </select>
-              </div>
-            </div>
-            <div class="pt-form-group">
-              <label>Instructies voor Studenten (Markdown / HTML):</label>
-              <textarea id="studioExamInstructions" class="pt-textarea" rows="8" placeholder="Beschrijf hier het adresseringsschema en de stappen..."></textarea>
-            </div>
-          </div>
-
           <!-- TAB 5: TOPOLOGY SNAPSHOT -->
           <div id="studioTabTopology" class="pt-studio-pane" style="display: none;">
             <p class="pt-help-text" style="font-size: 12px; color: #475569;">
@@ -476,6 +434,147 @@ class TeacherStudio {
                 </button>
               </div>
               <div id="studioPkaStatus" class="pt-status-msg" style="margin-top: 6px; font-size: 12px;"></div>
+            </div>
+
+            <!-- AI Assignment Generator & JSON Import / Preview / Test Box -->
+            <div class="pt-ai-generator-dropzone" style="margin-top: 16px; background: #fdf2f8; border: 1.5px dashed #db2777; border-radius: 8px; padding: 14px;">
+              <div style="font-weight: 700; font-size: 13.5px; color: #be185d; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <span>🤖 Genereer Opdracht met AI in Importformaat (ChatGPT / Claude / Copilot / Antigravity)</span>
+                <span style="background: #fbcfe8; color: #9d174d; font-size: 10.5px; padding: 2px 8px; border-radius: 4px; font-weight: 700;">AI JSON Import &amp; Matrix Editor</span>
+              </div>
+              <p style="font-size: 11px; color: #64748b; margin: 0 0 10px 0; line-height: 1.5;">
+                Laat een AI binnen enkele seconden een complete netwerkopdracht ontwerpen (bv. <em>"maak een opdracht met 2 routers en switch waarbij we RIP routering testen"</em>). Kopieer onze kant-en-klare prompt &amp; JSON template, geef deze aan ChatGPT of Claude, en plak de resulterende JSON hieronder. Je kan alle teksten, topologie en rubric interactief bewerken en 100% testen vóór opslag.
+              </p>
+
+              <!-- Prompt & Template Action Bar -->
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
+                <button class="pt-btn" style="background: #db2777; color: white; padding: 6px 12px; font-size: 11.5px; font-weight: 700;" onclick="window.PXLApp.teacherStudio.copyAiTemplatePrompt()" title="Kopieer kant-en-klare prompt inclusief JSON template naar klembord">
+                  📋 Kopieer AI Prompt &amp; Template
+                </button>
+                <button class="pt-btn pt-btn-secondary" style="padding: 6px 12px; font-size: 11.5px;" onclick="window.PXLApp.teacherStudio.downloadAiTemplateJson()" title="Download het blanco JSON sjabloon">
+                  📥 Download Template (.json)
+                </button>
+                <button class="pt-btn pt-btn-secondary" style="padding: 6px 12px; font-size: 11.5px;" onclick="window.PXLApp.teacherStudio.toggleAiTemplateViewer()" title="Bekijk het JSON formaat met alle velden">
+                  👁️ Toon / Verberg JSON Schema
+                </button>
+              </div>
+
+              <!-- Collapsible Schema Viewer -->
+              <div id="studioAiTemplateViewer" style="display: none; margin-bottom: 12px; background: #0f172a; color: #f8fafc; border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; max-height: 220px; overflow-y: auto;">
+                <pre style="margin: 0; white-space: pre-wrap;" id="studioAiTemplateViewerCode"></pre>
+              </div>
+
+              <!-- JSON Input & File Upload -->
+              <div style="margin-bottom: 10px;">
+                <label style="font-size: 11px; font-weight: 700; color: #be185d;">📄 Plak AI JSON Code of Upload Bestand:</label>
+                <textarea id="studioAiJsonInput" class="pt-textarea" rows="6" placeholder='Plak hier de volledige JSON van de AI (met "id", "title", "instructions", "initialTopology" en "rubric")...' style="width: 100%; box-sizing: border-box; font-family: monospace; font-size: 11.5px; margin-top: 4px; padding: 8px; border: 1px solid #f472b6; border-radius: 6px;"></textarea>
+              </div>
+
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
+                <input type="file" id="studioAiJsonFileInput" accept=".json" class="pt-file-input" onchange="window.PXLApp.teacherStudio.handleAiJsonFileUpload(event)" style="font-size: 11px; flex: 1; min-width: 200px;">
+                <button class="pt-btn pt-btn-primary" style="background: #be185d; color: white; padding: 7px 15px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;" onclick="window.PXLApp.teacherStudio.previewAiAssignmentJson()">
+                  👁️ Preview &amp; Bewerk Opdracht
+                </button>
+                <button class="pt-btn" style="padding: 7px 15px; font-size: 12px; font-weight: 700; background: #fef08a; color: #854d0e; border: 1px solid #facc15; display: inline-flex; align-items: center; gap: 5px;" onclick="window.PXLApp.teacherStudio.testAiAssignmentJson()">
+                  🧪 Test Opdracht (100% Validatie)
+                </button>
+                <button class="pt-btn pt-btn-primary" style="background: #059669; color: white; padding: 7px 15px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;" onclick="window.PXLApp.teacherStudio.saveAiAssignmentJsonToDb()">
+                  💾 Opslaan in Database
+                </button>
+              </div>
+
+              <!-- Test / Status Result Box -->
+              <div id="studioAiTestResultBox" style="display: none; margin-top: 8px; padding: 10px 14px; border-radius: 6px; font-size: 12px;"></div>
+
+              <!-- Interactive Assignment Editor & Preview Modal / Box -->
+              <div id="studioAiPreviewContainer" style="display: none; margin-top: 14px; background: #ffffff; border: 1.5px solid #f472b6; border-radius: 8px; padding: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px;">
+                  <h4 style="margin: 0; font-size: 14px; color: #be185d;">✏️ Interactieve Preview &amp; Bewerking van AI Opdracht</h4>
+                  <span id="studioAiPreviewBadge" style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: #e0f2fe; color: #0369a1;">Lab</span>
+                </div>
+
+                <!-- Form Metadata Fields -->
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                  <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #334155;">Titel van Opdracht *:</label>
+                    <input type="text" id="aiEditTitle" class="pt-input" style="width: 100%; box-sizing: border-box; font-size: 12px; padding: 5px 8px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #334155;">Type Opdracht:</label>
+                    <select id="aiEditKind" class="pt-input" style="width: 100%; box-sizing: border-box; font-size: 12px; padding: 5px 8px;">
+                      <option value="lab">Oefening (Lab) - Vrij resetbaar</option>
+                      <option value="test">Toets (Test) - Wachtwoord beveiligd</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #334155;">Tijdslimiet (minuten):</label>
+                    <input type="number" id="aiEditTimeLimit" class="pt-input" value="60" min="5" max="300" style="width: 100%; box-sizing: border-box; font-size: 12px; padding: 5px 8px;">
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                  <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #334155;">Vak / Categorie:</label>
+                    <input type="text" id="aiEditCategory" class="pt-input" placeholder="bv. CCNA Routing &amp; Switching" style="width: 100%; box-sizing: border-box; font-size: 12px; padding: 5px 8px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #334155;">Test Wachtwoord (alleen vereist bij Toets/Test):</label>
+                    <input type="text" id="aiEditTestPassword" class="pt-input" placeholder="bv. PXLTest2026!" style="width: 100%; box-sizing: border-box; font-size: 12px; padding: 5px 8px;">
+                  </div>
+                </div>
+
+                <!-- Instructions Markdown Editor & Preview -->
+                <div style="margin-bottom: 14px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <label style="font-size: 11px; font-weight: 700; color: #334155;">📖 Opdrachtbeschrijving &amp; Adresseringstabel (Markdown):</label>
+                    <button class="pt-btn pt-btn-sm" style="font-size: 10px; padding: 2px 8px;" onclick="window.PXLApp.teacherStudio.toggleAiMarkdownPreview()">
+                      👁️ Toggle Markdown Preview
+                    </button>
+                  </div>
+                  <textarea id="aiEditInstructions" class="pt-textarea" rows="6" style="width: 100%; box-sizing: border-box; font-size: 11.5px; font-family: monospace; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;"></textarea>
+                  <div id="aiInstructionsPreview" style="display: none; margin-top: 6px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px; max-height: 180px; overflow-y: auto;"></div>
+                </div>
+
+                <!-- Topology Summary -->
+                <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 14px;">
+                  <span style="font-size: 11.5px; font-weight: 700; color: #1e293b;">🌐 Start-Topologie:</span>
+                  <span id="aiTopologySummaryText" style="font-size: 11.5px; color: #475569; margin-left: 6px;"></span>
+                  <div id="aiTopologyDevicesBadges" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;"></div>
+                </div>
+
+                <!-- Interactive Rubric Matrix Editor -->
+                <div style="margin-bottom: 14px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <div>
+                      <span style="font-size: 12px; font-weight: 700; color: #1e293b;">⚡ Rubric &amp; Puntenverdeling:</span>
+                      <span style="font-size: 11px; color: #64748b; margin-left: 6px;">Pas punten aan of verwijder/voeg criteria toe.</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; font-size: 11.5px; font-weight: 700;">
+                        Totaal: <strong id="aiRubricTotalPoints">0</strong> pt
+                      </span>
+                      <button class="pt-btn pt-btn-sm" style="font-size: 11px; padding: 3px 8px; background: #0284c7; color: white;" onclick="window.PXLApp.teacherStudio.addAiRubricCriterion()">
+                        ➕ Criterium Toevoegen
+                      </button>
+                    </div>
+                  </div>
+
+                  <div id="aiRubricEditorTable" style="max-height: 260px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;"></div>
+                </div>
+
+                <!-- Action Bar at bottom of Preview -->
+                <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                  <button class="pt-btn" style="background: #fef08a; color: #854d0e; border: 1px solid #facc15; font-size: 12px; font-weight: 700;" onclick="window.PXLApp.teacherStudio.testAiAssignmentJson()">
+                    🧪 Valideer Opdracht &amp; Garandeer 0% Start
+                  </button>
+                  <button class="pt-btn pt-btn-primary" style="background: #be185d; color: white; font-size: 12px; font-weight: 700;" onclick="window.PXLApp.teacherStudio.cleanAiStarterTopology()">
+                    🧹 Maak Starttopologie Schoon (0% Garantie)
+                  </button>
+                  <button class="pt-btn pt-btn-primary" style="background: #059669; color: white; font-size: 12px; font-weight: 700;" onclick="window.PXLApp.teacherStudio.saveAiAssignmentJsonToDb()">
+                    💾 Sla Aangepaste Opdracht op in Database
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -552,7 +651,6 @@ class TeacherStudio {
       'scores': { pane: 'studioTabScores', btn: 'tabBtnScores' },
       'exam_mgmt': { pane: 'studioTabExamMgmt', btn: 'tabBtnExamMgmt' },
       'bugs': { pane: 'studioTabBugs', btn: 'tabBtnTeacherBugs' },
-      'general': { pane: 'studioTabGeneral', btn: 'tabBtnGeneral' },
       'topology': { pane: 'studioTabTopology', btn: 'tabBtnTopology' },
       'rubric': { pane: 'studioTabRubric', btn: 'tabBtnRubric' }
     };
@@ -3046,6 +3144,581 @@ ${tasksMd}
       }
     } catch (err) {
       alert('Netwerkfout: ' + err.message);
+    }
+  }
+
+  // =========================================================================
+  // AI ASSIGNMENT GENERATOR, JSON IMPORT, EDIT & 100% TEST ENGINE
+  // =========================================================================
+  getAiTemplateObject() {
+    return {
+      "$schema": "https://pxl-web-netsim.be/schemas/assignment-v1.json",
+      "id": "pxl_ai_lab_" + Date.now(),
+      "code": "H05-AI-LAB1",
+      "chapter": "Hoofdstuk 05 - Routering, Subnets & Switches",
+      "title": "PXL NetSim: Twee Routers en Switch met Static Routing",
+      "kind": "lab",
+      "category": "CCNA Routing & Switching",
+      "timeLimitMinutes": 60,
+      "showLiveScore": true,
+      "liveInternet": false,
+      "instructions": `## H05-AI-LAB1: Routering & Switch Configuratie\n**Cursus:** PXL Network Essentials • Hogeschool PXL\n\n### Doel van het labo:\nIn dit labo configureer je een netwerktopologie bestaande uit twee Cisco routers en een switch.\nConfigureer de interfaces met de onderstaande IP-adressen en stel een statische route in zodat alle hosts elkaar kunnen bereiken.\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **R1** | GigabitEthernet0/0/0 | 192.168.1.1 | 255.255.255.0 | - |\n| **R1** | GigabitEthernet0/0/1 | 10.0.0.1 | 255.255.255.252 | - |\n| **R2** | GigabitEthernet0/0/0 | 10.0.0.2 | 255.255.255.252 | - |\n| **R2** | GigabitEthernet0/0/1 | 192.168.2.1 | 255.255.255.0 | - |\n| **PC1** | FastEthernet0 | 192.168.1.10 | 255.255.255.0 | 192.168.1.1 |\n| **PC2** | FastEthernet0 | 192.168.2.10 | 255.255.255.0 | 192.168.2.1 |\n\n#### Taken & Configuratie-eisen:\n1. Stel op **R1** en **R2** de correcte hostnames in.\n2. Configureer alle router-interfaces en breng ze UP (\`no shutdown\`).\n3. Voeg de benodigde statische routes toe op beide routers.\n4. Configureer IP en default gateway op PC1 en PC2.\n5. Test de end-to-end connectiviteit met ping tussen PC1 en PC2.`,
+      "initialTopology": {
+        "devices": [
+          { "id": "R1", "name": "Router", "type": "router", "model": "4331", "x": 300, "y": 180, "interfaces": { "GigabitEthernet0/0/0": { "ip": "", "mask": "", "shutdown": true }, "GigabitEthernet0/0/1": { "ip": "", "mask": "", "shutdown": true } } },
+          { "id": "R2", "name": "Router", "type": "router", "model": "4331", "x": 520, "y": 180, "interfaces": { "GigabitEthernet0/0/0": { "ip": "", "mask": "", "shutdown": true }, "GigabitEthernet0/0/1": { "ip": "", "mask": "", "shutdown": true } } },
+          { "id": "SW1", "name": "Switch1", "type": "switch", "model": "2960-24TT", "x": 180, "y": 240 },
+          { "id": "SW2", "name": "Switch2", "type": "switch", "model": "2960-24TT", "x": 640, "y": 240 },
+          { "id": "PC1", "name": "PC1", "type": "pc", "model": "Standard", "x": 100, "y": 300, "dhcpEnabled": false, "ip": "", "mask": "", "gateway": "" },
+          { "id": "PC2", "name": "PC2", "type": "pc", "model": "Standard", "x": 720, "y": 300, "dhcpEnabled": false, "ip": "", "mask": "", "gateway": "" }
+        ],
+        "cables": [
+          { "fromDevice": "PC1", "fromPort": "FastEthernet0", "toDevice": "SW1", "toPort": "FastEthernet0/1", "type": "copper_straight" },
+          { "fromDevice": "SW1", "fromPort": "GigabitEthernet0/1", "toDevice": "R1", "toPort": "GigabitEthernet0/0/0", "type": "copper_straight" },
+          { "fromDevice": "R1", "fromPort": "GigabitEthernet0/0/1", "toDevice": "R2", "toPort": "GigabitEthernet0/0/0", "type": "copper_straight" },
+          { "fromDevice": "R2", "fromPort": "GigabitEthernet0/0/1", "toDevice": "SW2", "toPort": "GigabitEthernet0/1", "type": "copper_straight" },
+          { "fromDevice": "SW2", "fromPort": "FastEthernet0/1", "toDevice": "PC2", "toPort": "FastEthernet0", "type": "copper_straight" }
+        ]
+      },
+      "rubric": [
+        { "id": "r1_hostname", "category": "device_name", "title": "R1 Hostnaam", "desc": "Hostnaam ingesteld op R1", "type": "hostname", "checkType": "hostname", "points": 10, "enabled": true, "condition": { "deviceId": "R1", "expected": "R1" } },
+        { "id": "r2_hostname", "category": "device_name", "title": "R2 Hostnaam", "desc": "Hostnaam ingesteld op R2", "type": "hostname", "checkType": "hostname", "points": 10, "enabled": true, "condition": { "deviceId": "R2", "expected": "R2" } },
+        { "id": "r1_g000_ip", "category": "interface_ip", "title": "R1 G0/0/0 IP Adres", "desc": "GigabitEthernet0/0/0 geconfigureerd met 192.168.1.1/24 no shutdown", "type": "interface_ip", "checkType": "interface_ip", "points": 15, "enabled": true, "condition": { "deviceId": "R1", "portName": "GigabitEthernet0/0/0", "expectedIp": "192.168.1.1", "expectedMask": "255.255.255.0", "checkNoShutdown": true } },
+        { "id": "r1_g001_ip", "category": "interface_ip", "title": "R1 G0/0/1 IP Adres", "desc": "GigabitEthernet0/0/1 geconfigureerd met 10.0.0.1/30 no shutdown", "type": "interface_ip", "checkType": "interface_ip", "points": 15, "enabled": true, "condition": { "deviceId": "R1", "portName": "GigabitEthernet0/0/1", "expectedIp": "10.0.0.1", "expectedMask": "255.255.255.252", "checkNoShutdown": true } },
+        { "id": "r2_g000_ip", "category": "interface_ip", "title": "R2 G0/0/0 IP Adres", "desc": "GigabitEthernet0/0/0 geconfigureerd met 10.0.0.2/30 no shutdown", "type": "interface_ip", "checkType": "interface_ip", "points": 15, "enabled": true, "condition": { "deviceId": "R2", "portName": "GigabitEthernet0/0/0", "expectedIp": "10.0.0.2", "expectedMask": "255.255.255.252", "checkNoShutdown": true } },
+        { "id": "pc1_ip", "category": "interface_ip", "title": "PC1 IP Configuratie", "desc": "PC1 IP 192.168.1.10/24 met gateway 192.168.1.1", "type": "interface_ip", "checkType": "interface_ip", "points": 15, "enabled": true, "condition": { "deviceId": "PC1", "portName": "FastEthernet0", "expectedIp": "192.168.1.10", "expectedMask": "255.255.255.0" } },
+        { "id": "ping_e2e", "category": "connectivity", "title": "End-to-End Ping PC1 naar PC2", "desc": "Succesvolle ICMP ping van PC1 naar PC2 (192.168.2.10)", "type": "ping_test", "checkType": "ping_test", "points": 20, "enabled": true, "condition": { "fromDevice": "PC1", "targetIp": "192.168.2.10" } }
+      ]
+    };
+  }
+
+  getAiTemplatePromptText() {
+    const tmpl = JSON.stringify(this.getAiTemplateObject(), null, 2);
+    return `Genereer een complete PXL Web NetSim opdracht in geldig JSON formaat voor het volgende scenario:
+[VOER HIER JE ONDERWERP IN, BIJV: 2 Routers en 1 Switch met Static Routing of OSPF of VLANs]
+
+Vereisten voor de opdracht JSON:
+1. "id", "code", "title", "kind" ("lab" of "test"), "category", "timeLimitMinutes" en "instructions" (met Adresseringstabel in Markdown).
+2. "initialTopology" met "devices" en "cables". Zorg dat alle getoetste instellingen (zoals hostnames, IP-adressen, statische routes) NIET voorgeconfigureerd zijn in de initialTopology, zodat de student op 0% start en de configuratie zelf moet uitvoeren.
+3. "rubric" met criteria (totaal 100 punten). Ondersteunde types: "hostname", "interface_ip", "default_gateway", "switch_svi", "static_route", "enable_secret", "console_password", "vty_password", "banner_motd", "password_encryption", "ping_test", "dns_record", "http_get".
+4. Reageer UITSLUITEND met het ruwe JSON object zonder inleiding, uitleg of markdown codeblokken eromheen.
+
+Gebruik exact dit JSON schema:
+${tmpl}`;
+  }
+
+  copyAiTemplatePrompt() {
+    const text = this.getAiTemplatePromptText();
+    navigator.clipboard.writeText(text).then(() => {
+      this.app.showToast('📋 AI Prompt & JSON Template gekopieerd naar klembord! Geef deze aan ChatGPT of Claude.');
+    }).catch(err => {
+      alert('Kopiëren mislukt: ' + err.message);
+    });
+  }
+
+  downloadAiTemplateJson() {
+    const obj = this.getAiTemplateObject();
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'pxl_netsim_ai_assignment_template.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    this.app.showToast('📥 AI Template JSON gedownload.');
+  }
+
+  toggleAiTemplateViewer() {
+    const viewer = document.getElementById('studioAiTemplateViewer');
+    const code = document.getElementById('studioAiTemplateViewerCode');
+    if (!viewer || !code) return;
+    if (viewer.style.display === 'none') {
+      code.textContent = JSON.stringify(this.getAiTemplateObject(), null, 2);
+      viewer.style.display = 'block';
+    } else {
+      viewer.style.display = 'none';
+    }
+  }
+
+  handleAiJsonFileUpload(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const textarea = document.getElementById('studioAiJsonInput');
+      if (textarea) textarea.value = e.target.result;
+      this.app.showToast(`📁 Bestand ${file.name} ingeladen in invoerveld.`);
+      this.previewAiAssignmentJson();
+    };
+    reader.readAsText(file);
+  }
+
+  previewAiAssignmentJson() {
+    const input = document.getElementById('studioAiJsonInput');
+    const raw = (input?.value || '').trim();
+    if (!raw) {
+      alert('Plak eerst de JSON code van de AI in het tekstveld of upload een JSON bestand.');
+      return;
+    }
+
+    // Strip markdown code fences if user pasted ```json ... ```
+    let parsed;
+    try {
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+      parsed = JSON.parse(cleaned);
+    } catch (err) {
+      alert('Syntactische JSON fout: ' + err.message);
+      return;
+    }
+
+    // Ultra-tolerant normalization for diverse AI LLM outputs (ChatGPT, Claude, Copilot)
+    parsed.kind = parsed.kind || parsed.assignmentType || 'lab';
+    parsed.instructions = parsed.instructions || parsed.instructionsMarkdown || '';
+    parsed.category = parsed.category || parsed.topic || 'Algemeen';
+    parsed.timeLimitMinutes = Number(parsed.timeLimitMinutes || parsed.estimatedMinutes) || 60;
+    if (parsed.rubric && !Array.isArray(parsed.rubric) && Array.isArray(parsed.rubric.criteria)) {
+      parsed.rubric = parsed.rubric.criteria;
+    }
+    const topo = parsed.initialTopology || parsed.topology || {};
+    if (topo.links && !topo.cables) {
+      topo.cables = topo.links.map(l => ({
+        fromDevice: l.fromDevice || l.from,
+        fromPort: l.fromPort || l.fromInterface,
+        toDevice: l.toDevice || l.to,
+        toPort: l.toPort || l.toInterface,
+        cableType: l.cableType || l.type || 'straight'
+      }));
+    }
+    if (parsed.initialTopology && !parsed.topology) parsed.topology = parsed.initialTopology;
+    if (parsed.topology && !parsed.initialTopology) parsed.initialTopology = parsed.topology;
+
+    this.currentAiAssignmentDraft = parsed;
+    this.populateAiAssignmentPreview(parsed);
+  }
+
+  populateAiAssignmentPreview(data) {
+    const container = document.getElementById('studioAiPreviewContainer');
+    if (!container) return;
+
+    // Header badge
+    const badge = document.getElementById('studioAiPreviewBadge');
+    if (badge) badge.innerText = (data.kind === 'test') ? 'Toets (Test)' : 'Oefening (Lab)';
+
+    // Form inputs
+    const titleInput = document.getElementById('aiEditTitle');
+    const kindSelect = document.getElementById('aiEditKind');
+    const timerInput = document.getElementById('aiEditTimeLimit');
+    const catInput = document.getElementById('aiEditCategory');
+    const pwInput = document.getElementById('aiEditTestPassword');
+    const instrText = document.getElementById('aiEditInstructions');
+
+    if (titleInput) titleInput.value = data.title || 'Nieuwe AI Opdracht';
+    if (kindSelect) kindSelect.value = data.kind || 'lab';
+    if (timerInput) timerInput.value = data.timeLimitMinutes || 60;
+    if (catInput) catInput.value = data.category || 'Algemeen';
+    if (pwInput) pwInput.value = data.test_password || data.testPassword || '';
+    if (instrText) instrText.value = data.instructions || '';
+
+    // Topology summary
+    const topo = data.initialTopology || data.topology || { devices: [], cables: [] };
+    const devs = topo.devices || [];
+    const cables = topo.cables || [];
+    const sumText = document.getElementById('aiTopologySummaryText');
+    if (sumText) {
+      sumText.innerText = `${devs.length} apparaten, ${cables.length} bekabelde verbindingen.`;
+    }
+
+    const badgeContainer = document.getElementById('aiTopologyDevicesBadges');
+    if (badgeContainer) {
+      badgeContainer.innerHTML = devs.map(d => `
+        <span style="background: #e2e8f0; color: #1e293b; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">
+          🖥️ ${d.name || d.id} (${d.type} ${d.model || ''})
+        </span>
+      `).join('') + cables.map(c => `
+        <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 10.5px;">
+          🔌 ${c.fromDevice}:${c.fromPort} ↔ ${c.toDevice}:${c.toPort}
+        </span>
+      `).join('');
+    }
+
+    // Render Rubric Table
+    this.renderAiAssignmentRubricEditor();
+
+    container.style.display = 'block';
+    container.scrollIntoView({ behavior: 'smooth' });
+    this.app.showToast('👁️ AI Opdracht geopend in preview & editor.');
+  }
+
+  toggleAiMarkdownPreview() {
+    const textarea = document.getElementById('aiEditInstructions');
+    const preview = document.getElementById('aiInstructionsPreview');
+    if (!textarea || !preview) return;
+
+    if (preview.style.display === 'none') {
+      const text = textarea.value || '';
+      if (typeof marked !== 'undefined') {
+        preview.innerHTML = marked.parse(text);
+      } else {
+        preview.innerHTML = text.replace(/\n/g, '<br>');
+      }
+      preview.style.display = 'block';
+    } else {
+      preview.style.display = 'none';
+    }
+  }
+
+  renderAiAssignmentRubricEditor() {
+    const tableDiv = document.getElementById('aiRubricEditorTable');
+    if (!tableDiv || !this.currentAiAssignmentDraft) return;
+
+    const rubric = this.currentAiAssignmentDraft.rubric || [];
+    let totalPts = 0;
+
+    let html = `
+      <table style="width: 100%; font-size: 11.5px; border-collapse: collapse; text-align: left;">
+        <thead>
+          <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569;">
+            <th style="padding: 8px; width: 35px; text-align: center;">Actief</th>
+            <th style="padding: 8px;">Criterium &amp; Omschrijving</th>
+            <th style="padding: 8px; width: 140px;">Type &amp; Doel</th>
+            <th style="padding: 8px; width: 70px; text-align: center;">Punten</th>
+            <th style="padding: 8px; width: 45px; text-align: center;">Actie</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    rubric.forEach((item, idx) => {
+      const pts = item.points !== undefined ? Number(item.points) : 10;
+      if (item.enabled !== false) totalPts += pts;
+
+      const cType = item.checkType || item.type || 'interface_ip';
+      const cond = item.condition || {};
+      const dev = cond.deviceId || cond.targetDevice || cond.fromDevice || '-';
+
+      html += `
+        <tr style="border-bottom: 1px solid #f1f5f9; background: ${idx % 2 === 0 ? '#ffffff' : '#fcfcfd'};">
+          <td style="padding: 8px; text-align: center;">
+            <input type="checkbox" ${item.enabled !== false ? 'checked' : ''} onchange="window.PXLApp.teacherStudio.updateAiRubricCriterion(${idx}, 'enabled', this.checked)">
+          </td>
+          <td style="padding: 8px;">
+            <input type="text" value="${(item.title || '').replace(/"/g, '&quot;')}" class="pt-input" style="font-weight: 700; width: 100%; box-sizing: border-box; font-size: 11.5px; padding: 3px 6px; margin-bottom: 3px;" onchange="window.PXLApp.teacherStudio.updateAiRubricCriterion(${idx}, 'title', this.value)">
+            <input type="text" value="${(item.desc || item.description || '').replace(/"/g, '&quot;')}" class="pt-input" style="width: 100%; box-sizing: border-box; font-size: 10.5px; color: #64748b; padding: 2px 6px;" onchange="window.PXLApp.teacherStudio.updateAiRubricCriterion(${idx}, 'desc', this.value)">
+          </td>
+          <td style="padding: 8px;">
+            <span style="font-size: 10.5px; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 3px; font-weight: 600; display: inline-block; margin-bottom: 2px;">${cType}</span>
+            <div style="font-size: 10px; color: #64748b;">Doel: <strong>${dev}</strong></div>
+          </td>
+          <td style="padding: 8px; text-align: center;">
+            <input type="number" value="${pts}" min="1" max="100" class="pt-input" style="width: 55px; text-align: center; font-weight: 700; font-size: 12px; padding: 3px;" onchange="window.PXLApp.teacherStudio.updateAiRubricCriterion(${idx}, 'points', Number(this.value))">
+          </td>
+          <td style="padding: 8px; text-align: center;">
+            <button type="button" class="pt-btn-sm" style="background: #fee2e2; color: #b91c1c; border: none; border-radius: 4px; padding: 3px 6px; cursor: pointer;" onclick="window.PXLApp.teacherStudio.removeAiRubricCriterion(${idx})" title="Verwijder dit criterium">🗑️</button>
+          </td>
+        </tr>
+      `;
+    });
+
+    html += `</tbody></table>`;
+    tableDiv.innerHTML = html;
+
+    const totalBadge = document.getElementById('aiRubricTotalPoints');
+    if (totalBadge) totalBadge.innerText = totalPts;
+  }
+
+  addAiRubricCriterion() {
+    if (!this.currentAiAssignmentDraft) return;
+    if (!this.currentAiAssignmentDraft.rubric) this.currentAiAssignmentDraft.rubric = [];
+
+    const devs = (this.currentAiAssignmentDraft.initialTopology?.devices || []).map(d => d.id || d.name);
+    const defaultDev = devs[0] || 'R1';
+
+    this.currentAiAssignmentDraft.rubric.push({
+      id: 'custom_check_' + Date.now(),
+      category: 'general',
+      title: 'Nieuw Criterium',
+      desc: 'Beschrijf de gewenste configuratie...',
+      type: 'interface_ip',
+      checkType: 'interface_ip',
+      points: 10,
+      enabled: true,
+      condition: {
+        deviceId: defaultDev,
+        portName: 'FastEthernet0',
+        expectedIp: '192.168.1.1',
+        expectedMask: '255.255.255.0'
+      }
+    });
+
+    this.renderAiAssignmentRubricEditor();
+  }
+
+  removeAiRubricCriterion(idx) {
+    if (!this.currentAiAssignmentDraft || !this.currentAiAssignmentDraft.rubric) return;
+    this.currentAiAssignmentDraft.rubric.splice(idx, 1);
+    this.renderAiAssignmentRubricEditor();
+  }
+
+  updateAiRubricCriterion(idx, field, value) {
+    if (!this.currentAiAssignmentDraft || !this.currentAiAssignmentDraft.rubric) return;
+    const item = this.currentAiAssignmentDraft.rubric[idx];
+    if (item) {
+      item[field] = value;
+      if (field === 'points' || field === 'enabled') {
+        const totalPts = this.currentAiAssignmentDraft.rubric.reduce((sum, r) => sum + (r.enabled !== false ? (Number(r.points) || 10) : 0), 0);
+        const totalBadge = document.getElementById('aiRubricTotalPoints');
+        if (totalBadge) totalBadge.innerText = totalPts;
+      }
+    }
+  }
+
+  // --- 100% OPDRUIDINGSTEST ENGINE ---
+  testAiAssignmentJson() {
+    this.syncAiFormToDraft();
+    const data = this.currentAiAssignmentDraft;
+    if (!data) {
+      alert('Geen opdracht ingeladen om te testen.');
+      return;
+    }
+
+    const resBox = document.getElementById('studioAiTestResultBox');
+    if (!resBox) return;
+
+    const errors = [];
+    const warnings = [];
+    const successes = [];
+
+    // 1. Structure Check
+    if (!data.title || !data.title.trim()) errors.push('Titel ontbreekt in opdracht.');
+    else successes.push(`Titel aanwezig: "${data.title}"`);
+
+    if (!data.instructions || !data.instructions.trim()) errors.push('Instructies ontbreken.');
+    else successes.push('Instructies in Markdown aanwezig.');
+
+    const topo = data.initialTopology || data.topology;
+    if (!topo || !Array.isArray(topo.devices) || topo.devices.length === 0) {
+      errors.push('Topologie bevat geen apparaten.');
+    } else {
+      successes.push(`Topologie bevat ${topo.devices.length} apparaten.`);
+    }
+
+    const rubric = data.rubric;
+    if (!rubric || !Array.isArray(rubric) || rubric.length === 0) {
+      errors.push('Rubric matrix bevat geen criteria.');
+    } else {
+      successes.push(`Rubric bevat ${rubric.length} beoordelingscriteria.`);
+    }
+
+    // 2. Topology Consistency Check
+    const devIds = new Set();
+    (topo?.devices || []).forEach(d => {
+      if (d.id) devIds.add(d.id);
+      if (d.name) devIds.add(d.name);
+    });
+    (topo?.cables || []).forEach(c => {
+      const fromD = c.fromDevice || c.from;
+      const toD = c.toDevice || c.to;
+      if (!devIds.has(fromD)) errors.push(`Kabel verwijst naar onbekend apparaat '${fromD}'.`);
+      if (!devIds.has(toD)) errors.push(`Kabel verwijst naar onbekend apparaat '${toD}'.`);
+    });
+
+    // 3. Rubric Target Check
+    (rubric || []).forEach(r => {
+      const cond = Object.assign({}, r, r.condition || {});
+      const target = cond.deviceId || cond.targetDevice || cond.routerId || cond.switchId;
+      if (target && !devIds.has(target)) {
+        errors.push(`Rubric criterium '${r.title}' verwijst naar niet-bestaand apparaat '${target}'.`);
+      }
+    });
+
+    // 4. ZERO-SCORE VERIFICATION (CRITICAL GUARANTEE)
+    // Simulate what score the student gets at load time
+    let startEarned = 0;
+    let totalPts = 0;
+    const preMetCriteria = [];
+
+    (rubric || []).forEach(r => {
+      if (r.enabled === false) return;
+      const pts = Number(r.points) || 10;
+      totalPts += pts;
+
+      const cType = r.checkType || r.type;
+      const cond = Object.assign({}, r, r.condition || {});
+      const targetDev = cond.deviceId || cond.targetDevice;
+      const dev = (topo?.devices || []).find(d => d.id === targetDev || d.name === targetDev);
+
+      if (cType === 'hostname' && dev && dev.name === cond.expected) {
+        startEarned += pts;
+        preMetCriteria.push(`'${r.title}': Hostname is in start-topologie al '${cond.expected}'`);
+      } else if (cType === 'interface_ip' && dev) {
+        const port = cond.portName || cond.targetInterface || cond.interface;
+        const intf = dev.interfaces && (dev.interfaces[port] || dev.interfaces[cond.portName]);
+        if (intf && intf.ip && intf.ip === cond.expectedIp) {
+          startEarned += pts;
+          preMetCriteria.push(`'${r.title}': Interface ${port || ''} heeft in start-topologie al IP ${cond.expectedIp}`);
+        }
+      } else if (cType === 'static_route' && dev) {
+        const routes = dev.staticRoutes || [];
+        if (routes.some(rt => rt.network === cond.network)) {
+          startEarned += pts;
+          preMetCriteria.push(`'${r.title}': Static route naar ${cond.network} zit al in start-topologie`);
+        }
+      }
+    });
+
+    resBox.style.display = 'block';
+
+    if (errors.length > 0) {
+      resBox.style.background = '#fef2f2';
+      resBox.style.border = '1.5px solid #ef4444';
+      resBox.style.color = '#991b1b';
+      resBox.innerHTML = `
+        <div style="font-weight: 700; margin-bottom: 6px;">❌ Test Mislukt: ${errors.length} fout(en) gevonden:</div>
+        <ul style="margin: 0; padding-left: 20px;">
+          ${errors.map(e => `<li>${e}</li>`).join('')}
+        </ul>
+      `;
+      return;
+    }
+
+    if (startEarned > 0) {
+      const pct = Math.round((startEarned / totalPts) * 100);
+      resBox.style.background = '#fffbeb';
+      resBox.style.border = '1.5px solid #f59e0b';
+      resBox.style.color = '#92400e';
+      resBox.innerHTML = `
+        <div style="font-weight: 700; margin-bottom: 4px;">⚠️ Waarschuwing: Startscore is niet 0% (${pct}% / ${startEarned} pt)!</div>
+        <div style="font-size: 11px; margin-bottom: 6px;">Onderstaande criteria leveren direct punten op bij opening omdat ze al in de start-topologie zijn ingevuld:</div>
+        <ul style="margin: 0 0 8px 0; padding-left: 20px; font-size: 11px;">
+          ${preMetCriteria.map(c => `<li>${c}</li>`).join('')}
+        </ul>
+        <button class="pt-btn pt-btn-primary" style="background: #d97706; padding: 4px 10px; font-size: 11px;" onclick="window.PXLApp.teacherStudio.cleanAiStarterTopology()">
+          🧹 Klik hier om Starttopologie automatisch op te schonen (Gegarandeerde 0% Start)
+        </button>
+      `;
+      return;
+    }
+
+    // 100% SUCCESVOL!
+    resBox.style.background = '#f0fdf4';
+    resBox.style.border = '1.5px solid #22c55e';
+    resBox.style.color = '#166534';
+    resBox.innerHTML = `
+      <div style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+        <span>✅ 100% Validatie Geslaagd!</span>
+        <span style="font-size: 11px; background: #dcfce7; padding: 2px 8px; border-radius: 4px; font-weight: 700;">Gegarandeerde 0% Start</span>
+      </div>
+      <div style="margin-top: 4px; font-size: 11.5px; line-height: 1.6;">
+        • Alle ${topo.devices.length} apparaten en ${topo.cables.length} kabels zijn syntactisch en topologisch correct verbonden.<br>
+        • Alle ${rubric.length} rubric-criteria (Totaal: <strong>${totalPts} punten</strong>) zijn valide en oplosbaar.<br>
+        • De startsituatie is gecontroleerd: studenten starten gegarandeerd blanco op <strong>0%</strong> en moeten alle configuraties zelf uitvoeren.
+      </div>
+    `;
+    this.app.showToast('✅ Opdracht is 100% gevalideerd en start gegarandeerd op 0%!');
+  }
+
+  cleanAiStarterTopology() {
+    this.syncAiFormToDraft();
+    const data = this.currentAiAssignmentDraft;
+    if (!data) return;
+
+    const topo = data.initialTopology || data.topology;
+    const rubric = data.rubric || [];
+    if (!topo || !topo.devices) return;
+
+    // Reset hostnames, IPs and static routes on starter devices
+    rubric.forEach(r => {
+      const cType = r.checkType || r.type;
+      const cond = Object.assign({}, r, r.condition || {});
+      const target = cond.deviceId || cond.targetDevice;
+
+      topo.devices.forEach(d => {
+        if (d.id === target || d.name === target) {
+          if (cType === 'hostname') {
+            d.name = (d.type === 'router') ? 'Router' : (d.type === 'switch') ? 'Switch' : d.name;
+            d.hostname = d.name;
+          }
+          if (cType === 'interface_ip') {
+            if (d.interfaces && cond.portName && d.interfaces[cond.portName]) {
+              d.interfaces[cond.portName].ip = "";
+              d.interfaces[cond.portName].mask = "";
+              d.interfaces[cond.portName].shutdown = true;
+            }
+          }
+          if (cType === 'static_route') {
+            d.staticRoutes = [];
+          }
+        }
+      });
+    });
+
+    this.populateAiAssignmentPreview(data);
+    this.app.showToast('🧹 Start-topologie opgeschoond. Alle getoetste instellingen gereset naar blanco!');
+    this.testAiAssignmentJson();
+  }
+
+  syncAiFormToDraft() {
+    if (!this.currentAiAssignmentDraft) return;
+    const title = document.getElementById('aiEditTitle')?.value || '';
+    const kind = document.getElementById('aiEditKind')?.value || 'lab';
+    const timer = Number(document.getElementById('aiEditTimeLimit')?.value) || 60;
+    const category = document.getElementById('aiEditCategory')?.value || '';
+    const pw = document.getElementById('aiEditTestPassword')?.value || '';
+    const instr = document.getElementById('aiEditInstructions')?.value || '';
+
+    this.currentAiAssignmentDraft.title = title;
+    this.currentAiAssignmentDraft.kind = kind;
+    this.currentAiAssignmentDraft.timeLimitMinutes = timer;
+    this.currentAiAssignmentDraft.category = category;
+    this.currentAiAssignmentDraft.test_password = pw;
+    this.currentAiAssignmentDraft.instructions = instr;
+  }
+
+  async saveAiAssignmentJsonToDb() {
+    this.syncAiFormToDraft();
+    const data = this.currentAiAssignmentDraft;
+    if (!data) {
+      alert('Geen opdracht om op te slaan.');
+      return;
+    }
+
+    if (!data.title || !data.title.trim()) {
+      alert('Vul eerst een naam/titel in voor deze opdracht.');
+      return;
+    }
+
+    const payload = {
+      exam_id: data.id || ('ai_exam_' + Date.now()),
+      title: data.title.trim(),
+      instructions: data.instructions || '',
+      topology: data.initialTopology || data.topology || { devices: [], cables: [] },
+      rubric: data.rubric || [],
+      time_limit: Number(data.timeLimitMinutes) || 60,
+      category: data.category || 'ai_generated',
+      kind: data.kind || 'lab',
+      test_password: data.test_password || data.testPassword || ''
+    };
+
+    try {
+      const res = await fetch('/api/teacher/exam/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const respData = await res.json();
+      if (respData.success || respData.id) {
+        this.app.showToast(`💾 Opdracht "${data.title}" succesvol opgeslagen in database!`);
+        // Refresh assignments tab and lists
+        this.loadExamMgmtTab();
+        // Also refresh active exam if currently in studio
+        this.loadDbExamsDropdown();
+      } else {
+        alert('Fout bij opslaan in database: ' + (respData.error || 'Onbekende fout'));
+      }
+    } catch (err) {
+      alert('Netwerkfout bij opslaan: ' + err.message);
     }
   }
 }

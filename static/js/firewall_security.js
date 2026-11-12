@@ -1258,6 +1258,503 @@
     }
   };
 
+  // =========================================================================
+  // 6. WATCHGUARD FIREBOXV (FIREWARE OS CLI PARSER & WEB UI)
+  // =========================================================================
+  class WatchGuardCLIParser {
+    constructor(device, printFn, updatePromptFn, notifyChangeFn) {
+      this.device = device;
+      this.print = printFn || console.log;
+      this.updatePrompt = updatePromptFn || (() => {});
+      this.notifyChange = notifyChangeFn || (() => {});
+
+      this.mode = 'USER_EXEC'; // 'USER_EXEC' (>), 'PRIV_EXEC' (#), 'CONFIG' (config)#, 'CONFIG_IF' (config-if)#
+      this.currentInterface = null;
+
+      if (!this.device.watchguardConfig) {
+        this.device.watchguardConfig = {
+          model: 'FireboxV',
+          osVersion: 'Fireware v12.10.2 (Build 684201)',
+          serialNumber: 'WGV8829104',
+          systemName: this.device.hostname || 'FireboxV',
+          domain: 'pxl.local',
+          uptime: '3 days 14 hours 22 minutes',
+          policies: [
+            { id: 1, name: 'Outgoing', type: 'TCP-UDP', from: 'Trusted, Optional', to: 'External', action: 'Allow' },
+            { id: 2, name: 'Ping', type: 'ICMP', from: 'Any', to: 'Firebox', action: 'Allow' },
+            { id: 3, name: 'WatchGuard-Web-UI', type: 'TCP 8080', from: 'Trusted', to: 'Firebox', action: 'Allow' },
+            { id: 4, name: 'Default-Drop', type: 'Any', from: 'Any', to: 'Any', action: 'Deny' }
+          ]
+        };
+      }
+    }
+
+    getPrompt() {
+      const hn = this.device.hostname || 'WG';
+      if (this.mode === 'USER_EXEC') return `${hn}> `;
+      if (this.mode === 'PRIV_EXEC') return `${hn}# `;
+      if (this.mode === 'CONFIG') return `${hn}(config)# `;
+      if (this.mode === 'CONFIG_IF') {
+        const intfShort = (this.currentInterface || '').split(' ')[0] || 'if';
+        return `${hn}(config-if-${intfShort})# `;
+      }
+      return `${hn}> `;
+    }
+
+    handleCommand(cmdLine) {
+      const raw = cmdLine.trim();
+      if (!raw) return;
+
+      this.device.history = this.device.history || [];
+      this.device.history.push(raw);
+      this.device.historyIndex = this.device.history.length;
+
+      const parts = raw.split(/\s+/);
+      const cmd = parts[0].toLowerCase();
+      const args = parts.slice(1);
+
+      // Global Navigation
+      if (cmd === 'exit' || cmd === 'quit') {
+        if (this.mode === 'CONFIG_IF') {
+          this.mode = 'CONFIG';
+          this.currentInterface = null;
+        } else if (this.mode === 'CONFIG') {
+          this.mode = 'PRIV_EXEC';
+        } else if (this.mode === 'PRIV_EXEC') {
+          this.mode = 'USER_EXEC';
+        }
+        this.updatePrompt();
+        return;
+      }
+
+      if (cmd === 'end') {
+        if (this.mode.startsWith('CONFIG')) {
+          this.mode = 'PRIV_EXEC';
+          this.currentInterface = null;
+        }
+        this.updatePrompt();
+        return;
+      }
+
+      if (cmd === 'help' || cmd === '?') {
+        this.print(`WatchGuard Fireware OS Command Summary:
+  enable                      Enter privileged mode
+  configure terminal / config Enter configuration mode
+  show interface [brief]      Display network interface status and IPs
+  show run / configuration    Display running firewall configuration
+  show ip route / route       Display kernel IP routing table
+  show status / version       Display Firebox hardware & OS info
+  interface <name>            Configure network interface (eth0..eth7)
+  ip address <ip> <mask/cidr> Configure IP address on current interface
+  [no] shutdown               Enable or disable interface
+  ping <ip_address>           Send ICMP echo request packets
+  exit / end                  Exit current configuration mode`);
+        return;
+      }
+
+      // SHOW COMMANDS
+      if (cmd === 'show') {
+        this.handleShow(args);
+        return;
+      }
+
+      // PING COMMAND
+      if (cmd === 'ping') {
+        this.handlePing(args);
+        return;
+      }
+
+      // --- USER EXEC MODE (>) ---
+      if (this.mode === 'USER_EXEC') {
+        if (cmd === 'enable' || cmd === 'en') {
+          this.mode = 'PRIV_EXEC';
+          this.updatePrompt();
+          return;
+        }
+        this.print(`% Unknown or restricted command: "${raw}". Type 'enable' to enter privileged mode.`);
+        return;
+      }
+
+      // --- PRIVILEGED EXEC MODE (#) ---
+      if (this.mode === 'PRIV_EXEC') {
+        if (cmd === 'config' || cmd === 'configure') {
+          this.mode = 'CONFIG';
+          this.print(`Entering configuration mode for ${this.device.hostname || 'FireboxV'} (Fireware v12.10.2)...`);
+          this.updatePrompt();
+          return;
+        }
+        if (cmd === 'write' || (cmd === 'copy' && args[0] === 'run')) {
+          this.device.savedStartupConfig = JSON.parse(JSON.stringify(this.device.interfaces));
+          this.print(`[OK] Configuration committed to Firebox flash memory (flash:/config.xml).`);
+          this.notifyChange();
+          return;
+        }
+        this.print(`% Invalid command: "${raw}". Type 'configure terminal' to edit settings or 'show ?' for diagnostics.`);
+        return;
+      }
+
+      // --- CONFIG MODE (config)# ---
+      if (this.mode === 'CONFIG') {
+        if (cmd === 'hostname' || cmd === 'sysname') {
+          if (args[0]) {
+            this.device.hostname = args[0];
+            this.device.name = args[0];
+            if (this.device.watchguardConfig) this.device.watchguardConfig.systemName = args[0];
+            this.print(`WatchGuard system name set to ${args[0]}`);
+            this.updatePrompt();
+            this.notifyChange();
+          } else {
+            this.print(`% Usage: hostname <new_name>`);
+          }
+          return;
+        }
+
+        if (cmd === 'interface' || cmd === 'int') {
+          const target = (args[0] || '').toLowerCase();
+          const matchKey = Object.keys(this.device.interfaces).find(k => k.toLowerCase().startsWith(target));
+          if (matchKey) {
+            this.currentInterface = matchKey;
+            this.mode = 'CONFIG_IF';
+            this.updatePrompt();
+          } else {
+            this.print(`% Interface "${args[0]}" not found. Available: eth0, eth1, eth2, eth3, eth4, eth5, eth6, eth7.`);
+          }
+          return;
+        }
+
+        if (cmd === 'ip' && args[0] === 'route') {
+          // ip route <dest> <mask> <gateway>
+          if (args.length >= 3) {
+            const dest = args[1];
+            const mask = args[2];
+            const gw = args[3] || '';
+            this.device.staticRoutes = this.device.staticRoutes || [];
+            this.device.staticRoutes.push({ network: dest, mask: mask, nextHop: gw });
+            this.print(`Added static route: ${dest} netmask ${mask} via ${gw}`);
+            this.notifyChange();
+          } else {
+            this.print(`% Usage: ip route <network> <netmask> <gateway>`);
+          }
+          return;
+        }
+
+        this.print(`% Invalid config command: "${raw}". Type 'interface <name>' or 'hostname <name>'.`);
+        return;
+      }
+
+      // --- INTERFACE CONFIG MODE (config-if)# ---
+      if (this.mode === 'CONFIG_IF') {
+        const intf = this.device.interfaces[this.currentInterface];
+        if (!intf) {
+          this.mode = 'CONFIG';
+          this.updatePrompt();
+          return;
+        }
+
+        if (cmd === 'ip' && args[0] === 'address') {
+          let ip = args[1] || '';
+          let mask = args[2] || '255.255.255.0';
+          if (ip.includes('/')) {
+            const parts = ip.split('/');
+            ip = parts[0];
+            const cidr = parseInt(parts[1], 10);
+            mask = this.cidrToMask(cidr);
+          }
+          intf.ip = ip;
+          intf.mask = mask;
+          if (this.currentInterface.includes('eth1') || this.currentInterface.includes('Trusted')) {
+            this.device.ip = ip;
+            this.device.mask = mask;
+          }
+          this.print(`Interface ${this.currentInterface} IP set to ${ip} ${mask}`);
+          this.notifyChange();
+          return;
+        }
+
+        if (cmd === 'shutdown') {
+          intf.shutdown = true;
+          this.print(`Interface ${this.currentInterface} is administratively down (Disabled).`);
+          this.notifyChange();
+          return;
+        }
+
+        if (cmd === 'no' && args[0] === 'shutdown') {
+          intf.shutdown = false;
+          this.print(`Interface ${this.currentInterface} is administratively UP.`);
+          this.notifyChange();
+          return;
+        }
+
+        if (cmd === 'description') {
+          intf.description = args.join(' ');
+          this.print(`Description set on ${this.currentInterface}`);
+          this.notifyChange();
+          return;
+        }
+
+        this.print(`% Invalid interface command: "${raw}". Use 'ip address <ip> <mask>', 'no shutdown', or 'exit'.`);
+      }
+    }
+
+    handleShow(args) {
+      const sub = (args[0] || '').toLowerCase();
+      if (sub === 'interface' || sub === 'interfaces' || sub === 'int') {
+        this.print(`WatchGuard FireboxV Interface Overview (Fireware v12.10.2):`);
+        this.print(`Interface        Zone      Status       IP Address         Netmask           MAC`);
+        this.print(`--------------------------------------------------------------------------------------`);
+        for (const [name, intf] of Object.entries(this.device.interfaces)) {
+          if (name === 'Console') continue;
+          const zone = intf.zone || (name.includes('External') ? 'External' : name.includes('Trusted') ? 'Trusted' : 'Optional');
+          const status = intf.shutdown ? 'DISABLED ' : 'UP (1000) ';
+          const ip = intf.ip || 'unassigned     ';
+          const mask = intf.mask || 'unassigned     ';
+          const mac = intf.mac || '00:90:7f:11:22:33';
+          this.print(`${name.padEnd(16)} ${zone.padEnd(9)} ${status.padEnd(12)} ${ip.padEnd(18)} ${mask.padEnd(17)} ${mac}`);
+        }
+        return;
+      }
+
+      if (sub === 'run' || sub === 'running-config' || sub === 'configuration') {
+        this.print(`! WatchGuard FireboxV Configuration
+! Fireware OS v12.10.2 (Build 684201)
+! Serial: ${this.device.watchguardConfig?.serialNumber || 'WGV8829104'}
+! Generated: ${new Date().toUTCString()}
+sysname "${this.device.hostname || 'FireboxV'}"
+domain-name "${this.device.watchguardConfig?.domain || 'pxl.local'}"
+!
+firewall
+ policy 1 name "Outgoing" type tcp-udp from "Trusted, Optional" to "External" action allow
+ policy 2 name "Ping" type icmp from "Any" to "Firebox" action allow
+ policy 3 name "WatchGuard-Web-UI" type tcp port 8080 from "Trusted" to "Firebox" action allow
+ policy 4 name "Default-Drop" type any from "Any" to "Any" action deny
+!
+interfaces`);
+        for (const [name, intf] of Object.entries(this.device.interfaces)) {
+          if (name === 'Console') continue;
+          this.print(` interface "${name}"`);
+          if (intf.ip) this.print(`  ip address ${intf.ip} ${intf.mask || '255.255.255.0'}`);
+          if (intf.shutdown) this.print(`  shutdown`);
+          else this.print(`  no shutdown`);
+          if (intf.description) this.print(`  description "${intf.description}"`);
+        }
+        this.print(`!
+end`);
+        return;
+      }
+
+      if (sub === 'route' || sub === 'ip') {
+        this.print(`WatchGuard IP Routing Table (Kernel):
+Destination     Gateway         Genmask         Flags Metric Iface
+0.0.0.0         203.0.113.1     0.0.0.0         UG    1      eth0 (External)
+192.168.1.0     0.0.0.0         255.255.255.0   U     0      eth1 (Trusted)
+203.0.113.0     0.0.0.0         255.255.255.0   U     0      eth0 (External)`);
+        if (this.device.staticRoutes) {
+          this.device.staticRoutes.forEach(r => {
+            this.print(`${r.network.padEnd(15)} ${(r.nextHop || '0.0.0.0').padEnd(15)} ${r.mask.padEnd(15)} UG    10     eth0`);
+          });
+        }
+        return;
+      }
+
+      if (sub === 'status' || sub === 'version' || sub === 'system') {
+        this.print(`WatchGuard FireboxV System Diagnostics:
+  Appliance Model:    WatchGuard FireboxV (Virtual Appliance)
+  Software Version:   Fireware OS v12.10.2 (Build 684201)
+  Hardware Serial:    ${this.device.watchguardConfig?.serialNumber || 'WGV8829104'}
+  System Uptime:      ${this.device.watchguardConfig?.uptime || '3 days 14 hours 22 minutes'}
+  CPU Utilization:    3.2% (2 vCPUs active)
+  Memory Usage:       512MB / 2048MB (25% utilized)
+  Appliance Status:   HEALTHY • Normal Operational State`);
+        return;
+      }
+
+      this.print(`% Use: show interface, show run, show route, show status`);
+    }
+
+    handlePing(args) {
+      const target = (args[0] || '').trim();
+      if (!target) {
+        this.print(`% Usage: ping <ip_address>`);
+        return;
+      }
+      this.print(`Sending 5, 64-byte ICMP Echos to ${target}, timeout is 2 seconds:`);
+      const sim = window.PXLNetworkSim;
+      let okCount = 0;
+      if (sim && typeof sim.testPing === 'function') {
+        const canPing = sim.testPing(this.device.id, target);
+        okCount = canPing ? 5 : 0;
+      } else {
+        okCount = (target === '127.0.0.1' || target === this.device.ip) ? 5 : 0;
+      }
+
+      if (okCount > 0) {
+        this.print(`!!!!!\nSuccess rate is 100 percent (5/5), round-trip min/avg/max = 1/2/4 ms.`);
+      } else {
+        this.print(`.....\nSuccess rate is 0 percent (0/5). Host unreachable or packet dropped by policy.`);
+      }
+      this.notifyChange();
+    }
+
+    cidrToMask(cidr) {
+      const mask = [];
+      for (let i = 0; i < 4; i++) {
+        const n = Math.min(cidr, 8);
+        mask.push(256 - Math.pow(2, 8 - n));
+        cidr -= n;
+      }
+      return mask.join('.');
+    }
+  }
+
+  // =========================================================================
+  // FIREWALL GUI RENDERERS EXTENSION (WATCHGUARD FIREWARE WEB UI)
+  // =========================================================================
+  FirewallGuiRenderers.renderWatchGuardWebTab = function (device, container) {
+    if (!device || !container) return;
+    const eth0 = device.interfaces['eth0 (External)'] || {};
+    const eth1 = device.interfaces['eth1 (Trusted)'] || {};
+    const eth2 = device.interfaces['eth2 (Optional)'] || {};
+
+    container.innerHTML = `
+      <div style="background: #111827; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100%; display: flex; flex-direction: column;">
+        <!-- WatchGuard Top Bar -->
+        <div style="background: #c8102e; color: white; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #991b1b; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="background: white; border-radius: 4px; padding: 2px 6px; display: flex; align-items: center;">
+              <span style="color: #c8102e; font-weight: 900; font-size: 16px; letter-spacing: -0.5px;">WatchGuard</span>
+            </div>
+            <span style="font-size: 14px; font-weight: 700; color: #ffffff;">Fireware Web UI</span>
+            <span style="font-size: 11px; background: rgba(0,0,0,0.25); padding: 2px 8px; border-radius: 10px;">${device.hostname || 'FireboxV'}</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 14px; font-size: 11.5px;">
+            <span>Serial: <strong>${device.watchguardConfig?.serialNumber || 'WGV8829104'}</strong></span>
+            <span>OS: <strong>Fireware v12.10.2</strong></span>
+            <span style="background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 4px;">👤 admin@Firebox</span>
+          </div>
+        </div>
+
+        <!-- Navigation Ribbon -->
+        <div style="background: #1f2937; border-bottom: 1px solid #374151; padding: 8px 18px; display: flex; gap: 20px; font-size: 12px; font-weight: 600; color: #9ca3af;">
+          <span style="color: #fca5a5; border-bottom: 2px solid #ef4444; padding-bottom: 4px; cursor: pointer;">Dashboard (Front Panel)</span>
+          <span style="cursor: pointer;">Interfaces</span>
+          <span style="cursor: pointer;">Firewall Policies</span>
+          <span style="cursor: pointer;">Subscription Services</span>
+          <span style="cursor: pointer;">VPN</span>
+          <span style="cursor: pointer;">System</span>
+        </div>
+
+        <!-- Body / Dashboard -->
+        <div style="flex: 1; padding: 16px; overflow-y: auto;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <!-- Panel 1: Device Information -->
+            <div style="background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 6px; margin-bottom: 10px;">
+                <h4 style="margin: 0; font-size: 13px; color: #fca5a5; font-weight: 700;">🛡️ Appliance Information</h4>
+                <span style="font-size: 10px; background: #059669; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;">HEALTHY</span>
+              </div>
+              <table style="width: 100%; font-size: 11.5px; line-height: 1.8;">
+                <tr><td style="color: #94a3b8; width: 140px;">Model:</td><td><strong>WatchGuard FireboxV</strong></td></tr>
+                <tr><td style="color: #94a3b8;">Firmware Version:</td><td>Fireware v12.10.2 (Build 684201)</td></tr>
+                <tr><td style="color: #94a3b8;">System Name:</td><td>${device.hostname || 'FireboxV'}.pxl.local</td></tr>
+                <tr><td style="color: #94a3b8;">CPU Utilization:</td><td><span style="color: #22c55e;">2.8%</span> (2 Cores Active)</td></tr>
+                <tr><td style="color: #94a3b8;">Memory Usage:</td><td><span style="color: #38bdf8;">512 MB / 2048 MB (25%)</span></td></tr>
+                <tr><td style="color: #94a3b8;">Uptime:</td><td>3 Days 14 Hours 22 Mins</td></tr>
+              </table>
+            </div>
+
+            <!-- Panel 2: Live Network Interfaces -->
+            <div style="background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 6px; margin-bottom: 10px;">
+                <h4 style="margin: 0; font-size: 13px; color: #fca5a5; font-weight: 700;">🌐 Network Interfaces Status</h4>
+                <span style="font-size: 11px; color: #94a3b8;">GigabitEthernet</span>
+              </div>
+              <table style="width: 100%; font-size: 11px; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #334155; color: #94a3b8;">
+                  <th style="text-align: left; padding: 5px;">Port</th>
+                  <th>Zone</th>
+                  <th>IP / Subnet</th>
+                  <th>Link Status</th>
+                </tr>
+                <tr style="border-bottom: 1px solid #283548;">
+                  <td style="padding: 6px; font-weight: bold; color: #f87171;">eth0 (External)</td>
+                  <td style="text-align: center;"><span style="background: #7f1d1d; color: #fca5a5; padding: 1px 6px; border-radius: 3px; font-size: 10px;">External</span></td>
+                  <td style="text-align: center;">${eth0.ip || 'DHCP'} / ${eth0.mask || '24'}</td>
+                  <td style="text-align: center;"><span style="color: #22c55e; font-weight: bold;">● 1000 Mbps</span></td>
+                </tr>
+                <tr style="border-bottom: 1px solid #283548;">
+                  <td style="padding: 6px; font-weight: bold; color: #4ade80;">eth1 (Trusted)</td>
+                  <td style="text-align: center;"><span style="background: #14532d; color: #86efac; padding: 1px 6px; border-radius: 3px; font-size: 10px;">Trusted</span></td>
+                  <td style="text-align: center;">${eth1.ip || '192.168.1.1'} / ${eth1.mask || '255.255.255.0'}</td>
+                  <td style="text-align: center;"><span style="color: #22c55e; font-weight: bold;">● 1000 Mbps</span></td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px; font-weight: bold; color: #fb923c;">eth2 (Optional)</td>
+                  <td style="text-align: center;"><span style="background: #7c2d12; color: #fdba74; padding: 1px 6px; border-radius: 3px; font-size: 10px;">Optional</span></td>
+                  <td style="text-align: center;">${eth2.ip || '10.0.1.1'} / ${eth2.mask || '255.255.255.0'}</td>
+                  <td style="text-align: center;"><span style="color: #94a3b8;">○ Down</span></td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <!-- Panel 3: Active Firewall Policies -->
+          <div style="background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 6px; margin-bottom: 10px;">
+              <h4 style="margin: 0; font-size: 13px; color: #fca5a5; font-weight: 700;">🔒 Active Firewall Policies (Packet Filter & Proxy)</h4>
+              <span style="font-size: 11px; color: #38bdf8;">Inspection Engine: Stateful Inspection + IPS</span>
+            </div>
+            <table style="width: 100%; font-size: 11px; border-collapse: collapse;">
+              <thead>
+                <tr style="border-bottom: 1px solid #334155; color: #94a3b8;">
+                  <th style="text-align: left; padding: 5px;">ID</th>
+                  <th style="text-align: left; padding: 5px;">Policy Name</th>
+                  <th style="text-align: left; padding: 5px;">Type</th>
+                  <th style="text-align: left; padding: 5px;">From</th>
+                  <th style="text-align: left; padding: 5px;">To</th>
+                  <th style="text-align: center; padding: 5px;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid #283548;">
+                  <td style="padding: 6px;">1</td>
+                  <td style="padding: 6px; font-weight: bold; color: #f8fafc;">Outgoing</td>
+                  <td style="padding: 6px; color: #94a3b8;">TCP-UDP</td>
+                  <td style="padding: 6px; color: #86efac;">Trusted, Optional</td>
+                  <td style="padding: 6px; color: #fca5a5;">External</td>
+                  <td style="text-align: center;"><span style="background: #15803d; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold;">ALLOW</span></td>
+                </tr>
+                <tr style="border-bottom: 1px solid #283548;">
+                  <td style="padding: 6px;">2</td>
+                  <td style="padding: 6px; font-weight: bold; color: #f8fafc;">Ping</td>
+                  <td style="padding: 6px; color: #94a3b8;">ICMP</td>
+                  <td style="padding: 6px; color: #cbd5e1;">Any</td>
+                  <td style="padding: 6px; color: #cbd5e1;">Firebox</td>
+                  <td style="text-align: center;"><span style="background: #15803d; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold;">ALLOW</span></td>
+                </tr>
+                <tr style="border-bottom: 1px solid #283548;">
+                  <td style="padding: 6px;">3</td>
+                  <td style="padding: 6px; font-weight: bold; color: #f8fafc;">WatchGuard-Web-UI</td>
+                  <td style="padding: 6px; color: #94a3b8;">TCP 8080</td>
+                  <td style="padding: 6px; color: #86efac;">Trusted</td>
+                  <td style="padding: 6px; color: #cbd5e1;">Firebox</td>
+                  <td style="text-align: center;"><span style="background: #15803d; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold;">ALLOW</span></td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px;">4</td>
+                  <td style="padding: 6px; font-weight: bold; color: #f8fafc;">Default-Drop</td>
+                  <td style="padding: 6px; color: #94a3b8;">Any</td>
+                  <td style="padding: 6px; color: #cbd5e1;">Any</td>
+                  <td style="padding: 6px; color: #cbd5e1;">Any</td>
+                  <td style="text-align: center;"><span style="background: #b91c1c; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold;">DENY</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
   // Expose to window
   if (typeof window !== 'undefined') {
     window.CiscoASACLIParser = CiscoASACLIParser;
@@ -1265,6 +1762,7 @@
     window.PANOSCLIParser = PANOSCLIParser;
     window.OPNsenseConsoleParser = OPNsenseConsoleParser;
     window.pfSenseConsoleParser = pfSenseConsoleParser;
+    window.WatchGuardCLIParser = WatchGuardCLIParser;
     window.FirewallGuiRenderers = FirewallGuiRenderers;
   }
 })(typeof window !== 'undefined' ? window : this);

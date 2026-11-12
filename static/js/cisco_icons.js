@@ -475,6 +475,45 @@ const CiscoIcons = {
       <text x="38" y="51" font-family="Arial, sans-serif" font-weight="900" font-size="6.5" fill="#93c5fd" text-anchor="middle">pfSense Plus</text>
     </svg>`,
 
+  // WatchGuard FireboxV Next-Generation Firewall Appliance
+  watchguard: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 60" width="84" height="60">
+      <defs>
+        <linearGradient id="wgRedGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ef4444"/>
+          <stop offset="50%" stop-color="#c8102e"/>
+          <stop offset="100%" stop-color="#7f1d1d"/>
+        </linearGradient>
+        <linearGradient id="wgBezelGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#1e293b"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+      </defs>
+      <!-- WatchGuard Red Appliance Chassis -->
+      <rect x="4" y="8" width="76" height="44" rx="4" ry="4" fill="url(#wgRedGrad)" stroke="#991b1b" stroke-width="2"/>
+      <!-- Top Bezel Accent -->
+      <rect x="8" y="11" width="68" height="4" rx="1" fill="#fca5a5" opacity="0.4"/>
+      <!-- WatchGuard Shield Badge with Lion / W Glyph -->
+      <path d="M 20 18 Q 28 18 31 24 Q 28 35 20 40 Q 12 35 9 24 Q 12 18 20 18 Z" fill="#ffffff" stroke="#991b1b" stroke-width="1"/>
+      <path d="M 20 21 Q 25 21 27 25 Q 25 33 20 37 Q 15 33 13 25 Q 15 21 20 21 Z" fill="#c8102e"/>
+      <path d="M 16 26 L 18 33 L 20 28 L 22 33 L 24 26" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- RJ-45 Gigabit Ports Panel (eth0 External, eth1 Trusted, eth2 Optional) -->
+      <rect x="36" y="20" width="40" height="22" rx="3" fill="url(#wgBezelGrad)" stroke="#334155" stroke-width="1"/>
+      <!-- eth0 (External - Red indicator) -->
+      <rect x="39" y="23" width="7" height="9" rx="1" fill="#334155" stroke="#ef4444" stroke-width="1"/>
+      <circle cx="42.5" cy="35" r="1.2" fill="#ef4444"/>
+      <!-- eth1 (Trusted - Green indicator) -->
+      <rect x="48" y="23" width="7" height="9" rx="1" fill="#334155" stroke="#22c55e" stroke-width="1"/>
+      <circle cx="51.5" cy="35" r="1.2" fill="#22c55e"/>
+      <!-- eth2 (Optional - Orange indicator) -->
+      <rect x="57" y="23" width="7" height="9" rx="1" fill="#334155" stroke="#f97316" stroke-width="1"/>
+      <circle cx="60.5" cy="35" r="1.2" fill="#f97316"/>
+      <!-- eth3 (LAN) -->
+      <rect x="66" y="23" width="7" height="9" rx="1" fill="#334155" stroke="#94a3b8" stroke-width="1"/>
+      <circle cx="69.5" cy="35" r="1.2" fill="#22c55e"/>
+      <!-- WatchGuard FireboxV Text -->
+      <text x="42" y="50" font-family="Arial, sans-serif" font-weight="900" font-size="6.5" fill="#ffffff" letter-spacing="0.5">FireboxV</text>
+    </svg>`,
+
   // Generic Cloud WAN / ISP Appliance
   cloud_wan: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 60" width="84" height="60">
       <defs>
@@ -502,6 +541,7 @@ function getCiscoDeviceIcon(type, model = "") {
   const m = (model || "").toLowerCase();
 
   // Firewalls & Security Devices
+  if (t === 'watchguard' || m.includes('watchguard') || m.includes('firebox')) return CiscoIcons.watchguard;
   if (t === 'cisco_asa' || m.includes('asa') || m.includes('5506')) return CiscoIcons.cisco_asa;
   if (t === 'fortigate' || m.includes('forti') || m.includes('fortios')) return CiscoIcons.fortigate;
   if (t === 'paloalto' || m.includes('palo') || m.includes('pan-os') || m.includes('pa-440')) return CiscoIcons.paloalto;

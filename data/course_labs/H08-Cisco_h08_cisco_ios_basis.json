@@ -23,7 +23,7 @@
       },
       {
         "id": "S1",
-        "name": "S1",
+        "name": "Switch",
         "type": "switch",
         "x": 240,
         "y": 180,
@@ -31,7 +31,7 @@
       },
       {
         "id": "R1",
-        "name": "R1",
+        "name": "Router",
         "type": "router",
         "x": 420,
         "y": 140,
@@ -40,14 +40,20 @@
           "GigabitEthernet0/0/0": {
             "ip": "192.168.1.1",
             "mask": "255.255.255.0",
-            "shutdown": false
+            "shutdown": true
           },
           "GigabitEthernet0/0/1": {
             "ip": "192.168.2.1",
             "mask": "255.255.255.0",
-            "shutdown": false
+            "shutdown": true
           }
-        }
+        },
+        "enableSecret": "",
+        "enablePassword": "",
+        "consolePassword": "",
+        "vtyPassword": "",
+        "servicePasswordEncryption": false,
+        "bannerMotd": ""
       },
       {
         "id": "S2",

@@ -16,17 +16,19 @@
         "x": 150,
         "y": 200,
         "dhcpEnabled": false,
-        "ip": "192.168.1.50",
-        "mask": "255.255.255.0",
+        "ip": "",
+        "mask": "",
         "gateway": "192.168.1.1",
-        "dns": "192.168.1.10"
+        "dns": "192.168.1.10",
+        "dnsRecords": []
       },
       {
         "id": "Switch0",
         "name": "Switch0",
         "type": "switch",
         "x": 350,
-        "y": 200
+        "y": 200,
+        "dnsRecords": []
       },
       {
         "id": "DNS-Server",
@@ -42,13 +44,7 @@
         "services": {
           "dns": true
         },
-        "dnsRecords": [
-          {
-            "name": "www.pxl.be",
-            "type": "A",
-            "ip": "192.168.1.20"
-          }
-        ]
+        "dnsRecords": []
       },
       {
         "id": "PXL-Webserver",
@@ -63,7 +59,8 @@
         "dns": "",
         "services": {
           "http": true
-        }
+        },
+        "dnsRecords": []
       }
     ],
     "cables": [

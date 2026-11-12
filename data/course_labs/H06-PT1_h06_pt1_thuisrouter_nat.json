@@ -19,7 +19,7 @@
           "eth0": {
             "ip": "203.0.113.2",
             "mask": "255.255.255.0",
-            "shutdown": false
+            "shutdown": true
           },
           "br-lan": {
             "ip": "192.168.1.1",
@@ -34,10 +34,10 @@
         "type": "pc",
         "x": 160,
         "y": 280,
-        "dhcpEnabled": true,
-        "ip": "192.168.1.15",
-        "mask": "255.255.255.0",
-        "gateway": "192.168.1.1",
+        "dhcpEnabled": false,
+        "ip": "",
+        "mask": "",
+        "gateway": "",
         "dns": "192.168.1.1"
       },
       {

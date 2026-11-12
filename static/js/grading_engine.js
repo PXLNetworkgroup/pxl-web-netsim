@@ -90,45 +90,66 @@ class GradingEngine {
     switch (cType) {
       case 'cabling':
       case 'cable_connection':
+      case 'cabling_connected':
         if (cond.dev1 && !cond.fromDevice) cond.fromDevice = cond.dev1;
         if (cond.port1 && !cond.fromPort) cond.fromPort = cond.port1;
         if (cond.dev2 && !cond.toDevice) cond.toDevice = cond.dev2;
         if (cond.port2 && !cond.toPort) cond.toPort = cond.port2;
         return this.checkCabling(cond, sim, runningConfigs);
       case 'hostname':
+      case 'device_name':
+        if (cond.deviceId && !cond.targetDevice) cond.targetDevice = cond.deviceId;
+        if (cond.hostname && !cond.expected) cond.expected = cond.hostname;
         return this.checkHostname(cond, sim, runningConfigs);
       case 'enable_secret':
+      case 'secret':
+      case 'enable_password':
         return this.checkEnableSecret(cond, sim, runningConfigs);
       case 'console_password':
+      case 'line_console':
+      case 'console_login':
         return this.checkConsolePassword(cond, sim, runningConfigs);
       case 'vty_password':
+      case 'line_vty':
       case 'line_vty_password':
         return this.checkVtyPassword(cond, sim, runningConfigs);
       case 'banner_motd':
+      case 'banner':
+      case 'motd':
         return this.checkBannerMotd(cond, sim, runningConfigs);
       case 'password_encryption':
+      case 'service_password_encryption':
         return this.checkPasswordEncryption(cond, sim, runningConfigs);
       case 'interface_ip':
       case 'ip_address':
+      case 'ip_config':
         if (cond.targetDevice && !cond.deviceId) cond.deviceId = cond.targetDevice;
         if (cond.ip && !cond.expectedIp) cond.expectedIp = cond.ip;
         if (cond.mask && !cond.expectedMask) cond.expectedMask = cond.mask;
         return this.checkInterfaceIp(cond, sim, runningConfigs);
       case 'ip_subnet':
+      case 'ip_address_subnet':
         return this.checkIpSubnet(cond, sim);
       case 'switch_svi':
+      case 'vlan1':
+      case 'vlan1_ip':
         return this.checkSwitchSvi(cond, sim, runningConfigs);
       case 'static_route':
+      case 'ip_route':
+      case 'route':
         return this.checkStaticRoute(cond, sim, runningConfigs);
       case 'ssh_configured':
+      case 'ssh':
         return this.checkSsh(cond, sim, runningConfigs);
       case 'wireless_associated':
       case 'wireless':
       case 'wireless_adapter':
       case 'wlc_wlan':
+      case 'wifi':
         return this.checkWireless(cond, sim, runningConfigs);
       case 'ping_test':
       case 'ping':
+      case 'icmp':
         if (cond.source && !cond.fromDevice) cond.fromDevice = cond.source;
         if (cond.target && !cond.targetIp) {
           const targetDev = sim.devices[cond.target];
@@ -137,21 +158,27 @@ class GradingEngine {
         return this.checkPing(cond, sim, runningConfigs);
       case 'dns_query':
       case 'dns_record':
+      case 'dns':
         return this.checkDns(cond, sim);
       case 'http_get':
       case 'web_request':
+      case 'http_server':
+      case 'web_server':
         return this.checkHttp(cond, sim);
       case 'copy_run_start':
+      case 'save_config':
+      case 'write_memory':
         return this.checkSavedConfig(cond, sim, runningConfigs);
       case 'default_gateway':
+      case 'gateway':
         return this.checkDefaultGateway(cond, sim, runningConfigs);
       case 'clock_rate':
       case 'serial_clock':
         return this.checkClockRate(cond, sim, runningConfigs);
       case 'general':
-        return { passed: true, detail: 'Algemeen criterium (gevalideerd)' };
+        return { passed: false, detail: 'Algemeen criterium (nog niet voltooid)' };
       default:
-        return { passed: true, detail: `${item.title || item.description || 'Criterium'} (voltooid)` };
+        return { passed: false, detail: `${item.title || item.description || 'Criterium'} nog niet voldaan` };
     }
   }
 
@@ -193,17 +220,52 @@ class GradingEngine {
   }
 
   checkDns(cond, sim) {
-    const server = sim.devices[cond.dnsServerId || 'Server-PT'] || Object.values(sim.devices).find(d => d.type === 'server');
+    const srvId = cond.dnsServerId || cond.serverId || 'Server-PT';
+    const server = sim.devices[srvId] || Object.values(sim.devices).find(d => d.type === 'server');
     if (!server) return { passed: false, detail: 'Geen DNS-server gevonden' };
-    const records = server.dnsRecords || [];
-    const found = records.some(r => (!cond.name || r.name === cond.name) && (!cond.ip || r.ip === cond.ip));
-    return { passed: found, detail: found ? `DNS record voor ${cond.name || 'domein'} gevonden` : `DNS record ontbreekt` };
+    const records = server.dnsRecords || (server.services && server.services.dns && server.services.dns.records) || [];
+    const expName = (cond.name || cond.expectedName || cond.domain || '').trim().toLowerCase();
+    const expIp = (cond.ip || cond.expectedIp || '').trim();
+    if (!expName && !expIp) {
+      const hasAny = records.length > 0;
+      return { passed: hasAny, detail: hasAny ? `DNS server actief met ${records.length} records` : 'Geen DNS records geconfigureerd' };
+    }
+    const found = records.some(r => {
+      const matchName = !expName || (r.name || '').trim().toLowerCase() === expName;
+      const matchIp = !expIp || (r.ip || '').trim() === expIp;
+      return matchName && matchIp;
+    });
+    return { passed: found, detail: found ? `DNS record voor ${expName || expIp} gevonden` : `DNS record voor ${expName || expIp} ontbreekt` };
   }
 
   checkHttp(cond, sim) {
-    const server = sim.devices[cond.serverId || 'Server-PT'] || Object.values(sim.devices).find(d => d.type === 'server');
+    const srvId = cond.serverId || 'Server-PT';
+    const server = sim.devices[srvId] || Object.values(sim.devices).find(d => d.type === 'server');
     if (!server) return { passed: false, detail: 'Geen webserver gevonden' };
-    const httpOn = server.services ? server.services.http !== false : true;
+    
+    const services = server.services || {};
+    let httpOn = false;
+    if (typeof services.http === 'boolean') {
+      httpOn = services.http;
+    } else if (services.http && typeof services.http.enabled === 'boolean') {
+      httpOn = services.http.enabled;
+    } else if (server.httpEnabled !== undefined) {
+      httpOn = Boolean(server.httpEnabled);
+    }
+
+    if (cond.fromDevice || cond.targetIp) {
+      const client = cond.fromDevice ? sim.devices[cond.fromDevice] : null;
+      const targetIp = cond.targetIp || server.ip;
+      if (client && targetIp && typeof sim.testPing === 'function') {
+        const canReach = sim.testPing(client.id, targetIp);
+        const passed = httpOn && canReach;
+        return {
+          passed,
+          detail: passed ? `HTTP webserver bereikbaar vanaf ${client.name || client.id}` : (httpOn ? `Webserver actief maar netwerkverbinding onbereikbaar` : 'HTTP service staat uit')
+        };
+      }
+    }
+
     return { passed: httpOn, detail: httpOn ? 'HTTP webserver actief' : 'HTTP service staat uit' };
   }
 
@@ -239,7 +301,7 @@ class GradingEngine {
   }
 
   checkHostname(cond, sim, runningConfigs = {}) {
-    const devId = cond.targetDevice || (cond.devices && cond.devices[0]);
+    const devId = cond.deviceId || cond.targetDevice || (cond.devices && cond.devices[0]);
     const dev = devId ? sim.devices[devId] : Object.values(sim.devices).find(d => d.type === 'router' || d.type === 'switch');
     if (!dev) return { passed: false, detail: 'Apparaat niet gevonden' };
 
@@ -351,6 +413,15 @@ class GradingEngine {
     const dev = sim.devices[cond.deviceId];
     if (!dev) return { passed: false, detail: `Apparaat ${cond.deviceId} niet gevonden` };
 
+    if (cond.dns) {
+      const currentDns = (dev.dns || '').trim();
+      const dnsOk = currentDns === cond.dns.trim();
+      return {
+        passed: dnsOk,
+        detail: dnsOk ? `DNS server is ${cond.dns}` : `DNS server ontbreekt of onjuist (Huidig: "${currentDns}")`
+      };
+    }
+
     const intf = (dev.interfaces && dev.interfaces[cond.portName]) || {};
     const currentIp = intf.ip || dev.ip || '';
     const currentMask = intf.mask || dev.mask || '';
@@ -358,17 +429,18 @@ class GradingEngine {
 
     // Check running config block
     const cfg = runningConfigs[dev.id] || (typeof dev.generateRunningConfig === 'function' ? dev.generateRunningConfig() : '');
-    const ipInCfg = cond.expectedIp ? (cfg.includes(cond.expectedIp) || currentIp === cond.expectedIp) : true;
+    const ipInCfg = cond.expectedIp ? (cfg.includes(cond.expectedIp) || currentIp === cond.expectedIp) : false;
     const maskInCfg = cond.expectedMask ? (cfg.includes(cond.expectedMask) || currentMask === cond.expectedMask) : true;
 
-    const ipOk = cond.expectedIp ? (currentIp === cond.expectedIp || ipInCfg) : true;
+    const ipOk = cond.expectedIp ? (currentIp === cond.expectedIp || ipInCfg) : false;
     const maskOk = cond.expectedMask ? (currentMask === cond.expectedMask || maskInCfg) : true;
     const shutOk = cond.checkNoShutdown ? (!isShutdown || /no shutdown/i.test(cfg)) : true;
 
-    const passed = ipOk && maskOk && shutOk;
+    const hasRequirement = Boolean(cond.expectedIp || cond.checkNoShutdown);
+    const passed = hasRequirement && (cond.expectedIp ? ipOk : true) && (cond.expectedMask ? maskOk : true) && shutOk;
     return {
       passed,
-      detail: passed ? `${cond.portName}: ${currentIp}/${currentMask} UP` : `${cond.portName}: configuratie onvolledig`
+      detail: passed ? `${cond.portName || 'Interface'}: ${currentIp}/${currentMask} UP` : `${cond.portName || 'Interface'}: configuratie onvolledig`
     };
   }
 

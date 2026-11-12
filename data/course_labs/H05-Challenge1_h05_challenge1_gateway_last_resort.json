@@ -39,13 +39,7 @@
             "shutdown": false
           }
         },
-        "staticRoutes": [
-          {
-            "network": "0.0.0.0",
-            "mask": "0.0.0.0",
-            "nextHop": "10.10.10.1"
-          }
-        ]
+        "staticRoutes": []
       },
       {
         "id": "Lector-Router",
@@ -65,13 +59,7 @@
             "shutdown": false
           }
         },
-        "staticRoutes": [
-          {
-            "network": "192.168.100.0",
-            "mask": "255.255.255.0",
-            "nextHop": "10.10.10.2"
-          }
-        ]
+        "staticRoutes": []
       },
       {
         "id": "Lector-Webserver",
@@ -85,8 +73,12 @@
         "gateway": "172.16.0.1",
         "dns": "",
         "services": {
-          "http": true
-        }
+          "http": {
+            "enabled": false,
+            "port": 80
+          }
+        },
+        "httpEnabled": false
       }
     ],
     "cables": [

@@ -36,14 +36,14 @@
         "y": 200,
         "interfaces": {
           "ether1": {
-            "ip": "172.20.40.1",
-            "mask": "255.255.255.0",
-            "shutdown": false
+            "ip": "",
+            "mask": "",
+            "shutdown": true
           },
           "ether2": {
-            "ip": "192.168.123.1",
-            "mask": "255.255.255.0",
-            "shutdown": false
+            "ip": "",
+            "mask": "",
+            "shutdown": true
           }
         }
       },
@@ -66,8 +66,12 @@
         "gateway": "192.168.123.1",
         "dns": "",
         "services": {
-          "http": true
-        }
+          "http": {
+            "enabled": false,
+            "port": 80
+          }
+        },
+        "httpEnabled": false
       }
     ],
     "cables": [

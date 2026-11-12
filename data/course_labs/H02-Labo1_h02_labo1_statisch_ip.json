@@ -33,10 +33,14 @@
         "gateway": "",
         "dns": "",
         "services": {
-          "http": true,
+          "http": {
+            "enabled": false,
+            "port": 80
+          },
           "dns": false,
           "dhcp": false
-        }
+        },
+        "httpEnabled": false
       }
     ],
     "cables": [

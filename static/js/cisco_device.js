@@ -180,6 +180,29 @@ class CiscoDevice {
       this.defaultGateway = this.apConfig.gateway;
     }
 
+    // WatchGuard FireboxV Next-Generation Firewall Configuration
+    if (this.type === 'watchguard') {
+      this.watchguardConfig = options.watchguardConfig || {
+        model: 'FireboxV',
+        osVersion: 'Fireware v12.10.2 (Build 684201)',
+        serialNumber: 'WGV8829104',
+        systemName: this.hostname || 'FireboxV',
+        domain: 'pxl.local',
+        uptime: '3 days 14 hours 22 minutes',
+        policies: [
+          { id: 1, name: 'Outgoing', type: 'TCP-UDP', from: 'Trusted, Optional', to: 'External', action: 'Allow' },
+          { id: 2, name: 'Ping', type: 'ICMP', from: 'Any', to: 'Firebox', action: 'Allow' },
+          { id: 3, name: 'WatchGuard-Web-UI', type: 'TCP 8080', from: 'Trusted', to: 'Firebox', action: 'Allow' },
+          { id: 4, name: 'Default-Drop', type: 'Any', from: 'Any', to: 'Any', action: 'Deny' }
+        ],
+        natRules: [
+          { id: 1, name: 'Dynamic-NAT-Out', type: '1-to-1 / Dynamic NAT', source: '192.168.1.0/24', outboundInterface: 'eth0 (External)' }
+        ]
+      };
+      this.ip = options.ip || "192.168.1.1";
+      this.mask = options.mask || "255.255.255.0";
+    }
+
     // Wireless Settings (for PCs, Laptops, Servers, Routers, and APs)
     const isWifiDevice = (this.type === 'laptop' || this.type === 'wireless_ap' || this.type === 'wireless_router' || this.type === 'wlc' || options.hasWireless || options.wirelessInstalled);
     this.wireless = {
@@ -500,6 +523,21 @@ class CiscoDevice {
         'vtnet2 (OPT1)': { ip: "", mask: "", shutdown: true, description: "OPT1 DMZ (vtnet2)", mac: genMac('000c.29') },
         'vtnet3 (OPT2)': { ip: "", mask: "", shutdown: true, description: "OPT2 Sync (vtnet3)", mac: genMac('000c.29') },
         'Console': { ip: "", mask: "", shutdown: false, description: "Serial Video / TTY Console", portType: 'console', mac: genMac('000c.29') }
+      };
+      this.ip = "192.168.1.1";
+      this.mask = "255.255.255.0";
+    } else if (this.type === 'watchguard') {
+      // WatchGuard FireboxV: eth0 (External), eth1 (Trusted), eth2 (Optional), eth3-eth7, Console
+      this.interfaces = {
+        'eth0 (External)': { ip: "203.0.113.100", mask: "255.255.255.0", zone: "External", shutdown: false, description: "External WAN Uplink (eth0)", mac: genMac('0090.7f') },
+        'eth1 (Trusted)': { ip: "192.168.1.1", mask: "255.255.255.0", zone: "Trusted", shutdown: false, description: "Trusted Internal LAN (eth1)", mac: genMac('0090.7f') },
+        'eth2 (Optional)': { ip: "10.0.1.1", mask: "255.255.255.0", zone: "Optional", shutdown: true, description: "Optional DMZ Zone (eth2)", mac: genMac('0090.7f') },
+        'eth3': { ip: "", mask: "", zone: "Custom", shutdown: true, description: "Gigabit Interface 3", mac: genMac('0090.7f') },
+        'eth4': { ip: "", mask: "", zone: "Custom", shutdown: true, description: "Gigabit Interface 4", mac: genMac('0090.7f') },
+        'eth5': { ip: "", mask: "", zone: "Custom", shutdown: true, description: "Gigabit Interface 5", mac: genMac('0090.7f') },
+        'eth6': { ip: "", mask: "", zone: "Custom", shutdown: true, description: "Gigabit Interface 6", mac: genMac('0090.7f') },
+        'eth7': { ip: "", mask: "", zone: "Custom", shutdown: true, description: "Gigabit Interface 7", mac: genMac('0090.7f') },
+        'Console': { ip: "", mask: "", shutdown: false, description: "Serial Management Console Port", portType: 'console', mac: genMac('0090.7f') }
       };
       this.ip = "192.168.1.1";
       this.mask = "255.255.255.0";

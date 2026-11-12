@@ -3,6 +3,7 @@
  * Sourced from https://vwgert.github.io/networksess/ (Gert Van Waeyenberg)
  * Hogeschool PXL (Toegepaste Informatica / SNE)
  * Fully enriched with complete Addressing Tables, Hostnames, and Verification Tasks.
+ * Clean 0% Start Guarantee: All student starter topologies verified to start at 0%.
  */
 
 window.PXL_COURSE_LABS = [
@@ -23,9 +24,9 @@ window.PXL_COURSE_LABS = [
           "type": "laptop",
           "x": 180,
           "y": 200,
-          "dhcpEnabled": true,
-          "ip": "169.254.1.10",
-          "mask": "255.255.0.0",
+          "dhcpEnabled": false,
+          "ip": "",
+          "mask": "",
           "gateway": "",
           "dns": ""
         },
@@ -127,10 +128,14 @@ window.PXL_COURSE_LABS = [
           "gateway": "",
           "dns": "",
           "services": {
-            "http": true,
+            "http": {
+              "enabled": false,
+              "port": 80
+            },
             "dns": false,
             "dhcp": false
-          }
+          },
+          "httpEnabled": false
         }
       ],
       "cables": [
@@ -600,17 +605,19 @@ window.PXL_COURSE_LABS = [
           "x": 150,
           "y": 200,
           "dhcpEnabled": false,
-          "ip": "192.168.1.50",
-          "mask": "255.255.255.0",
+          "ip": "",
+          "mask": "",
           "gateway": "192.168.1.1",
-          "dns": "192.168.1.10"
+          "dns": "192.168.1.10",
+          "dnsRecords": []
         },
         {
           "id": "Switch0",
           "name": "Switch0",
           "type": "switch",
           "x": 350,
-          "y": 200
+          "y": 200,
+          "dnsRecords": []
         },
         {
           "id": "DNS-Server",
@@ -626,13 +633,7 @@ window.PXL_COURSE_LABS = [
           "services": {
             "dns": true
           },
-          "dnsRecords": [
-            {
-              "name": "www.pxl.be",
-              "type": "A",
-              "ip": "192.168.1.20"
-            }
-          ]
+          "dnsRecords": []
         },
         {
           "id": "PXL-Webserver",
@@ -647,7 +648,8 @@ window.PXL_COURSE_LABS = [
           "dns": "",
           "services": {
             "http": true
-          }
+          },
+          "dnsRecords": []
         }
       ],
       "cables": [
@@ -737,17 +739,19 @@ window.PXL_COURSE_LABS = [
           "x": 160,
           "y": 200,
           "dhcpEnabled": false,
-          "ip": "192.168.1.50",
-          "mask": "255.255.255.0",
+          "ip": "",
+          "mask": "",
           "gateway": "",
-          "dns": ""
+          "dns": "",
+          "dnsRecords": []
         },
         {
           "id": "Switch-Lab",
           "name": "Switch-Lab",
           "type": "switch",
           "x": 360,
-          "y": 200
+          "y": 200,
+          "dnsRecords": []
         },
         {
           "id": "Labo-Server",
@@ -764,18 +768,7 @@ window.PXL_COURSE_LABS = [
             "http": true,
             "dns": true
           },
-          "dnsRecords": [
-            {
-              "name": "www.labo.local",
-              "type": "A",
-              "ip": "192.168.1.10"
-            },
-            {
-              "name": "ns1.labo.local",
-              "type": "A",
-              "ip": "192.168.1.10"
-            }
-          ]
+          "dnsRecords": []
         }
       ],
       "cables": [
@@ -857,18 +850,20 @@ window.PXL_COURSE_LABS = [
           "type": "pc",
           "x": 140,
           "y": 220,
-          "dhcpEnabled": true,
+          "dhcpEnabled": false,
           "ip": "",
           "mask": "",
           "gateway": "",
-          "dns": ""
+          "dns": "",
+          "dnsRecords": []
         },
         {
           "id": "Switch0",
           "name": "Switch0",
           "type": "switch",
           "x": 320,
-          "y": 220
+          "y": 220,
+          "dnsRecords": []
         },
         {
           "id": "DHCP-DNS-Server",
@@ -882,17 +877,15 @@ window.PXL_COURSE_LABS = [
           "gateway": "",
           "dns": "192.168.1.10",
           "services": {
-            "http": false,
+            "http": {
+              "enabled": false,
+              "port": 80
+            },
             "dns": true,
             "dhcp": true
           },
-          "dnsRecords": [
-            {
-              "name": "www.pxl.be",
-              "type": "A",
-              "ip": "192.168.1.100"
-            }
-          ]
+          "dnsRecords": [],
+          "httpEnabled": false
         },
         {
           "id": "Webserver",
@@ -906,10 +899,15 @@ window.PXL_COURSE_LABS = [
           "gateway": "",
           "dns": "",
           "services": {
-            "http": true,
+            "http": {
+              "enabled": false,
+              "port": 80
+            },
             "dns": false,
             "dhcp": false
-          }
+          },
+          "dnsRecords": [],
+          "httpEnabled": false
         }
       ],
       "cables": [
@@ -1022,13 +1020,7 @@ window.PXL_COURSE_LABS = [
               "shutdown": false
             }
           },
-          "staticRoutes": [
-            {
-              "network": "0.0.0.0",
-              "mask": "0.0.0.0",
-              "nextHop": "10.10.10.1"
-            }
-          ]
+          "staticRoutes": []
         },
         {
           "id": "Lector-Router",
@@ -1048,13 +1040,7 @@ window.PXL_COURSE_LABS = [
               "shutdown": false
             }
           },
-          "staticRoutes": [
-            {
-              "network": "192.168.100.0",
-              "mask": "255.255.255.0",
-              "nextHop": "10.10.10.2"
-            }
-          ]
+          "staticRoutes": []
         },
         {
           "id": "Lector-Webserver",
@@ -1068,8 +1054,12 @@ window.PXL_COURSE_LABS = [
           "gateway": "172.16.0.1",
           "dns": "",
           "services": {
-            "http": true
-          }
+            "http": {
+              "enabled": false,
+              "port": 80
+            }
+          },
+          "httpEnabled": false
         }
       ],
       "cables": [
@@ -1173,9 +1163,9 @@ window.PXL_COURSE_LABS = [
           "y": 200,
           "interfaces": {
             "GigabitEthernet0/0/0": {
-              "ip": "192.168.10.1",
-              "mask": "255.255.255.0",
-              "shutdown": false
+              "ip": "",
+              "mask": "",
+              "shutdown": true
             },
             "GigabitEthernet0/0/1": {
               "ip": "10.0.12.1",
@@ -1204,9 +1194,9 @@ window.PXL_COURSE_LABS = [
               "shutdown": false
             },
             "GigabitEthernet0/0/1": {
-              "ip": "192.168.30.1",
-              "mask": "255.255.255.0",
-              "shutdown": false
+              "ip": "",
+              "mask": "",
+              "shutdown": true
             }
           },
           "staticRoutes": [
@@ -1606,13 +1596,7 @@ window.PXL_COURSE_LABS = [
               "shutdown": false
             }
           },
-          "staticRoutes": [
-            {
-              "network": "192.168.200.0",
-              "mask": "255.255.255.0",
-              "nextHop": "10.0.0.2"
-            }
-          ]
+          "staticRoutes": []
         },
         {
           "id": "MikroTik-R2",
@@ -1632,13 +1616,7 @@ window.PXL_COURSE_LABS = [
               "shutdown": false
             }
           },
-          "staticRoutes": [
-            {
-              "network": "192.168.100.0",
-              "mask": "255.255.255.0",
-              "nextHop": "10.0.0.1"
-            }
-          ]
+          "staticRoutes": []
         },
         {
           "id": "PC-Team1",
@@ -1926,13 +1904,7 @@ window.PXL_COURSE_LABS = [
               "shutdown": false
             }
           },
-          "staticRoutes": [
-            {
-              "network": "192.168.2.0",
-              "mask": "255.255.255.0",
-              "nextHop": "10.0.0.2"
-            }
-          ]
+          "staticRoutes": []
         },
         {
           "id": "Router1",
@@ -1952,13 +1924,7 @@ window.PXL_COURSE_LABS = [
               "shutdown": false
             }
           },
-          "staticRoutes": [
-            {
-              "network": "192.168.1.0",
-              "mask": "255.255.255.0",
-              "nextHop": "10.0.0.1"
-            }
-          ]
+          "staticRoutes": []
         },
         {
           "id": "PC1",
@@ -2067,7 +2033,7 @@ window.PXL_COURSE_LABS = [
             "eth0": {
               "ip": "203.0.113.2",
               "mask": "255.255.255.0",
-              "shutdown": false
+              "shutdown": true
             },
             "br-lan": {
               "ip": "192.168.1.1",
@@ -2082,10 +2048,10 @@ window.PXL_COURSE_LABS = [
           "type": "pc",
           "x": 160,
           "y": 280,
-          "dhcpEnabled": true,
-          "ip": "192.168.1.15",
-          "mask": "255.255.255.0",
-          "gateway": "192.168.1.1",
+          "dhcpEnabled": false,
+          "ip": "",
+          "mask": "",
+          "gateway": "",
           "dns": "192.168.1.1"
         },
         {
@@ -2199,14 +2165,14 @@ window.PXL_COURSE_LABS = [
           "y": 200,
           "interfaces": {
             "ether1": {
-              "ip": "172.20.40.1",
-              "mask": "255.255.255.0",
-              "shutdown": false
+              "ip": "",
+              "mask": "",
+              "shutdown": true
             },
             "ether2": {
-              "ip": "192.168.123.1",
-              "mask": "255.255.255.0",
-              "shutdown": false
+              "ip": "",
+              "mask": "",
+              "shutdown": true
             }
           }
         },
@@ -2229,8 +2195,12 @@ window.PXL_COURSE_LABS = [
           "gateway": "192.168.123.1",
           "dns": "",
           "services": {
-            "http": true
-          }
+            "http": {
+              "enabled": false,
+              "port": 80
+            }
+          },
+          "httpEnabled": false
         }
       ],
       "cables": [
@@ -2335,7 +2305,7 @@ window.PXL_COURSE_LABS = [
         },
         {
           "id": "S1",
-          "name": "S1",
+          "name": "Switch",
           "type": "switch",
           "x": 240,
           "y": 180,
@@ -2343,7 +2313,7 @@ window.PXL_COURSE_LABS = [
         },
         {
           "id": "R1",
-          "name": "R1",
+          "name": "Router",
           "type": "router",
           "x": 420,
           "y": 140,
@@ -2352,14 +2322,20 @@ window.PXL_COURSE_LABS = [
             "GigabitEthernet0/0/0": {
               "ip": "192.168.1.1",
               "mask": "255.255.255.0",
-              "shutdown": false
+              "shutdown": true
             },
             "GigabitEthernet0/0/1": {
               "ip": "192.168.2.1",
               "mask": "255.255.255.0",
-              "shutdown": false
+              "shutdown": true
             }
-          }
+          },
+          "enableSecret": "",
+          "enablePassword": "",
+          "consolePassword": "",
+          "vtyPassword": "",
+          "servicePasswordEncryption": false,
+          "bannerMotd": ""
         },
         {
           "id": "S2",

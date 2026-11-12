@@ -16,17 +16,19 @@
         "x": 160,
         "y": 200,
         "dhcpEnabled": false,
-        "ip": "192.168.1.50",
-        "mask": "255.255.255.0",
+        "ip": "",
+        "mask": "",
         "gateway": "",
-        "dns": ""
+        "dns": "",
+        "dnsRecords": []
       },
       {
         "id": "Switch-Lab",
         "name": "Switch-Lab",
         "type": "switch",
         "x": 360,
-        "y": 200
+        "y": 200,
+        "dnsRecords": []
       },
       {
         "id": "Labo-Server",
@@ -43,18 +45,7 @@
           "http": true,
           "dns": true
         },
-        "dnsRecords": [
-          {
-            "name": "www.labo.local",
-            "type": "A",
-            "ip": "192.168.1.10"
-          },
-          {
-            "name": "ns1.labo.local",
-            "type": "A",
-            "ip": "192.168.1.10"
-          }
-        ]
+        "dnsRecords": []
       }
     ],
     "cables": [
