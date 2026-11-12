@@ -114,7 +114,16 @@ class CablingEngine {
     list.className = 'pt-popover-list';
 
     const sim = window.PXLNetworkSim;
-    let ports = Object.keys(dev.interfaces);
+    let ports = Object.keys(dev.interfaces).filter(p => {
+      const lower = p.toLowerCase();
+      if (lower.startsWith('vlan') || lower.startsWith('loopback') || lower.startsWith('null')) return false;
+      const isConsoleType = (p === 'Console' || p === 'Aux' || p === 'RS 232' || p === 'USB0');
+      if (this.activeCableType === 'console') {
+        return isConsoleType;
+      } else {
+        return !isConsoleType;
+      }
+    });
 
     if (this.activeCableType === 'console') {
       const isConsoleType = (p) => p === 'Console' || p === 'Aux' || p === 'RS 232' || p === 'USB0';
@@ -168,6 +177,181 @@ class CablingEngine {
       this.popoverEl.remove();
       this.popoverEl = null;
     }
+  }
+
+  /**
+   * Detaches one end of a cable and initiates interactive rubberband reconnection
+   * to any other device/port on the workspace canvas.
+   */
+  detachAndReconnect(cableId, side) {
+    const sim = window.PXLNetworkSim;
+    if (!sim) return;
+    const cable = sim.cables.find(c => c.id === cableId);
+    if (!cable) return;
+
+    this.closePortPopover();
+
+    // Determine the fixed anchor end and the detached end
+    const fixedDevId = (side === 'from') ? cable.toDevice : cable.fromDevice;
+    const fixedPortName = (side === 'from') ? cable.toPort : cable.fromPort;
+    const detachedDevId = (side === 'from') ? cable.fromDevice : cable.toDevice;
+    const detachedPortName = (side === 'from') ? cable.fromPort : cable.toPort;
+    const cableType = cable.type || 'straight';
+
+    // Remove the existing cable
+    sim.removeCable(cableId);
+
+    // Anchor the connection from the fixed side
+    this.pendingConnection = {
+      fromDevId: fixedDevId,
+      fromPortName: fixedPortName,
+      type: cableType
+    };
+    this.activeCableType = cableType;
+    if (this.workspace) {
+      this.workspace.activeTool = 'cable';
+      if (this.workspace.canvas) {
+        this.workspace.canvas.style.cursor = 'crosshair';
+      }
+      this.workspace.render();
+    }
+
+    const fixedDev = sim.devices[fixedDevId];
+    const detachedDev = sim.devices[detachedDevId];
+    if (window.PXLApp) {
+      window.PXLApp.showToast(`🔌 Kabel losgemaakt van ${detachedDev?.hostname || detachedDevId} [${detachedPortName}]! Klik op een apparaat om opnieuw aan te sluiten.`);
+      window.PXLApp.triggerScoreUpdate();
+    }
+  }
+
+  /**
+   * Shows an interactive action popover for a cable endpoint or cable body,
+   * allowing direct port switching, detaching, or disconnecting.
+   */
+  showCableActionPopover(cable, side = 'from', screenX = 200, screenY = 200) {
+    this.closePortPopover();
+    const sim = window.PXLNetworkSim;
+    if (!sim || !cable) return;
+
+    const dev = (side === 'from') ? sim.devices[cable.fromDevice] : sim.devices[cable.toDevice];
+    const peerDev = (side === 'from') ? sim.devices[cable.toDevice] : sim.devices[cable.fromDevice];
+    const curPort = (side === 'from') ? cable.fromPort : cable.toPort;
+    const peerPort = (side === 'from') ? cable.toPort : cable.fromPort;
+
+    if (!dev || !peerDev) return;
+
+    // Available ports on this device matching the cable type (excluding current port)
+    const availablePorts = sim.getAvailablePorts(dev.id, null, cable.type).filter(p => p !== curPort);
+
+    const pop = document.createElement('div');
+    pop.className = 'pt-cable-popover';
+
+    // Position within viewport
+    const popW = 290;
+    const popH = 260;
+    let posX = screenX + 12;
+    let posY = screenY - 20;
+    if (posX + popW > window.innerWidth - 12) posX = Math.max(12, screenX - popW - 12);
+    if (posY + popH > window.innerHeight - 12) posY = Math.max(12, window.innerHeight - popH - 12);
+
+    pop.style.left = `${posX}px`;
+    pop.style.top = `${posY}px`;
+
+    pop.innerHTML = `
+      <div class="pt-cable-popover-header">
+        <span class="pt-cable-popover-title">🔌 Kabelverbinding Beheren</span>
+        <button class="pt-cable-popover-close" title="Sluiten">&times;</button>
+      </div>
+
+      <div class="pt-cable-popover-info">
+        <div><strong>Geselecteerd:</strong> <span style="color:#0284c7; font-weight:bold;">${dev.hostname}</span> [${curPort}]</div>
+        <div><strong>Verbonden met:</strong> <span style="color:#10b981; font-weight:bold;">${peerDev.hostname}</span> [${peerPort}]</div>
+        <div style="font-size:10px; color:#64748b; margin-top:2px;">Type: <strong>${cable.type.toUpperCase()}</strong> | Status: <strong>${sim.isLinkUp(dev.id, curPort) ? '🟢 UP' : '🔴 DOWN'}</strong></div>
+      </div>
+
+      <div class="pt-cable-popover-section" style="display:flex; flex-direction:column; gap:6px;">
+        <label style="font-size:11px; font-weight:600; color:#334155;">Wissel poort op ${dev.hostname}:</label>
+        ${availablePorts.length > 0 ? `
+          <div style="display:flex; gap:6px;">
+            <select class="pt-input pt-cable-port-select" style="flex:1; font-size:11px; padding:4px 6px;">
+              ${availablePorts.map(p => `<option value="${p}">${p}</option>`).join('')}
+            </select>
+            <button class="pt-btn pt-btn-primary pt-btn-sm pt-btn-reconnect" style="white-space:nowrap;">
+              Wissel
+            </button>
+          </div>
+        ` : `
+          <div style="font-size:11px; color:#94a3b8; font-style:italic;">Geen andere vrije poorten op dit toestel</div>
+        `}
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:6px; margin-top:4px; border-top:1px solid #f1f5f9; padding-top:8px;">
+        <button class="pt-btn pt-btn-secondary pt-btn-sm pt-btn-move" style="width:100%; justify-content:center; font-size:11px;">
+          🔀 Verplaats naar ander toestel...
+        </button>
+        <button class="pt-btn pt-btn-secondary pt-btn-sm pt-btn-disconnect" style="width:100%; justify-content:center; color:#ef4444; border-color:#fca5a5; font-size:11px;">
+          ✂️ Kabel loskoppelen (verwijderen)
+        </button>
+      </div>
+    `;
+
+    // Bind event handlers
+    const closeBtn = pop.querySelector('.pt-cable-popover-close');
+    if (closeBtn) closeBtn.onclick = (e) => { e.stopPropagation(); this.closePortPopover(); };
+
+    const reconnectBtn = pop.querySelector('.pt-btn-reconnect');
+    if (reconnectBtn) {
+      reconnectBtn.onclick = (e) => {
+        e.stopPropagation();
+        const select = pop.querySelector('.pt-cable-port-select');
+        const newPort = select ? select.value : null;
+        if (newPort) {
+          sim.reconnectCableEndpoint(cable.id, side, newPort);
+          this.closePortPopover();
+          if (this.workspace) this.workspace.render();
+          if (window.PXLApp) {
+            window.PXLApp.showToast(`✅ Kabel op ${dev.hostname} verplaatst naar ${newPort}`);
+            window.PXLApp.triggerScoreUpdate();
+          }
+        }
+      };
+    }
+
+    const moveBtn = pop.querySelector('.pt-btn-move');
+    if (moveBtn) {
+      moveBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.detachAndReconnect(cable.id, side);
+      };
+    }
+
+    const disconnectBtn = pop.querySelector('.pt-btn-disconnect');
+    if (disconnectBtn) {
+      disconnectBtn.onclick = (e) => {
+        e.stopPropagation();
+        sim.removeCable(cable.id);
+        this.closePortPopover();
+        if (this.workspace) this.workspace.render();
+        if (window.PXLApp) {
+          window.PXLApp.showToast(`✂️ Kabel losgekoppeld tussen ${dev.hostname} en ${peerDev.hostname}`);
+          window.PXLApp.triggerScoreUpdate();
+        }
+      };
+    }
+
+    // Dismiss popover when clicking anywhere else outside
+    const outsideClickListener = (e) => {
+      if (!pop.contains(e.target)) {
+        this.closePortPopover();
+        document.removeEventListener('mousedown', outsideClickListener);
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener('mousedown', outsideClickListener);
+    }, 50);
+
+    document.body.appendChild(pop);
+    this.popoverEl = pop;
   }
 }
 

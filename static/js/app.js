@@ -606,13 +606,20 @@ class PXLNetSimApp {
             <span>${dev.model} Series Integrated Services Device</span>
           </div>
           <div class="pt-faceplate-ports">
-            ${Object.keys(dev.interfaces).map(p => `
-              <div class="pt-chassis-port">
-                <div class="pt-port-led ${this.sim.isLinkUp(dev.id, p) ? 'green' : 'amber'}"></div>
-                <div class="pt-port-jack"></div>
-                <span class="pt-port-name">${p.replace('GigabitEthernet', 'Gi').replace('FastEthernet', 'Fa').replace('Serial', 'Se')}</span>
-              </div>
-            `).join('')}
+            ${Object.keys(dev.interfaces).map(p => {
+              const cable = this.sim.getCableOnPort(dev.id, p);
+              const peer = cable ? (cable.fromDevice === dev.id ? this.sim.devices[cable.toDevice] : this.sim.devices[cable.fromDevice]) : null;
+              const peerPort = cable ? (cable.fromDevice === dev.id ? cable.toPort : cable.fromPort) : '';
+              const isUp = this.sim.isLinkUp(dev.id, p);
+              const tooltip = cable ? `${p}: Aangesloten op ${peer?.hostname || 'Toestel'} [${peerPort}] (Klik om te beheren)` : `${p}: Niet aangesloten (Klik om kabel aan te sluiten)`;
+              return `
+                <div class="pt-chassis-port" title="${tooltip}" style="cursor: pointer;" onclick="window.PXLApp.switchDeviceModalTab('config'); window.PXLApp.selectConfigPort('${p}');">
+                  <div class="pt-port-led ${isUp ? 'green' : (cable ? 'amber' : 'off')}"></div>
+                  <div class="pt-port-jack ${cable ? 'plugged' : ''}"></div>
+                  <span class="pt-port-name">${p.replace('GigabitEthernet', 'Gi').replace('FastEthernet', 'Fa').replace('Serial', 'Se')}${cable ? ' 🔌' : ''}</span>
+                </div>
+              `;
+            }).join('')}
           </div>
         </div>
 
@@ -674,9 +681,15 @@ class PXLNetSimApp {
       <div class="pt-config-layout">
         <div class="pt-config-sidebar">
           <h4>Interface Lijst</h4>
-          ${Object.keys(dev.interfaces).map(p => `
-            <button class="pt-sidebar-port-btn" onclick="window.PXLApp.selectConfigPort('${p}')">${p}</button>
-          `).join('')}
+          ${Object.keys(dev.interfaces).map(p => {
+            const hasCable = Boolean(this.sim.getCableOnPort(dev.id, p));
+            return `
+              <button class="pt-sidebar-port-btn" style="display:flex; justify-content:space-between; align-items:center;" onclick="window.PXLApp.selectConfigPort('${p}')">
+                <span>${p}</span>
+                <span style="font-size: 10px;">${hasCable ? '🔌' : '⚪'}</span>
+              </button>
+            `;
+          }).join('')}
         </div>
         <div class="pt-config-body" id="configPortEditor">
           <h4>Algemene Instellingen</h4>
@@ -806,8 +819,57 @@ class PXLNetSimApp {
       return;
     }
 
+    const cable = this.sim.getCableOnPort(dev.id, portName);
+    const peer = cable ? (cable.fromDevice === dev.id ? this.sim.devices[cable.toDevice] : this.sim.devices[cable.fromDevice]) : null;
+    const peerPort = cable ? (cable.fromDevice === dev.id ? cable.toPort : cable.fromPort) : null;
+    const freePorts = this.sim.getAvailablePorts(dev.id, null, cable ? cable.type : 'straight').filter(p => p !== portName);
+
     editor.innerHTML = `
       <h4>Interface: ${portName}</h4>
+
+      <!-- Physical Cable Connection Management -->
+      <div class="pt-cable-interface-box" style="margin-bottom: 15px; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px;">
+        <div style="font-weight: 600; font-size: 12px; margin-bottom: 8px; color: #38bdf8; display: flex; align-items: center; justify-content: space-between;">
+          <span>🔌 Kabelverbinding / Bekabeling</span>
+          ${cable ? `<span class="pt-badge" style="background:#0284c7; color:#fff; font-size:10px; padding:2px 6px; border-radius:3px;">${cable.type.toUpperCase()}</span>` : ''}
+        </div>
+
+        ${cable ? `
+          <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 10px; line-height: 1.5;">
+            Verbonden met: <strong style="color: #4ade80;">${peer ? peer.hostname : 'Onbekend'}</strong> op poort <strong style="color: #38bdf8;">[${peerPort}]</strong>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">
+              Linkstatus: <strong>${this.sim.isLinkUp(dev.id, portName) ? '🟢 Actief (Up)' : '🔴 Verbroken (Down)'}</strong>
+            </div>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px solid #1e293b; padding-top: 10px;">
+            ${freePorts.length > 0 ? `
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <label style="font-size: 11px; color: #94a3b8;">Wissel poort:</label>
+                <select id="cfgMovePortSelect" class="pt-input" style="font-size: 11px; padding: 3px 6px; width: auto;">
+                  ${freePorts.map(p => `<option value="${p}">${p}</option>`).join('')}
+                </select>
+                <button class="pt-btn pt-btn-primary pt-btn-sm" onclick="window.PXLApp.moveCableToPort('${dev.id}', '${portName}', document.getElementById('cfgMovePortSelect').value)">
+                  Wissel
+                </button>
+              </div>
+            ` : ''}
+            <button class="pt-btn pt-btn-secondary pt-btn-sm" onclick="window.PXLApp.moveCableToOtherDevice('${dev.id}', '${portName}')" title="Maak deze stekker los en prik hem in een ander toestel op het canvas">
+              🔀 Naar ander toestel...
+            </button>
+            <button class="pt-btn pt-btn-secondary pt-btn-sm" style="color: #ef4444; border-color: #fca5a5;" onclick="window.PXLApp.disconnectCableFromPort('${dev.id}', '${portName}')">
+              ✂️ Loskoppelen
+            </button>
+          </div>
+        ` : `
+          <div style="font-size: 12px; color: #94a3b8; display: flex; align-items: center; justify-content: space-between;">
+            <span>⚪ Geen fysieke kabel aangesloten op deze poort.</span>
+            <button class="pt-btn pt-btn-primary pt-btn-sm" onclick="window.PXLApp.startCablingFromPort('${dev.id}', '${portName}')">
+              🔌 Kabel aansluiten...
+            </button>
+          </div>
+        `}
+      </div>
+
       <div class="pt-form-group">
         <label>Poort Status:</label>
         <label class="pt-checkbox-label">
@@ -828,6 +890,58 @@ class PXLNetSimApp {
         <input type="text" class="pt-input" value="${intf.description || ''}" onchange="window.PXLApp.updatePortDesc('${portName}', this.value)">
       </div>
     `;
+  }
+
+  disconnectCableFromPort(devId, portName) {
+    const cable = this.sim.getCableOnPort(devId, portName);
+    if (cable) {
+      this.sim.removeCable(cable.id);
+      this.showToast(`✂️ Kabel losgekoppeld van ${portName}`);
+      this.renderPhysicalTab();
+      this.renderConfigTab();
+      this.selectConfigPort(portName);
+      this.canvasWorkspace.render();
+      this.triggerScoreUpdate();
+    }
+  }
+
+  moveCableToPort(devId, oldPortName, newPortName) {
+    if (!newPortName || newPortName === oldPortName) return;
+    const cable = this.sim.getCableOnPort(devId, oldPortName);
+    if (!cable) return;
+    const side = (cable.fromDevice === devId) ? 'from' : 'to';
+    this.sim.reconnectCableEndpoint(cable.id, side, newPortName);
+    this.showToast(`✅ Kabel verplaatst naar ${newPortName}`);
+    this.renderPhysicalTab();
+    this.renderConfigTab();
+    this.selectConfigPort(newPortName);
+    this.canvasWorkspace.render();
+    this.triggerScoreUpdate();
+  }
+
+  moveCableToOtherDevice(devId, portName) {
+    const cable = this.sim.getCableOnPort(devId, portName);
+    if (!cable) return;
+    const side = (cable.fromDevice === devId) ? 'from' : 'to';
+    this.closeDeviceModal();
+    this.canvasWorkspace.cabling.detachAndReconnect(cable.id, side);
+  }
+
+  startCablingFromPort(devId, portName) {
+    this.closeDeviceModal();
+    const cabling = this.canvasWorkspace.cabling;
+    cabling.pendingConnection = {
+      fromDevId: devId,
+      fromPortName: portName,
+      type: 'auto'
+    };
+    cabling.activeCableType = 'auto';
+    this.canvasWorkspace.activeTool = 'cable';
+    if (this.canvasWorkspace.canvas) {
+      this.canvasWorkspace.canvas.style.cursor = 'crosshair';
+    }
+    this.showToast(`🔌 Kabel aangesloten op ${portName}. Klik op het bestemmingsapparaat op het canvas.`);
+    this.canvasWorkspace.render();
   }
 
   updateWirelessParam(key, val) {

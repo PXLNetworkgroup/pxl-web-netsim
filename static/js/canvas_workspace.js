@@ -33,6 +33,7 @@ class CanvasWorkspace {
     this.flyingPackets = [];
     this.animating = false;
     this.hoveredDevice = null;
+    this.hoveredEndpoint = null;
 
     // Cabling Engine
     this.cabling = new CablingEngine(this);
@@ -68,6 +69,7 @@ class CanvasWorkspace {
 
   initEventListeners() {
     this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+    this.canvas.addEventListener('contextmenu', (e) => this.handleContextMenu(e));
     window.addEventListener('mousemove', (e) => this.handleMouseMove(e));
     window.addEventListener('mouseup', (e) => this.handleMouseUp(e));
     this.canvas.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
@@ -235,6 +237,33 @@ class CanvasWorkspace {
     }
 
     // 4. SELECT / MOVE TOOL
+    if (this.activeTool === 'select') {
+      const clickedEndpoint = this.getCableEndpointAt(pos.x, pos.y);
+      if (clickedEndpoint) {
+        if (this.cabling) {
+          this.cabling.showCableActionPopover(clickedEndpoint.cable, clickedEndpoint.side, e.clientX, e.clientY);
+        }
+        return;
+      }
+
+      const clickedCable = this.getCableAt(pos.x, pos.y);
+      if (clickedCable && !clickedDev) {
+        if (this.cabling) {
+          const sim = window.PXLNetworkSim;
+          const devA = sim?.devices[clickedCable.fromDevice];
+          const devB = sim?.devices[clickedCable.toDevice];
+          let closerSide = 'from';
+          if (devA && devB) {
+            const distA = Math.hypot(pos.x - (devA.x + 35), pos.y - (devA.y + 35));
+            const distB = Math.hypot(pos.x - (devB.x + 35), pos.y - (devB.y + 35));
+            if (distB < distA) closerSide = 'to';
+          }
+          this.cabling.showCableActionPopover(clickedCable, closerSide, e.clientX, e.clientY);
+        }
+        return;
+      }
+    }
+
     if (clickedDev) {
       e.preventDefault();
       this.selectedDevice = clickedDev;
@@ -256,6 +285,35 @@ class CanvasWorkspace {
     this.render();
   }
 
+  handleContextMenu(e) {
+    e.preventDefault();
+    const pos = this.screenToCanvas(e.clientX, e.clientY);
+    const clickedEndpoint = this.getCableEndpointAt(pos.x, pos.y);
+    if (clickedEndpoint && this.cabling) {
+      this.cabling.showCableActionPopover(clickedEndpoint.cable, clickedEndpoint.side, e.clientX, e.clientY);
+      return;
+    }
+    const clickedCable = this.getCableAt(pos.x, pos.y);
+    if (clickedCable && this.cabling) {
+      const sim = window.PXLNetworkSim;
+      const devA = sim?.devices[clickedCable.fromDevice];
+      const devB = sim?.devices[clickedCable.toDevice];
+      let closerSide = 'from';
+      if (devA && devB) {
+        const distA = Math.hypot(pos.x - (devA.x + 35), pos.y - (devA.y + 35));
+        const distB = Math.hypot(pos.x - (devB.x + 35), pos.y - (devB.y + 35));
+        if (distB < distA) closerSide = 'to';
+      }
+      this.cabling.showCableActionPopover(clickedCable, closerSide, e.clientX, e.clientY);
+      return;
+    }
+    const clickedDev = this.getDeviceAt(pos.x, pos.y);
+    if (clickedDev && window.PXLApp) {
+      window.PXLApp.openDeviceModal(clickedDev);
+      return;
+    }
+  }
+
   handleMouseMove(e) {
     const pos = this.screenToCanvas(e.clientX, e.clientY);
     this.mouseCanvasPos = pos;
@@ -275,6 +333,8 @@ class CanvasWorkspace {
       this.render();
     } else if (this.activeTool === 'select') {
       const hoverDev = this.getDeviceAt(pos.x, pos.y);
+      const hoverEndpoint = this.getCableEndpointAt(pos.x, pos.y);
+      const hoverCable = (!hoverDev && !hoverEndpoint) ? this.getCableAt(pos.x, pos.y) : null;
 
       // Check hover over flying envelope
       let hoverEnvelope = false;
@@ -293,14 +353,22 @@ class CanvasWorkspace {
         }
       }
 
-      if (hoverEnvelope) {
+      if (hoverEnvelope || hoverEndpoint || hoverCable) {
         this.canvas.style.cursor = 'pointer';
       } else {
         this.canvas.style.cursor = hoverDev ? 'grab' : 'default';
       }
 
+      let needRender = false;
+      if (this.hoveredEndpoint !== hoverEndpoint) {
+        this.hoveredEndpoint = hoverEndpoint;
+        needRender = true;
+      }
       if (this.hoveredDevice !== hoverDev) {
         this.hoveredDevice = hoverDev;
+        needRender = true;
+      }
+      if (needRender) {
         this.render();
       }
     }
@@ -375,6 +443,68 @@ class CanvasWorkspace {
       const x2 = devB.x + 35, y2 = devB.y + 35;
       const dist = this.distToSegment({ x, y }, { x: x1, y: y1 }, { x: x2, y: y2 });
       if (dist < 10) return cable;
+    }
+    return null;
+  }
+
+  /**
+   * Detects if (x, y) is on or near either endpoint's Link LED or port pill badge.
+   * Returns metadata including cable, side ('from'|'to'), device, and port name.
+   */
+  getCableEndpointAt(x, y) {
+    const sim = window.PXLNetworkSim;
+    if (!sim) return null;
+
+    for (const cable of sim.cables) {
+      const devA = sim.devices[cable.fromDevice];
+      const devB = sim.devices[cable.toDevice];
+      if (!devA || !devB) continue;
+
+      const x1 = devA.x + 35, y1 = devA.y + 35;
+      const x2 = devB.x + 35, y2 = devB.y + 35;
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const dist = Math.hypot(dx, dy) || 1;
+      const nx = -dy / dist;
+      const ny = dx / dist;
+
+      // Endpoint A (fromDevice / fromPort)
+      const ledAx = x1 + dx * 0.22;
+      const ledAy = y1 + dy * 0.22;
+      const badgeAx = ledAx + nx * 16;
+      const badgeAy = ledAy + ny * 16;
+
+      if (Math.hypot(x - ledAx, y - ledAy) <= 15 || Math.hypot(x - badgeAx, y - badgeAy) <= 18) {
+        return {
+          cable,
+          side: 'from',
+          device: devA,
+          port: cable.fromPort,
+          peerDevice: devB,
+          peerPort: cable.toPort,
+          x: ledAx,
+          y: ledAy
+        };
+      }
+
+      // Endpoint B (toDevice / toPort)
+      const ledBx = x2 - dx * 0.22;
+      const ledBy = y2 - dy * 0.22;
+      const badgeBx = ledBx - nx * 16;
+      const badgeBy = ledBy - ny * 16;
+
+      if (Math.hypot(x - ledBx, y - ledBy) <= 15 || Math.hypot(x - badgeBx, y - badgeBy) <= 18) {
+        return {
+          cable,
+          side: 'to',
+          device: devB,
+          port: cable.toPort,
+          peerDevice: devA,
+          peerPort: cable.fromPort,
+          x: ledBx,
+          y: ledBy
+        };
+      }
     }
     return null;
   }
@@ -697,6 +827,19 @@ class CanvasWorkspace {
 
       this.drawLinkLed(ctx, x1, y1, x2, y2, 0.22, colorA, cable.fromPort);
       this.drawLinkLed(ctx, x2, y2, x1, y1, 0.22, colorB, cable.toPort);
+
+      // Highlight hovered cable endpoint
+      if (this.hoveredEndpoint && this.hoveredEndpoint.cable.id === cable.id) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(this.hoveredEndpoint.x, this.hoveredEndpoint.y, 9, 0, Math.PI * 2);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#0284c7';
+        ctx.shadowBlur = 8;
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // Draw Packet Tracer clock icon on DCE end of serial cable
       if (cable.type === 'serial') {

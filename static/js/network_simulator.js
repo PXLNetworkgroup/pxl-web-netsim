@@ -91,6 +91,41 @@ class NetworkSimulator {
     this.cables = this.cables.filter(c => c.id !== cableId);
   }
 
+  disconnectCable(cableId) {
+    this.removeCable(cableId);
+  }
+
+  reconnectCableEndpoint(cableId, side, newPort) {
+    const cable = this.cables.find(c => c.id === cableId);
+    if (!cable) return false;
+    if (side === 'from') {
+      this.removeCableFromPort(cable.fromDevice, newPort);
+      cable.fromPort = newPort;
+    } else if (side === 'to') {
+      this.removeCableFromPort(cable.toDevice, newPort);
+      cable.toPort = newPort;
+    }
+    return true;
+  }
+
+  getAvailablePorts(deviceId, currentPort = null, cableType = null) {
+    const dev = this.devices[deviceId];
+    if (!dev || !dev.interfaces) return [];
+    return Object.keys(dev.interfaces).filter(p => {
+      if (p.startsWith('Wireless')) return false;
+      const lower = p.toLowerCase();
+      if (lower.startsWith('vlan') || lower.startsWith('loopback') || lower.startsWith('null')) return false;
+      const isConsole = (p === 'Console' || p === 'Aux' || p === 'RS 232' || p === 'USB0');
+      if (cableType === 'console') {
+        if (!isConsole) return false;
+      } else if (cableType) {
+        if (isConsole) return false;
+      }
+      if (currentPort && p === currentPort) return true;
+      return !this.getCableOnPort(deviceId, p);
+    });
+  }
+
   removeCableFromPort(devId, portName) {
     this.cables = this.cables.filter(c =>
       !( (c.fromDevice === devId && c.fromPort === portName) ||

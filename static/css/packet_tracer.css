@@ -416,6 +416,80 @@ body {
   cursor: pointer;
 }
 
+/* CABLE ACTION POPOVER */
+.pt-cable-popover {
+  position: absolute;
+  z-index: 120;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  padding: 12px;
+  min-width: 260px;
+  max-width: 330px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--pt-font-sans);
+  animation: ptPopFadeIn 0.15s ease-out;
+}
+
+@keyframes ptPopFadeIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.pt-cable-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 6px;
+}
+
+.pt-cable-popover-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pt-cable-popover-close {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.pt-cable-popover-close:hover {
+  color: #ef4444;
+}
+
+.pt-cable-popover-info {
+  font-size: 11px;
+  color: #334155;
+  line-height: 1.5;
+  background: #f8fafc;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border-left: 3px solid #0284c7;
+}
+
+.pt-chassis-port {
+  transition: transform 0.1s ease, background 0.1s ease;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+.pt-chassis-port:hover {
+  background: rgba(2, 132, 199, 0.15);
+  transform: translateY(-1px);
+}
+.pt-port-jack.plugged {
+  background: #0284c7 !important;
+  box-shadow: 0 0 6px #0284c7;
+}
+
 /* SLIDE-OUT RUBRIC PANEL */
 .pt-rubric-side-panel {
   position: fixed;
