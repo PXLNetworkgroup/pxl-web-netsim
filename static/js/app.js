@@ -3953,7 +3953,7 @@ Type 'help', 'ip a', or 'python3' to get started.
       if (tBtn) tBtn.classList.add('active');
       if (sBtn) sBtn.classList.remove('active');
       if (uLabel) uLabel.innerText = 'Docenten Gebruikersnaam:';
-      if (uInput) uInput.placeholder = 'teacher of david';
+      if (uInput) uInput.placeholder = 'Docenten gebruikersnaam...';
     } else {
       if (sBtn) sBtn.classList.add('active');
       if (tBtn) tBtn.classList.remove('active');
