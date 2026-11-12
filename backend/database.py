@@ -209,6 +209,36 @@ def init_db():
     );
     """)
 
+    # Bug reports table: diagnostics, full running configs, topology snapshot and resolution status
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS bug_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        bug_code TEXT UNIQUE NOT NULL,
+        reporter_username TEXT NOT NULL,
+        reporter_name TEXT NOT NULL,
+        reporter_role TEXT NOT NULL DEFAULT 'student',
+        reporter_class TEXT DEFAULT '',
+        exam_id TEXT DEFAULT '',
+        exam_title TEXT DEFAULT '',
+        category TEXT DEFAULT 'general',
+        user_description TEXT NOT NULL,
+        topology_json TEXT NOT NULL DEFAULT '{}',
+        device_configs_json TEXT NOT NULL DEFAULT '{}',
+        browser_info_json TEXT DEFAULT '{}',
+        status TEXT DEFAULT 'open', -- 'open' (🔴 Open) or 'resolved' (🟢 Resolved)
+        resolution_notes TEXT DEFAULT '',
+        resolved_by TEXT DEFAULT '',
+        resolved_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+    _add_column_if_not_exists(cursor, 'bug_reports', 'category', "TEXT DEFAULT 'general'")
+    _add_column_if_not_exists(cursor, 'bug_reports', 'status', "TEXT DEFAULT 'open'")
+    _add_column_if_not_exists(cursor, 'bug_reports', 'resolution_notes', "TEXT DEFAULT ''")
+    _add_column_if_not_exists(cursor, 'bug_reports', 'resolved_by', "TEXT DEFAULT ''")
+    _add_column_if_not_exists(cursor, 'bug_reports', 'resolved_at', "TIMESTAMP")
+
     # System settings table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS system_settings (
@@ -1312,3 +1342,156 @@ def set_system_setting(key: str, value: str):
     """, (key, str(value)))
     conn.commit()
     conn.close()
+
+
+# --- BUG REPORTS MANAGEMENT ---
+
+def generate_bug_code() -> str:
+    """Generates a human-friendly unique bug code like BUG-20261112-A3F8."""
+    import secrets
+    date_str = datetime.now().strftime('%Y%m%d')
+    rand_hex = secrets.token_hex(2).upper()
+    return f"BUG-{date_str}-{rand_hex}"
+
+def create_bug_report(data: dict) -> dict:
+    """
+    Creates and stores a comprehensive bug snapshot in the database.
+    Includes topology, running configurations, device tables, user description, and reporter metadata.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+
+    bug_code = data.get('bug_code') or generate_bug_code()
+    reporter_username = data.get('reporter_username', 'anonymous')
+    reporter_name = data.get('reporter_name', 'Onbekende Gebruiker')
+    reporter_role = data.get('reporter_role', 'student')
+    reporter_class = data.get('reporter_class', '')
+    exam_id = data.get('exam_id', '')
+    exam_title = data.get('exam_title', '')
+    category = data.get('category', 'general')
+    user_description = (data.get('user_description') or '').strip()
+    if not user_description:
+        user_description = "(Geen toelichting ingevoerd door melder)"
+
+    topology_json = json.dumps(data.get('topology', {}))
+    device_configs_json = json.dumps(data.get('device_configs', {}))
+    browser_info_json = json.dumps(data.get('browser_info', {}))
+
+    cursor.execute("""
+        INSERT INTO bug_reports (
+            bug_code, reporter_username, reporter_name, reporter_role, reporter_class,
+            exam_id, exam_title, category, user_description,
+            topology_json, device_configs_json, browser_info_json,
+            status, resolution_notes, resolved_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', '', '')
+    """, (
+        bug_code, reporter_username, reporter_name, reporter_role, reporter_class,
+        exam_id, exam_title, category, user_description,
+        topology_json, device_configs_json, browser_info_json
+    ))
+    conn.commit()
+
+    cursor.execute("SELECT * FROM bug_reports WHERE bug_code = ?", (bug_code,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else {'bug_code': bug_code}
+
+def list_bug_reports(reporter_username: str = None, status_filter: str = None) -> list:
+    """Returns a list of bug reports, optionally filtered by user or status."""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    query = "SELECT id, bug_code, reporter_username, reporter_name, reporter_role, reporter_class, exam_id, exam_title, category, user_description, status, resolution_notes, resolved_by, resolved_at, created_at FROM bug_reports WHERE 1=1"
+    params = []
+
+    if reporter_username:
+        query += " AND reporter_username = ?"
+        params.append(reporter_username)
+
+    if status_filter and status_filter.lower() != 'all':
+        query += " AND status = ?"
+        params.append(status_filter.lower())
+
+    query += " ORDER BY id DESC"
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_bug_report(bug_code: str) -> dict:
+    """Returns the complete bug report including topology and device configurations."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM bug_reports WHERE bug_code = ? OR id = ?", (bug_code, str(bug_code)))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    d = dict(row)
+    try:
+        d['topology'] = json.loads(d['topology_json'])
+    except Exception:
+        d['topology'] = {}
+    try:
+        d['device_configs'] = json.loads(d['device_configs_json'])
+    except Exception:
+        d['device_configs'] = {}
+    try:
+        d['browser_info'] = json.loads(d['browser_info_json'])
+    except Exception:
+        d['browser_info'] = {}
+    return d
+
+def update_bug_report_status(bug_code: str, status: str, resolution_notes: str = None, resolved_by: str = None) -> dict:
+    """Marks a bug report as 'resolved' or 'open', with optional resolution explanation."""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    now_str = datetime.now().isoformat() if status == 'resolved' else None
+
+    if resolution_notes is not None and resolved_by is not None:
+        cursor.execute("""
+            UPDATE bug_reports
+            SET status = ?, resolution_notes = ?, resolved_by = ?, resolved_at = ?
+            WHERE bug_code = ? OR id = ?
+        """, (status, resolution_notes, resolved_by, now_str, bug_code, str(bug_code)))
+    else:
+        cursor.execute("""
+            UPDATE bug_reports
+            SET status = ?, resolved_at = COALESCE(?, resolved_at)
+            WHERE bug_code = ? OR id = ?
+        """, (status, now_str, bug_code, str(bug_code)))
+
+    cnt = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return {'ok': cnt > 0, 'bug_code': bug_code, 'status': status}
+
+def apply_bug_solution(solution_data: dict) -> dict:
+    """
+    Applies an AI or teacher-provided solution JSON back to the database.
+    Updates status to 'resolved' and records the explanation and test instructions.
+    """
+    bug_code = solution_data.get('bug_code')
+    if not bug_code:
+        return {'ok': False, 'error': 'Geen bug_code gevonden in oplossing JSON.'}
+
+    status = solution_data.get('status', 'resolved')
+    resolution_notes = solution_data.get('resolution_notes') or solution_data.get('explanation') or solution_data.get('message', '')
+    test_instr = solution_data.get('test_instructions', '')
+    if test_instr:
+        resolution_notes += f"\n\n[Test Instructie]: {test_instr}"
+
+    resolved_by = solution_data.get('resolved_by', 'AI Assistant')
+    return update_bug_report_status(bug_code, status, resolution_notes, resolved_by)
+
+def delete_bug_report(bug_code: str) -> dict:
+    """Deletes a bug report."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM bug_reports WHERE bug_code = ? OR id = ?", (bug_code, str(bug_code)))
+    cnt = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return {'ok': cnt > 0, 'bug_code': bug_code}
+

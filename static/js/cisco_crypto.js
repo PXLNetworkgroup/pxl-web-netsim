@@ -127,6 +127,23 @@ const IPUtils = {
     if (!this.isValidIp(ipA) || !this.isValidIp(ipB) || !this.isValidIp(mask)) return false;
     const maskInt = this.ipToInt(mask);
     return ((this.ipToInt(ipA) & maskInt) >>> 0) === ((this.ipToInt(ipB) & maskInt) >>> 0);
+  },
+
+  getDefaultMask(ip) {
+    if (!this.isValidIp(ip)) return '255.255.255.0';
+    const firstOctet = parseInt(ip.trim().split('.')[0], 10);
+    if (firstOctet >= 1 && firstOctet <= 126) return '255.0.0.0';     // Class A
+    if (firstOctet >= 128 && firstOctet <= 191) return '255.255.0.0'; // Class B
+    if (firstOctet >= 192 && firstOctet <= 223) return '255.255.255.0'; // Class C
+    return '255.255.255.0';
+  },
+
+  cidrToMask(prefix) {
+    return this.prefixToMask(prefix);
+  },
+
+  getNetworkAddress(ip, mask) {
+    return this.getNetwork(ip, mask);
   }
 };
 

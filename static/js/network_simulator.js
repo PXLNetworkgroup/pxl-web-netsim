@@ -610,8 +610,11 @@ class NetworkSimulator {
               queue.push({ devId: peerDev.id, portName: peer.portName });
             } else {
               // Non-switch end node or router interface
-              const ip = (peerDev.type === 'pc' || peerDev.type === 'laptop' || peerDev.type === 'server') ? peerDev.ip : peerIntf.ip;
-              const mask = (peerDev.type === 'pc' || peerDev.type === 'laptop' || peerDev.type === 'server') ? peerDev.mask : peerIntf.mask;
+              let ip = (peerDev.type === 'pc' || peerDev.type === 'laptop' || peerDev.type === 'server') ? peerDev.ip : peerIntf.ip;
+              let mask = (peerDev.type === 'pc' || peerDev.type === 'laptop' || peerDev.type === 'server') ? peerDev.mask : peerIntf.mask;
+              if (ip && !mask) {
+                mask = (typeof IPUtils !== 'undefined' && IPUtils.getDefaultMask) ? IPUtils.getDefaultMask(ip) : '255.255.255.0';
+              }
               domain.push({
                 devId: peerDev.id,
                 portName: peer.portName,
@@ -1103,6 +1106,10 @@ class NetworkSimulator {
       if ((dev.type === 'switch' || dev.type === 'hpe_switch') && portName === 'Vlan1') {
         if (!myIp) myIp = dev.ip || (dev.hpeConfig && dev.hpeConfig.mgmtIp);
         if (!myMask) myMask = dev.mask || (dev.hpeConfig && dev.hpeConfig.mgmtMask) || '255.255.255.0';
+      }
+
+      if (myIp && !myMask) {
+        myMask = (typeof IPUtils !== 'undefined' && IPUtils.getDefaultMask) ? IPUtils.getDefaultMask(myIp) : '255.255.255.0';
       }
 
       if (myIp && myMask && (!intf.shutdown || portName === 'Vlan1')) {

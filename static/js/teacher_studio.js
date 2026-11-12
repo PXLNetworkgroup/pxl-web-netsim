@@ -73,9 +73,10 @@ class TeacherStudio {
           <button class="pt-tab-btn active" id="tabBtnUsers" onclick="window.PXLApp.teacherStudio.switchTab('users')">👥 1. Studenten & Klassen</button>
           <button class="pt-tab-btn" id="tabBtnScores" onclick="window.PXLApp.teacherStudio.switchTab('scores')">📊 2. Scores & Voortgang</button>
           <button class="pt-tab-btn" id="tabBtnExamMgmt" onclick="window.PXLApp.teacherStudio.switchTab('exam_mgmt')">📋 3. Opdrachten</button>
-          <button class="pt-tab-btn" id="tabBtnGeneral" onclick="window.PXLApp.teacherStudio.switchTab('general')">⚙️ 4. Examen Ontwerpen</button>
-          <button class="pt-tab-btn" id="tabBtnTopology" onclick="window.PXLApp.teacherStudio.switchTab('topology')">📸 5. Topologie Snapshot</button>
-          <button class="pt-tab-btn" id="tabBtnRubric" onclick="window.PXLApp.teacherStudio.switchTab('rubric')">⚡ 6. Rubric & PKA</button>
+          <button class="pt-tab-btn" id="tabBtnTeacherBugs" onclick="window.PXLApp.teacherStudio.switchTab('bugs')">🐞 4. Bugs</button>
+          <button class="pt-tab-btn" id="tabBtnGeneral" onclick="window.PXLApp.teacherStudio.switchTab('general')">⚙️ 5. Examen Ontwerpen</button>
+          <button class="pt-tab-btn" id="tabBtnTopology" onclick="window.PXLApp.teacherStudio.switchTab('topology')">📸 6. Topologie Snapshot</button>
+          <button class="pt-tab-btn" id="tabBtnRubric" onclick="window.PXLApp.teacherStudio.switchTab('rubric')">⚡ 7. Rubric & PKA</button>
         </div>
 
         <div class="pt-studio-content" style="flex: 1; overflow-y: auto; padding: 18px; background: #ffffff;">
@@ -352,7 +353,33 @@ class TeacherStudio {
             </div>
           </div>
 
-          <!-- TAB 4: GENERAL EXAM SETTINGS -->
+          <!-- TAB 4: BUG CENTER -->
+          <div id="studioTabBugs" class="pt-studio-pane" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <div style="display: flex; gap: 8px; align-items: center; flex: 1; min-width: 280px;">
+                <input type="text" id="teacherBugsSearch" placeholder="🔍 Zoek op bug code, student, tekst..." class="pt-input" style="padding: 6px 10px; font-size: 12px; flex: 1;" oninput="window.PXLApp.teacherStudio.filterBugsTable()">
+                <select id="teacherBugsStatusFilter" class="pt-input" style="padding: 6px 10px; font-size: 12px; width: 140px;" onchange="window.PXLApp.teacherStudio.loadBugs()">
+                  <option value="all">Alle Statussen</option>
+                  <option value="open" selected>🔴 Alleen Open</option>
+                  <option value="resolved">🟢 Alleen Opgelost</option>
+                </select>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button class="pt-btn pt-btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="window.PXLApp.teacherStudio.openImportSolutionModal()">
+                  📥 Importeer Oplossing JSON
+                </button>
+                <button class="pt-btn pt-btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="window.PXLApp.teacherStudio.loadBugs()">
+                  🔄 Vernieuwen
+                </button>
+              </div>
+            </div>
+
+            <div id="teacherBugsContainer" style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;">
+              <div style="padding: 30px; text-align: center; color: #64748b;">⏳ Bugs laden...</div>
+            </div>
+          </div>
+
+          <!-- TAB 5: GENERAL EXAM SETTINGS -->
           <div id="studioTabGeneral" class="pt-studio-pane" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
               <div>
@@ -439,10 +466,13 @@ class TeacherStudio {
                 <input type="text" id="studioPkaTitleInput" class="pt-input" placeholder="bv. PXL SNE - Packet Tracer Routing Lab 1" style="width: 100%; box-sizing: border-box; font-size: 12px; margin-top: 2px;">
               </div>
 
-              <div style="display: flex; gap: 10px; align-items: center;">
-                <input type="file" id="studioPkaFileInput" accept=".pka,.pkt" class="pt-file-input" style="font-size: 11px; flex: 1;">
-                <button class="pt-btn pt-btn-primary" style="padding: 6px 14px; font-size: 12px; background: #0284c7;" onclick="window.PXLApp.teacherStudio.uploadPkaFile()">
-                  💾 Converteer & Opslaan in Database
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <input type="file" id="studioPkaFileInput" accept=".pka,.pkt" class="pt-file-input" style="font-size: 11px; flex: 1; min-width: 220px;">
+                <button class="pt-btn pt-btn-primary" style="padding: 7px 15px; font-size: 12px; background: #0284c7; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;" onclick="window.PXLApp.teacherStudio.uploadPkaFile(false)" title="Lees alle running configs uit en vink zelf af welke instellingen punten opleveren">
+                  🎯 Analyseer &amp; Open Rubric Generator
+                </button>
+                <button class="pt-btn pt-btn-secondary" style="padding: 7px 12px; font-size: 11.5px;" onclick="window.PXLApp.teacherStudio.uploadPkaFile(true)" title="Alles direct converteren zonder afvinkfilter">
+                  ⚡ Snel Converteren
                 </button>
               </div>
               <div id="studioPkaStatus" class="pt-status-msg" style="margin-top: 6px; font-size: 12px;"></div>
@@ -521,6 +551,7 @@ class TeacherStudio {
       'users': { pane: 'studioTabUsers', btn: 'tabBtnUsers' },
       'scores': { pane: 'studioTabScores', btn: 'tabBtnScores' },
       'exam_mgmt': { pane: 'studioTabExamMgmt', btn: 'tabBtnExamMgmt' },
+      'bugs': { pane: 'studioTabBugs', btn: 'tabBtnTeacherBugs' },
       'general': { pane: 'studioTabGeneral', btn: 'tabBtnGeneral' },
       'topology': { pane: 'studioTabTopology', btn: 'tabBtnTopology' },
       'rubric': { pane: 'studioTabRubric', btn: 'tabBtnRubric' }
@@ -545,6 +576,8 @@ class TeacherStudio {
       this.scoresRefreshTimer = setInterval(() => this.loadScoresTable(), 10000);
     } else if (tabKey === 'exam_mgmt') {
       this.loadExamMgmtTab();
+    } else if (tabKey === 'bugs') {
+      this.loadBugs();
     }
   }
 
@@ -2078,57 +2111,573 @@ class TeacherStudio {
     this.app.showToast('✅ Examen en rubric succesvol geactiveerd in de sessie!');
   }
 
-  async uploadPkaFile() {
+  async uploadPkaFile(directConvert = false) {
     const fileInput = document.getElementById('studioPkaFileInput');
     const titleInput = document.getElementById('studioPkaTitleInput');
     const statusEl = document.getElementById('studioPkaStatus');
     if (!fileInput.files || fileInput.files.length === 0) {
-      statusEl.innerText = '⚠️ Selecteer eerst een .pka of .pkt bestand.';
-      statusEl.style.color = '#f59e0b';
+      if (statusEl) {
+        statusEl.innerText = '⚠️ Selecteer eerst een .pka of .pkt bestand.';
+        statusEl.style.color = '#f59e0b';
+      }
+      alert('Selecteer eerst een .pka of .pkt bestand.');
       return;
     }
 
     const title = titleInput ? titleInput.value.trim() : '';
-    if (!title) {
-      statusEl.innerHTML = '<span style="color: #ef4444; font-weight: bold;">⚠️ Examen/opdracht naam is verplicht! Vul hierboven een naam in om op te slaan in de database.</span>';
-      if (titleInput) {
-        titleInput.focus();
-        titleInput.style.borderColor = '#ef4444';
+    const file = fileInput.files[0];
+
+    if (directConvert) {
+      if (!title) {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444; font-weight: bold;">⚠️ Examen/opdracht naam is verplicht bij direct opslaan!</span>';
+        alert('Examen/opdracht naam is verplicht! Geef een naam op voor dit Packet Tracer bestand.');
+        return;
       }
-      alert('Examen/opdracht naam is verplicht! Geef een naam op voor dit Packet Tracer bestand.');
+      if (statusEl) {
+        statusEl.innerText = `Decoderen van ${file.name} met Twofish crypto & opslaan in database...`;
+        statusEl.style.color = '#38bdf8';
+      }
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('title', title);
+      formData.append('save_to_db', 'true');
+
+      try {
+        const response = await fetch('/api/convert-pka', {
+          method: 'POST',
+          body: formData
+        });
+        if (!response.ok) {
+          const errJson = await response.json().catch(() => ({}));
+          throw new Error(errJson.error || `Server fout (${response.status})`);
+        }
+        const examData = await response.json();
+        this.examDraft = examData;
+        if (!this.examDraft.initialTopology && examData.topology) {
+          this.examDraft.initialTopology = examData.topology;
+        }
+        this.populateStudioFields();
+        if (statusEl) {
+          statusEl.innerHTML = `<span style="color: #16a34a; font-weight: bold;">✅ Examen '${title}' succesvol gedecodeerd & opgeslagen in SQLite database! Direct toewijsbaar in Tab 3 Opdrachten.</span>`;
+        }
+        this.app.showToast(`💾 Examen '${title}' opgeslagen in database!`);
+      } catch (err) {
+        if (statusEl) {
+          statusEl.innerText = `❌ Fout bij converteren: ${err.message}`;
+          statusEl.style.color = '#ef4444';
+        }
+      }
+    } else {
+      // Interactive Rubric Generator
+      if (statusEl) {
+        statusEl.innerHTML = `<span style="color: #0284c7; font-weight: 600;">⏳ Running-configs en instellingen analyseren van ${file.name}...</span>`;
+      }
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const response = await fetch('/api/pka/analyze', {
+          method: 'POST',
+          body: formData
+        });
+        if (!response.ok) {
+          const errJson = await response.json().catch(() => ({}));
+          throw new Error(errJson.error || `Server fout (${response.status})`);
+        }
+        const analysis = await response.json();
+        if (title) {
+          analysis.title = title;
+        }
+        if (statusEl) {
+          statusEl.innerHTML = `<span style="color: #16a34a; font-weight: bold;">✅ ${analysis.configurableItems.length} instellingen gedetecteerd. Generator geopend!</span>`;
+        }
+        this.openPkaRubricGeneratorModal(analysis);
+      } catch (err) {
+        if (statusEl) {
+          statusEl.innerText = `❌ Fout bij analyseren: ${err.message}`;
+          statusEl.style.color = '#ef4444';
+        }
+        alert('Fout bij analyseren: ' + err.message);
+      }
+    }
+  }
+
+  openPkaRubricGeneratorModal(analysis) {
+    this.currentPkaAnalysis = analysis;
+    this.pkaSelectedItems = new Set(analysis.configurableItems.map(i => i.id));
+    this.pkaCustomPoints = {};
+    analysis.configurableItems.forEach(it => {
+      this.pkaCustomPoints[it.id] = it.points || 5;
+    });
+    this.pkaAssignmentType = 'lab';
+    this.pkaInstructionsTab = 'preview';
+    this.pkaCustomInstructions = analysis.suggestedInstructions || '';
+
+    let modal = document.getElementById('pkaRubricGeneratorModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'pkaRubricGeneratorModal';
+      modal.className = 'pt-modal-overlay';
+      document.body.appendChild(modal);
+    }
+
+    const uniqueDevices = [...new Set(analysis.configurableItems.map(i => i.deviceId))];
+
+    modal.innerHTML = `
+      <div class="pt-device-dialog" style="width: 1150px; max-width: 96vw; height: 90vh; display: flex; flex-direction: column;">
+        <div class="pt-device-header" style="background: #0f172a; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 22px;">📦</span>
+            <div>
+              <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Cisco PKA/PKT Afvinkbare Rubric &amp; Opdracht Generator</h3>
+              <div style="font-size: 11px; color: #94a3b8;">Vink af welke instellingen punten opleveren. Aangevinkte items worden gewist uit de starttopologie van de student.</div>
+            </div>
+          </div>
+          <button class="pt-btn-close" onclick="window.PXLApp.teacherStudio.closePkaRubricGeneratorModal()" style="color: #fff; font-size: 18px;">✕</button>
+        </div>
+
+        <!-- CONFIGURATION TOP BAR -->
+        <div style="padding: 10px 18px; background: #f8fafc; border-bottom: 1px solid #cbd5e1; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 260px;">
+            <label style="font-size: 11px; font-weight: 700; color: #0369a1; display: block; margin-bottom: 2px;">Titel van het Lab / Examen:</label>
+            <input type="text" id="pkaGenTitleInput" class="pt-input" value="${analysis.title}" style="width: 100%; box-sizing: border-box; font-weight: 700; font-size: 12px; padding: 6px 10px;">
+          </div>
+
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #0369a1; display: block; margin-bottom: 2px;">Type Opdracht:</label>
+            <div style="display: flex; gap: 10px; align-items: center; background: #fff; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 4px; font-size: 11.5px;">
+              <label style="cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600;">
+                <input type="radio" name="pkaGenTypeRadio" value="lab" checked onchange="window.PXLApp.teacherStudio.onPkaTypeChange('lab')"> 🧪 Lab (Oefenlab)
+              </label>
+              <label style="cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600;">
+                <input type="radio" name="pkaGenTypeRadio" value="test" onchange="window.PXLApp.teacherStudio.onPkaTypeChange('test')"> 📝 Test (Examen)
+              </label>
+            </div>
+          </div>
+
+          <div id="pkaGenPasswordGroup" style="display: none;">
+            <label style="font-size: 11px; font-weight: 700; color: #b45309; display: block; margin-bottom: 2px;">🔑 Test Wachtwoord:</label>
+            <input type="text" id="pkaGenPasswordInput" class="pt-input" placeholder="Optioneel (bv. PXL2026!)" style="width: 140px; font-size: 11.5px; padding: 5px 8px;">
+          </div>
+
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #0369a1; display: block; margin-bottom: 2px;">⏱️ Tijdslimiet:</label>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <input type="number" id="pkaGenTimeLimit" value="80" min="5" max="300" class="pt-input" style="width: 65px; font-size: 11.5px; text-align: center; padding: 5px;">
+              <span style="font-size: 11px; color: #64748b;">min.</span>
+            </div>
+          </div>
+
+          <div style="margin-left: auto;">
+            <span id="pkaGenScoreBadge" style="background: #e0f2fe; color: #0369a1; padding: 5px 12px; border-radius: 14px; font-weight: 800; font-size: 12.5px; border: 1px solid #bae6fd; display: inline-flex; align-items: center; gap: 5px;">
+              🎯 Score: 100 pt
+            </span>
+          </div>
+        </div>
+
+        <!-- MAIN 2-COLUMN WORKSPACE -->
+        <div style="flex: 1; display: flex; overflow: hidden; background: #fff;">
+          <!-- LEFT COLUMN: AFVINKBARE INSTELLINGEN -->
+          <div style="width: 55%; display: flex; flex-direction: column; border-right: 1.5px solid #cbd5e1;">
+            <div style="padding: 8px 14px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <strong style="font-size: 12px; color: #0f172a;">⚙️ Configuraties van Apparaten (${analysis.configurableItems.length})</strong>
+                <select id="pkaGenDevFilter" onchange="window.PXLApp.teacherStudio.filterPkaGeneratorItems()" class="pt-input" style="font-size: 11px; padding: 3px 6px;">
+                  <option value="all">Alle Apparaten (${uniqueDevices.length})</option>
+                  ${uniqueDevices.map(d => `<option value="${d}">${d}</option>`).join('')}
+                </select>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button type="button" class="pt-btn pt-btn-secondary" style="font-size: 10.5px; padding: 3px 8px;" onclick="window.PXLApp.teacherStudio.toggleAllPkaItems(true)">Alles selecteren</button>
+                <button type="button" class="pt-btn pt-btn-secondary" style="font-size: 10.5px; padding: 3px 8px;" onclick="window.PXLApp.teacherStudio.toggleAllPkaItems(false)">Niets selecteren</button>
+              </div>
+            </div>
+
+            <!-- SCROLLABLE SETTINGS CONTAINER -->
+            <div id="pkaGenSettingsList" style="flex: 1; overflow-y: auto; padding: 12px 14px;">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- RIGHT COLUMN: TEKST & ADRESSERINGSTABEL GENERATOR / PREVIEW -->
+          <div style="width: 45%; display: flex; flex-direction: column; background: #fafafa;">
+            <div style="padding: 8px 14px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+              <strong style="font-size: 12px; color: #0f172a;">📋 Gegenereerde Opgavetekst &amp; Adressering</strong>
+              <div style="display: flex; gap: 4px;">
+                <button type="button" id="btnPkaTabPreview" class="pt-btn" style="font-size: 11px; padding: 4px 10px; background: #0284c7; color: #fff; font-weight: 700; border: none; border-radius: 4px; cursor: pointer;" onclick="window.PXLApp.teacherStudio.switchPkaInstructionsTab('preview')">👁️ Voorbeeld</button>
+                <button type="button" id="btnPkaTabEdit" class="pt-btn" style="font-size: 11px; padding: 4px 10px; background: #e2e8f0; color: #334155; font-weight: 600; border: none; border-radius: 4px; cursor: pointer;" onclick="window.PXLApp.teacherStudio.switchPkaInstructionsTab('edit')">✏️ Bewerken</button>
+              </div>
+            </div>
+
+            <div id="pkaGenPreviewDiv" style="flex: 1; overflow-y: auto; padding: 14px; font-size: 12px; line-height: 1.5; color: #334155; background: #fff;">
+              <!-- Markdown rendered preview -->
+            </div>
+
+            <div id="pkaGenEditDiv" style="flex: 1; display: none; padding: 12px; background: #fff;">
+              <textarea id="pkaGenInstructionsTextarea" class="pt-input" style="width: 100%; height: 100%; box-sizing: border-box; font-family: monospace; font-size: 11.5px; padding: 10px; resize: none; border: 1px solid #cbd5e1; border-radius: 4px; line-height: 1.4;" placeholder="Voer hier eventueel aangepaste instructies of markdown in..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div style="padding: 12px 20px; background: #f8fafc; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 11px; color: #64748b;">
+            💡 <em>Aangevinkte instellingen worden automatisch omgezet naar live beoordelingscriteria en gewist uit de starttopologie van de student.</em>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="pt-btn pt-btn-secondary" onclick="window.PXLApp.teacherStudio.closePkaRubricGeneratorModal()">Annuleren</button>
+            <button type="button" class="pt-btn" style="background: #0284c7; color: #fff; font-weight: 700; padding: 7px 16px; border: 1px solid #0369a1; border-radius: 4px; cursor: pointer;" onclick="window.PXLApp.teacherStudio.submitPkaGeneratedExam(false)">
+              💾 Opslaan in Database
+            </button>
+            <button type="button" class="pt-btn pt-btn-primary" style="background: #16a34a; border-color: #15803d; font-weight: 700; padding: 7px 16px;" onclick="window.PXLApp.teacherStudio.submitPkaGeneratedExam(true)">
+              🚀 Opslaan &amp; Direct Laden op Werkveld
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    modal.style.display = 'flex';
+    this.renderPkaGeneratorSettingsList();
+    this.updatePkaScoreSummary();
+    this.updatePkaGeneratedInstructionsPreview();
+  }
+
+  closePkaRubricGeneratorModal() {
+    const modal = document.getElementById('pkaRubricGeneratorModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  renderPkaGeneratorSettingsList() {
+    const container = document.getElementById('pkaGenSettingsList');
+    if (!container || !this.currentPkaAnalysis) return;
+
+    const filterDev = document.getElementById('pkaGenDevFilter')?.value || 'all';
+    const items = this.currentPkaAnalysis.configurableItems || [];
+
+    const grouped = {};
+    items.forEach(it => {
+      if (filterDev !== 'all' && it.deviceId !== filterDev) return;
+      if (!grouped[it.deviceId]) grouped[it.deviceId] = [];
+      grouped[it.deviceId].push(it);
+    });
+
+    const categoryIcons = {
+      hostname: '🏷️',
+      security: '🔒',
+      switch_svi: '🌐',
+      interface_ip: '🔌',
+      default_gateway: '🚪',
+      connectivity: '📡'
+    };
+
+    let html = '';
+    Object.entries(grouped).forEach(([devId, devItems]) => {
+      const devType = devItems[0]?.deviceType || 'device';
+      const devIcon = devType === 'router' ? '🔀' : (devType === 'switch' ? '🔄' : (devType === 'pc' ? '💻' : (devType === 'laptop' ? '💻' : '⚡')));
+      const allDevChecked = devItems.every(i => this.pkaSelectedItems.has(i.id));
+
+      html += `
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+          <div style="padding: 8px 12px; background: #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 15px;">${devIcon}</span>
+              <strong style="font-size: 12.5px; color: #0f172a;">${devId} (${devType.toUpperCase()})</strong>
+            </div>
+            <label style="font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; color: #0369a1; font-weight: 600;">
+              <input type="checkbox" ${allDevChecked ? 'checked' : ''} onchange="window.PXLApp.teacherStudio.togglePkaDeviceItems('${devId}', this.checked)">
+              Alles voor ${devId}
+            </label>
+          </div>
+
+          <div style="padding: 6px 10px; display: flex; flex-direction: column; gap: 6px;">
+            ${devItems.map(it => {
+              const isChecked = this.pkaSelectedItems.has(it.id);
+              const pts = this.pkaCustomPoints[it.id] !== undefined ? this.pkaCustomPoints[it.id] : it.points;
+              const catIcon = categoryIcons[it.category] || '🔹';
+
+              return `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; background: ${isChecked ? '#ffffff' : '#f1f5f9'}; border: 1px solid ${isChecked ? '#bae6fd' : '#e2e8f0'}; border-radius: 4px; transition: all 0.15s;">
+                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1;">
+                    <input type="checkbox" class="pka-setting-cb" value="${it.id}" ${isChecked ? 'checked' : ''} onchange="window.PXLApp.teacherStudio.togglePkaItem('${it.id}', this.checked)">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 12px;">${catIcon}</span>
+                        <strong style="font-size: 12px; color: #0f172a;">${it.title}</strong>
+                      </div>
+                      <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${it.desc}</div>
+                      ${it.currentValue ? `<div style="font-size: 10.5px; font-family: monospace; color: #0369a1; background: #e0f2fe; padding: 1px 6px; border-radius: 3px; display: inline-block; margin-top: 3px;">Waarde: ${it.currentValue}</div>` : ''}
+                    </div>
+                  </label>
+
+                  <div style="display: flex; align-items: center; gap: 4px; margin-left: 10px;">
+                    <input type="number" class="pka-pts-input pt-input" data-id="${it.id}" value="${pts}" min="1" max="100" style="width: 48px; text-align: center; font-size: 11px; padding: 3px;" onchange="window.PXLApp.teacherStudio.updatePkaItemPoints('${it.id}', this.value)">
+                    <span style="font-size: 11px; color: #64748b; font-weight: 600;">pt</span>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  }
+
+  filterPkaGeneratorItems() {
+    this.renderPkaGeneratorSettingsList();
+  }
+
+  togglePkaItem(itemId, checked) {
+    if (checked) {
+      this.pkaSelectedItems.add(itemId);
+    } else {
+      this.pkaSelectedItems.delete(itemId);
+    }
+    this.updatePkaScoreSummary();
+    this.updatePkaGeneratedInstructionsPreview();
+  }
+
+  toggleAllPkaItems(checked) {
+    if (!this.currentPkaAnalysis) return;
+    if (checked) {
+      this.pkaSelectedItems = new Set(this.currentPkaAnalysis.configurableItems.map(i => i.id));
+    } else {
+      this.pkaSelectedItems = new Set();
+    }
+    this.renderPkaGeneratorSettingsList();
+    this.updatePkaScoreSummary();
+    this.updatePkaGeneratedInstructionsPreview();
+  }
+
+  togglePkaDeviceItems(devId, checked) {
+    if (!this.currentPkaAnalysis) return;
+    this.currentPkaAnalysis.configurableItems.forEach(it => {
+      if (it.deviceId === devId) {
+        if (checked) this.pkaSelectedItems.add(it.id);
+        else this.pkaSelectedItems.delete(it.id);
+      }
+    });
+    this.renderPkaGeneratorSettingsList();
+    this.updatePkaScoreSummary();
+    this.updatePkaGeneratedInstructionsPreview();
+  }
+
+  updatePkaItemPoints(itemId, pts) {
+    const val = parseInt(pts, 10) || 5;
+    this.pkaCustomPoints[itemId] = val;
+    this.updatePkaScoreSummary();
+  }
+
+  updatePkaScoreSummary() {
+    const badge = document.getElementById('pkaGenScoreBadge');
+    if (!badge || !this.currentPkaAnalysis) return;
+
+    let total = 0;
+    this.pkaSelectedItems.forEach(id => {
+      total += (this.pkaCustomPoints[id] !== undefined ? this.pkaCustomPoints[id] : 5);
+    });
+
+    const count = this.pkaSelectedItems.size;
+    badge.innerText = `🎯 Totaal: ${total} punten (${count} criteria)`;
+  }
+
+  onPkaTypeChange(type) {
+    this.pkaAssignmentType = type;
+    const pwdGroup = document.getElementById('pkaGenPasswordGroup');
+    if (pwdGroup) {
+      pwdGroup.style.display = type === 'test' ? 'block' : 'none';
+    }
+  }
+
+  switchPkaInstructionsTab(tab) {
+    this.pkaInstructionsTab = tab;
+    const previewDiv = document.getElementById('pkaGenPreviewDiv');
+    const editDiv = document.getElementById('pkaGenEditDiv');
+    const btnPreview = document.getElementById('btnPkaTabPreview');
+    const btnEdit = document.getElementById('btnPkaTabEdit');
+
+    if (tab === 'preview') {
+      const textarea = document.getElementById('pkaGenInstructionsTextarea');
+      if (textarea) this.pkaCustomInstructions = textarea.value;
+      if (previewDiv) previewDiv.style.display = 'block';
+      if (editDiv) editDiv.style.display = 'none';
+      if (btnPreview) { btnPreview.style.background = '#0284c7'; btnPreview.style.color = '#fff'; }
+      if (btnEdit) { btnEdit.style.background = '#e2e8f0'; btnEdit.style.color = '#334155'; }
+      this.updatePkaGeneratedInstructionsPreview();
+    } else {
+      if (previewDiv) previewDiv.style.display = 'none';
+      if (editDiv) editDiv.style.display = 'block';
+      if (btnEdit) { btnEdit.style.background = '#0284c7'; btnEdit.style.color = '#fff'; }
+      if (btnPreview) { btnPreview.style.background = '#e2e8f0'; btnPreview.style.color = '#334155'; }
+      const textarea = document.getElementById('pkaGenInstructionsTextarea');
+      if (textarea) textarea.value = this.pkaCustomInstructions;
+    }
+  }
+
+  updatePkaGeneratedInstructionsPreview() {
+    const previewDiv = document.getElementById('pkaGenPreviewDiv');
+    const textarea = document.getElementById('pkaGenInstructionsTextarea');
+    if (!previewDiv || !this.currentPkaAnalysis) return;
+
+    // Build dynamic markdown from selected items
+    const title = document.getElementById('pkaGenTitleInput')?.value || this.currentPkaAnalysis.title || 'Cisco Lab';
+    const items = this.currentPkaAnalysis.configurableItems.filter(i => this.pkaSelectedItems.has(i.id));
+
+    // Addressing rows
+    const addrRows = [];
+    const seen = new Set();
+    const gwMap = {};
+    items.forEach(it => {
+      if (it.checkType === 'default_gateway' && it.condition && it.condition.expected) {
+        gwMap[it.deviceId] = it.condition.expected;
+      }
+    });
+
+    items.forEach(it => {
+      if (it.checkType === 'interface_ip') {
+        const port = it.condition?.portName || 'Fa0';
+        const ip = it.condition?.expectedIp || '-';
+        const mask = it.condition?.expectedMask || '255.255.255.0';
+        const gw = gwMap[it.deviceId] || '-';
+        const key = `${it.deviceId}_${port}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          addrRows.push(`| **${it.deviceId}** | ${port} | ${ip} | ${mask} | ${gw} |`);
+        }
+      } else if (it.checkType === 'switch_svi') {
+        const ip = it.condition?.expectedIp || '-';
+        const mask = it.condition?.expectedMask || '255.255.255.0';
+        const gw = gwMap[it.deviceId] || '-';
+        const key = `${it.deviceId}_Vlan1`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          addrRows.push(`| **${it.deviceId}** | Vlan1 (SVI) | ${ip} | ${mask} | ${gw} |`);
+        }
+      }
+    });
+
+    const addrTable = addrRows.length > 0 ? addrRows.join('\n') : '| **Netwerkapparaten** | Geconfigureerd volgens opgave | Zie schema | 255.255.255.0 | - |';
+
+    // Hostnames
+    const hosts = [];
+    items.forEach(it => {
+      if (it.checkType === 'hostname' && it.condition && it.condition.expected) {
+        hosts.push(`* **${it.deviceId}**: Doel Hostname instellen op \`${it.condition.expected}\``);
+      }
+    });
+    const hostsMd = hosts.length > 0 ? hosts.join('\n') : '* Apparaten behouden hun standaard hostnaam.';
+
+    // Tasks grouped by device
+    const devTasks = {};
+    items.forEach(it => {
+      if (it.checkType === 'ping_test') return;
+      if (!devTasks[it.deviceId]) devTasks[it.deviceId] = [];
+      devTasks[it.deviceId].push(it.desc || it.title);
+    });
+
+    const taskSections = [];
+    let idx = 1;
+    Object.entries(devTasks).forEach(([did, tasks]) => {
+      const bullets = tasks.map(t => `   * ${t}`).join('\n');
+      taskSections.push(`${idx}. **Taken voor ${did}:**\n${bullets}`);
+      idx++;
+    });
+    const tasksMd = taskSections.join('\n\n');
+
+    const generatedMd = `## ${title}
+**Cursus:** PXL Netwerken (Toegepaste Informatica / SNE)
+
+### Doelstelling van de Opdracht:
+In dit labo configureer je de netwerkapparaten, interfaces en basisbeveiliging volgens de richtlijnen van Cisco en PXL.
+
+#### Adresseringstabel
+| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |
+| :--- | :--- | :--- | :--- | :--- |
+${addrTable}
+
+#### Doelhostnames van Netwerkapparaten:
+${hostsMd}
+
+#### Taken & Configuratie-eisen:
+${tasksMd}
+
+#### Verificatie & Connectiviteit:
+* Zorg dat alle vereiste router- en switchpoorten groen zijn (\`no shutdown\`).
+* Voer een succesvolle \`ping\`-test uit tussen de geconfigureerde hosts.
+* Sla je configuratie op via \`copy run start\` of \`write memory\` op alle netwerkapparaten.
+`;
+
+    if (!this.pkaCustomInstructions || this.pkaInstructionsTab === 'preview') {
+      this.pkaCustomInstructions = generatedMd;
+      if (textarea) textarea.value = generatedMd;
+    }
+
+    if (this.app && this.app.formatMarkdownInstructions) {
+      previewDiv.innerHTML = this.app.formatMarkdownInstructions(this.pkaCustomInstructions);
+    } else {
+      previewDiv.innerHTML = `<pre style="white-space: pre-wrap;">${this.pkaCustomInstructions}</pre>`;
+    }
+  }
+
+  async submitPkaGeneratedExam(loadOnCanvas = false) {
+    if (!this.currentPkaAnalysis) return;
+    const title = (document.getElementById('pkaGenTitleInput')?.value || '').trim();
+    if (!title) {
+      alert('⚠️ Geef een titel op voor dit examen / lab.');
       return;
     }
-    if (titleInput) titleInput.style.borderColor = '#0284c7';
 
-    const file = fileInput.files[0];
-    statusEl.innerText = `Decoderen van ${file.name} met Twofish crypto & opslaan in database...`;
-    statusEl.style.color = '#38bdf8';
+    const selectedIds = Array.from(this.pkaSelectedItems);
+    if (selectedIds.length === 0) {
+      if (!confirm('Je hebt 0 instellingen geselecteerd voor punten. Weet je zeker dat je wilt doorgaan?')) return;
+    }
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('title', title);
-    formData.append('save_to_db', 'true');
+    const password = document.getElementById('pkaGenPasswordInput')?.value || '';
+    const timeLimit = parseInt(document.getElementById('pkaGenTimeLimit')?.value, 10) || 80;
+    const textarea = document.getElementById('pkaGenInstructionsTextarea');
+    const customInstr = textarea ? textarea.value : this.pkaCustomInstructions;
+
+    const payload = {
+      analysis: this.currentPkaAnalysis,
+      selected_item_ids: selectedIds,
+      custom_points: this.pkaCustomPoints,
+      assignment_type: this.pkaAssignmentType,
+      test_password: password,
+      time_limit_minutes: timeLimit,
+      title: title,
+      custom_instructions: customInstr
+    };
 
     try {
-      const response = await fetch('/api/convert-pka', {
+      const res = await fetch('/api/pka/generate-exam', {
         method: 'POST',
-        body: formData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
-      if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson.error || `Server fout (${response.status})`);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Fout bij opslaan op server');
       }
-      const examData = await response.json();
-      this.examDraft = examData;
-      if (!this.examDraft.initialTopology && examData.topology) {
-        this.examDraft.initialTopology = examData.topology;
+
+      const exam = data.exam;
+      this.closePkaRubricGeneratorModal();
+      this.app.showToast(`✅ ${this.pkaAssignmentType === 'test' ? 'Test' : 'Lab'} '${exam.title}' succesvol aangemaakt!`);
+
+      // Refresh exams list in Tab 3
+      if (this.loadDbExamsList) {
+        await this.loadDbExamsList();
       }
-      this.populateStudioFields();
-      statusEl.innerHTML = `<span style="color: #16a34a; font-weight: bold;">✅ Examen '${title}' succesvol gedecodeerd & opgeslagen in SQLite database! Direct toewijsbaar in Tab 3 Opdrachten.</span>`;
-      this.app.showToast(`💾 Examen '${title}' opgeslagen in database!`);
+
+      if (loadOnCanvas) {
+        this.closeStudioModal();
+        await this.app.loadExam(exam);
+        this.app.showToast(`🚀 '${exam.title}' direct geladen op het werkveld!`);
+      } else {
+        alert(`✅ '${exam.title}' is succesvol opgeslagen in de database met ${exam.rubric.length} rubric criteria! Je kunt het nu toewijzen in Tab 3 Opdrachten.`);
+      }
     } catch (err) {
-      statusEl.innerText = `❌ Fout bij converteren: ${err.message}`;
-      statusEl.style.color = '#ef4444';
+      alert('Fout bij aanmaken examen: ' + err.message);
     }
   }
 
@@ -2169,6 +2718,334 @@ class TeacherStudio {
       }
     } catch (e) {
       alert('Netwerkfout bij opslaan: ' + e.message);
+    }
+  }
+
+  // --- TAB 4: BUG CENTER METHODS ---
+
+  async loadBugs() {
+    const container = document.getElementById('teacherBugsContainer');
+    if (!container) return;
+
+    const statusFilter = document.getElementById('teacherBugsStatusFilter')?.value || 'all';
+    container.innerHTML = `<div style="padding: 30px; text-align: center; color: #64748b;">⏳ Bugs ophalen...</div>`;
+
+    try {
+      const url = statusFilter && statusFilter !== 'all' ? `/api/bug-report/list?status=${statusFilter}` : '/api/bug-report/list';
+      const res = await fetch(url);
+      const data = await res.json();
+      this.cachedBugs = data.bugs || [];
+      this.renderBugsTable(this.cachedBugs);
+    } catch (err) {
+      container.innerHTML = `<div style="padding: 20px; color: #ef4444; text-align: center;">Fout bij ophalen bugs: ${err.message}</div>`;
+    }
+  }
+
+  filterBugsTable() {
+    const q = (document.getElementById('teacherBugsSearch')?.value || '').toLowerCase().trim();
+    if (!this.cachedBugs) return;
+    if (!q) {
+      this.renderBugsTable(this.cachedBugs);
+      return;
+    }
+    const filtered = this.cachedBugs.filter(b => {
+      const str = `${b.bug_code} ${b.reporter_name} ${b.reporter_username} ${b.reporter_class} ${b.exam_title} ${b.user_description} ${b.resolution_notes}`.toLowerCase();
+      return str.includes(q);
+    });
+    this.renderBugsTable(filtered);
+  }
+
+  renderBugsTable(bugs) {
+    const container = document.getElementById('teacherBugsContainer');
+    if (!container) return;
+
+    if (!bugs || bugs.length === 0) {
+      container.innerHTML = `
+        <div style="padding: 40px 20px; text-align: center; color: #64748b;">
+          <div style="font-size: 36px; margin-bottom: 8px;">🎉</div>
+          <h4 style="margin: 0 0 6px 0; color: #1e293b; font-size: 14px;">Geen Gemelde Bugs Gevonden</h4>
+          <p style="margin: 0; font-size: 12px; line-height: 1.5;">Er zijn momenteel geen meldingen die voldoen aan het actieve filter.</p>
+        </div>
+      `;
+      return;
+    }
+
+    let html = `
+      <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+        <thead>
+          <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
+            <th style="padding: 10px 12px; width: 140px;">Bug Code</th>
+            <th style="padding: 10px 12px; width: 130px;">Datum & Tijd</th>
+            <th style="padding: 10px 12px; width: 160px;">Melder (Klas)</th>
+            <th style="padding: 10px 12px; width: 150px;">Lab / Opdracht</th>
+            <th style="padding: 10px 12px;">Omschrijving & Categorie</th>
+            <th style="padding: 10px 12px; width: 110px; text-align: center;">Status</th>
+            <th style="padding: 10px 12px; width: 220px; text-align: right;">Acties</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    bugs.forEach((b, idx) => {
+      const isResolved = b.status === 'resolved';
+      const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+      const statusPill = isResolved
+        ? `<span class="pt-badge" style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:3px 8px; border-radius:12px; font-weight:700;">🟢 Opgelost</span>`
+        : `<span class="pt-badge" style="background:#fee2e2; color:#991b1b; border:1px solid #f87171; padding:3px 8px; border-radius:12px; font-weight:700;">🔴 Open</span>`;
+
+      const dateStr = b.created_at ? new Date(b.created_at).toLocaleString('nl-BE', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+
+      html += `
+        <tr style="background: ${rowBg}; border-bottom: 1px solid #e2e8f0; line-height: 1.4;">
+          <td style="padding: 10px 12px;">
+            <strong style="color: #b91c1c; font-family: monospace; font-size: 12.5px;">${b.bug_code}</strong>
+          </td>
+          <td style="padding: 10px 12px; color: #64748b; font-size: 11px;">${dateStr}</td>
+          <td style="padding: 10px 12px;">
+            <strong style="color: #0f172a;">${b.reporter_name || b.reporter_username}</strong>
+            <div style="font-size: 10.5px; color: #64748b;">${b.reporter_username} • ${b.reporter_class || b.reporter_role || 'Student'}</div>
+          </td>
+          <td style="padding: 10px 12px; font-size: 11.5px; color: #334155;">
+            ${b.exam_title || b.exam_id || 'Vrij Lab'}
+          </td>
+          <td style="padding: 10px 12px;">
+            <span class="pt-badge" style="background:#e0f2fe; color:#0369a1; font-size:10px; padding:2px 6px; border-radius:3px; margin-bottom:4px; display:inline-block;">${b.category || 'general'}</span>
+            <div style="color: #1e293b; font-size: 12px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${b.user_description}">
+              ${b.user_description}
+            </div>
+            ${b.resolution_notes ? `<div style="font-size: 11px; color: #16a34a; margin-top: 2px;">💡 <em>${b.resolution_notes.split('\n')[0]}</em></div>` : ''}
+          </td>
+          <td style="padding: 10px 12px; text-align: center;">
+            ${statusPill}
+          </td>
+          <td style="padding: 10px 12px; text-align: right; white-space: nowrap;">
+            <a href="/api/bug-report/${b.bug_code}/export" class="pt-btn pt-btn-secondary" style="padding: 4px 8px; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 3px;" title="Download diagnosebestand als JSON">
+              📥 JSON
+            </a>
+            <button class="pt-btn pt-btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="window.PXLApp.teacherStudio.openBugDetailsModal('${b.bug_code}')" title="Bekijk volledige toelichting en snapshot">
+              🔍 Details
+            </button>
+            <button class="pt-btn" style="padding: 4px 8px; font-size: 11px; font-weight: 600; background: ${isResolved ? '#fef3c7' : '#dcfce7'}; color: ${isResolved ? '#92400e' : '#166534'}; border: 1px solid ${isResolved ? '#fde68a' : '#bbf7d0'}; border-radius: 4px; cursor: pointer;" onclick="window.PXLApp.teacherStudio.toggleBugStatus('${b.bug_code}', '${b.status}')" title="${isResolved ? 'Heropen bug' : 'Markeer als opgelost'}">
+              ${isResolved ? '🔄 Heropen' : '✅ Opgelost'}
+            </button>
+            <button class="pt-btn" style="padding: 4px 7px; font-size: 11px; background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 4px; cursor: pointer;" onclick="window.PXLApp.teacherStudio.deleteBug('${b.bug_code}')" title="Verwijder bugmelding">
+              🗑️
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+  }
+
+  async toggleBugStatus(bugCode, currentStatus) {
+    const nextStatus = currentStatus === 'resolved' ? 'open' : 'resolved';
+    const notes = nextStatus === 'resolved' ? prompt('Toelichting van de oplossing (optioneel):', 'Handmatig gemarkeerd als opgelost door docent') : '';
+    if (nextStatus === 'resolved' && notes === null) return; // user cancelled prompt
+
+    try {
+      const res = await fetch('/api/bug-report/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bug_code: bugCode,
+          status: nextStatus,
+          resolution_notes: notes || '',
+          resolved_by: this.app.currentUser ? this.app.currentUser.username : 'docent'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.app.showToast(`✅ Status van ${bugCode} bijgewerkt naar ${nextStatus}`);
+        this.loadBugs();
+      }
+    } catch (err) {
+      alert(`Fout bij wijzigen status: ${err.message}`);
+    }
+  }
+
+  async deleteBug(bugCode) {
+    if (!confirm(`Weet je zeker dat je bugmelding '${bugCode}' definitief wilt verwijderen?`)) return;
+    try {
+      const res = await fetch('/api/bug-report/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bug_code: bugCode })
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.app.showToast(`🗑️ ${bugCode} verwijderd`);
+        this.loadBugs();
+      }
+    } catch (err) {
+      alert(`Fout bij verwijderen: ${err.message}`);
+    }
+  }
+
+  async openBugDetailsModal(bugCode) {
+    try {
+      const res = await fetch(`/api/bug-report/${bugCode}`);
+      const data = await res.json();
+      if (!data.success || !data.bug) {
+        alert('Bug niet gevonden');
+        return;
+      }
+      const b = data.bug;
+      let modal = document.getElementById('teacherBugDetailsModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'teacherBugDetailsModal';
+        modal.className = 'pt-modal-overlay';
+        document.body.appendChild(modal);
+      }
+
+      const numDevs = b.topology?.devices?.length || Object.keys(b.device_configs || {}).length || 0;
+      const numCables = b.topology?.cables?.length || 0;
+
+      modal.innerHTML = `
+        <div class="pt-device-dialog" style="width: 780px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
+          <div class="pt-device-header" style="background: #0f172a; color: #fff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 20px;">🐞</span>
+              <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Bug Details: ${b.bug_code}</h3>
+            </div>
+            <button class="pt-btn-close" onclick="document.getElementById('teacherBugDetailsModal').style.display='none'" style="color: #fff; font-size: 18px;">✕</button>
+          </div>
+          <div style="padding: 18px; background: #fff; overflow-y: auto; flex: 1;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 14px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+              <div>
+                <strong>Melder:</strong> ${b.reporter_name} (${b.reporter_username}) • <strong>Klas:</strong> ${b.reporter_class || '-'}
+                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Datum: ${b.created_at} • Lab: ${b.exam_title || b.exam_id}</div>
+              </div>
+              <div style="text-align: right;">
+                <span class="pt-badge" style="background:${b.status === 'resolved' ? '#dcfce7' : '#fee2e2'}; color:${b.status === 'resolved' ? '#166534' : '#991b1b'}; padding: 4px 10px; border-radius: 12px; font-weight: 700;">
+                  ${b.status === 'resolved' ? '🟢 Opgelost' : '🔴 Open'}
+                </span>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+              <h4 style="margin: 0 0 6px 0; font-size: 13px; color: #0f172a;">Omschrijving van het probleem:</h4>
+              <div style="padding: 10px 12px; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12.5px; line-height: 1.5; color: #1e293b; white-space: pre-wrap;">${b.user_description}</div>
+            </div>
+
+            ${b.resolution_notes ? `
+              <div style="margin-bottom: 14px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 10px 12px;">
+                <h4 style="margin: 0 0 4px 0; font-size: 12.5px; color: #166534;">Oplossing & Test Instructies (door ${b.resolved_by || 'Docent'}):</h4>
+                <div style="font-size: 12px; color: #14532d; white-space: pre-wrap;">${b.resolution_notes}</div>
+              </div>
+            ` : ''}
+
+            <div style="margin-bottom: 14px;">
+              <h4 style="margin: 0 0 6px 0; font-size: 13px; color: #0f172a;">Gekoppelde Snapshot Gegevens:</h4>
+              <div style="font-size: 12px; color: #475569; margin-bottom: 8px;">
+                📦 <strong>Topologie:</strong> ${numDevs} apparaten, ${numCables} kabels
+              </div>
+              <details style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; font-size: 11.5px;">
+                <summary style="cursor: pointer; font-weight: 600; color: #0284c7;">Bekijk Running Configurations van alle apparaten</summary>
+                <div style="margin-top: 8px; max-height: 250px; overflow-y: auto;">
+                  ${Object.values(b.device_configs || {}).map(dc => `
+                    <div style="margin-bottom: 8px; background: #0f172a; color: #f8fafc; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px;">
+                      <div style="color: #38bdf8; font-weight: bold; margin-bottom: 4px;">=== ${dc.hostname} (${dc.type} ${dc.model}) ===</div>
+                      <pre style="margin: 0; white-space: pre-wrap;">${dc.runningConfig || JSON.stringify(dc.interfaces, null, 2)}</pre>
+                    </div>
+                  `).join('')}
+                </div>
+              </details>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+              <a href="/api/bug-report/${b.bug_code}/export" class="pt-btn pt-btn-secondary" style="font-size: 12px; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                📥 Exporteer als ${b.bug_code}.json
+              </a>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="pt-btn" style="background: ${b.status === 'resolved' ? '#fef3c7' : '#dcfce7'}; color: ${b.status === 'resolved' ? '#92400e' : '#166534'}; border: 1px solid ${b.status === 'resolved' ? '#fde68a' : '#86efac'}; font-weight: 600; border-radius: 4px; padding: 6px 12px; cursor: pointer;" onclick="document.getElementById('teacherBugDetailsModal').style.display='none'; window.PXLApp.teacherStudio.toggleBugStatus('${b.bug_code}', '${b.status}')">
+                  ${b.status === 'resolved' ? '🔄 Heropen Bug' : '✅ Markeer als Opgelost'}
+                </button>
+                <button type="button" class="pt-btn pt-btn-secondary" onclick="document.getElementById('teacherBugDetailsModal').style.display='none'">Sluiten</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      modal.style.display = 'flex';
+    } catch (err) {
+      alert(`Fout bij ophalen details: ${err.message}`);
+    }
+  }
+
+  openImportSolutionModal() {
+    let modal = document.getElementById('teacherImportSolutionModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'teacherImportSolutionModal';
+      modal.className = 'pt-modal-overlay';
+      document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+      <div class="pt-device-dialog" style="width: 580px; max-width: 95vw;">
+        <div class="pt-device-header" style="background: #0284c7; color: #fff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 20px;">📥</span>
+            <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Importeer AI Oplossing JSON</h3>
+          </div>
+          <button class="pt-btn-close" onclick="document.getElementById('teacherImportSolutionModal').style.display='none'" style="color: #fff; font-size: 18px;">✕</button>
+        </div>
+        <div style="padding: 18px; background: #fff;">
+          <p style="margin: 0 0 10px 0; font-size: 12px; color: #475569; line-height: 1.4;">
+            Plak hieronder de door de AI of docent aangeleverde oplossing JSON (inclusief <code>bug_code</code>) om de status direct op 'opgelost' te zetten en de toelichting & testinstructies te koppelen:
+          </p>
+          <div style="margin-bottom: 12px;">
+            <textarea id="importSolutionJsonInput" class="pt-input" rows="8" placeholder='{\\n  "bug_code": "BUG-20261112-XXXX",\\n  "status": "resolved",\\n  "resolution_notes": "Masker fallback toegevoegd en ether1 gesynchroniseerd met WebFig",\\n  "test_instructions": "Voer opnieuw ping uit vanaf PC-1."\\n}' style="width: 100%; box-sizing: border-box; font-family: monospace; font-size: 11.5px; padding: 8px 10px;"></textarea>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button type="button" class="pt-btn pt-btn-secondary" onclick="document.getElementById('teacherImportSolutionModal').style.display='none'">Annuleren</button>
+            <button type="button" class="pt-btn pt-btn-primary" onclick="window.PXLApp.teacherStudio.submitImportSolution()">✅ Oplossing Toepassen</button>
+          </div>
+        </div>
+      </div>
+    `;
+    modal.style.display = 'flex';
+  }
+
+  async submitImportSolution() {
+    const raw = document.getElementById('importSolutionJsonInput')?.value || '';
+    if (!raw.trim()) {
+      alert('Plak eerst een geldige JSON.');
+      return;
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      alert('Ongeldige JSON: ' + e.message);
+      return;
+    }
+
+    if (!parsed.bug_code) {
+      alert("De JSON moet een 'bug_code' veld bevatten (bijv. 'BUG-20261112-XXXX').");
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/bug-report/apply-solution', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsed)
+      });
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('teacherImportSolutionModal').style.display = 'none';
+        this.app.showToast(`✅ Oplossing voor ${parsed.bug_code} succesvol toegepast!`);
+        this.loadBugs();
+      } else {
+        alert('Fout bij toepassen oplossing: ' + (data.error || 'Onbekende serverfout'));
+      }
+    } catch (err) {
+      alert('Netwerkfout: ' + err.message);
     }
   }
 }

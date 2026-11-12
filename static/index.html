@@ -60,6 +60,9 @@
       <button class="pt-btn pt-btn-secondary" id="btnOpenGlobalWireshark" onclick="window.PXLApp.openGlobalWireshark()" title="Open Wireshark Protocol Analyzer & OSI / PDU Inspector">
         🦈 Wireshark
       </button>
+      <button class="pt-btn" id="btnReportBug" onclick="window.PXLApp.openBugReportModal()" title="Meld een bug of technisch probleem in het lab (met automatische snapshot)" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; font-weight: 700; border-radius: 4px; padding: 5px 10px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 11.5px;">
+        🐞 Bug Melden
+      </button>
       <button class="pt-btn pt-btn-accent" id="btnToggleStudio" title="Open Docentenportaal & Examenbeheer" style="display: none;">
         🛠️ Teacher Studio
       </button>
@@ -285,6 +288,9 @@
         <button id="tabBtnStudentAccount" class="pt-btn" onclick="window.PXLApp.switchStudentStudioTab('account')" style="border-radius: 0; border: none; border-bottom: 3px solid transparent; background: transparent; font-weight: 600; color: #64748b; padding: 10px 16px;">
           👤 Account &amp; Wachtwoord
         </button>
+        <button id="tabBtnStudentBugs" class="pt-btn" onclick="window.PXLApp.switchStudentStudioTab('bugs')" style="border-radius: 0; border: none; border-bottom: 3px solid transparent; background: transparent; font-weight: 600; color: #64748b; padding: 10px 16px;">
+          🐞 Mijn Gemelde Bugs
+        </button>
       </div>
 
       <div id="studentStudioModalBody" style="padding: 18px; overflow-y: auto; flex: 1; background: #f8fafc;">
@@ -344,6 +350,21 @@
             </div>
           </div>
         </div>
+
+        <!-- TAB 3: MIJN GEMELDE BUGS -->
+        <div id="paneStudentBugs" style="display: none;">
+          <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; color: #475569;">
+              💡 <em>Bekijk de status van je gemelde bugs. Zodra de docent of AI de bug heeft opgelost, kan je de oplossing testen en de melding als opgelost bevestigen.</em>
+            </span>
+            <button class="pt-btn pt-btn-secondary" style="font-size: 11px; padding: 4px 8px;" onclick="window.PXLApp.loadStudentBugs()">
+              🔄 Vernieuwen
+            </button>
+          </div>
+          <div id="studentBugsContainer">
+            <div style="padding: 30px; text-align: center; color: #64748b;">⏳ Je gemelde bugs ophalen...</div>
+          </div>
+        </div>
       </div>
 
       <div style="padding: 10px 18px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; align-items: center;">
@@ -375,6 +396,64 @@
           <div style="display: flex; justify-content: flex-end; gap: 8px;">
             <button type="button" class="pt-btn pt-btn-secondary" onclick="window.PXLApp.closeTestPasswordModal()">Annuleren</button>
             <button type="submit" class="pt-btn pt-btn-primary" style="background: #d97706; border-color: #b45309;">🚀 Start Test</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUG REPORT & DIAGNOSTICS MODAL -->
+  <div class="pt-modal-overlay" id="bugReportModal" style="display: none;">
+    <div class="pt-device-dialog" style="width: 620px; max-width: 95vw;">
+      <div class="pt-device-header" style="background: linear-gradient(135deg, #b91c1c, #991b1b); color: #fff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">🐞</span>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">NetSim Bug Melden & Diagnostiek</h3>
+        </div>
+        <button class="pt-btn-close" onclick="window.PXLApp.closeBugReportModal()" style="color: #fff; font-size: 18px;">✕</button>
+      </div>
+      <div style="padding: 18px; background: #fff;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+          <div style="font-size: 12px; color: #475569;">
+            Bug Code: <strong id="bugReportCodePill" style="color: #b91c1c; font-family: monospace; font-size: 13px;">BUG-XXXX</strong>
+          </div>
+          <div style="font-size: 11.5px; color: #64748b;" id="bugReportUserInfo">
+            Melder: student1 (1TIN-A)
+          </div>
+        </div>
+
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; font-size: 12px; color: #1e40af; line-height: 1.4;">
+          ℹ️ <strong>Automatische Snapshot Inbegrepen:</strong> Bij het versturen of exporteren worden alle apparaten, lopende running-configs, bekabelingen, routingtabellen en Wireshark packets automatisch mee verpakt zodat de fout direct gereproduceerd en opgelost kan worden.
+        </div>
+
+        <form id="bugReportForm" onsubmit="window.PXLApp.submitBugReport(event)">
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; font-size: 11.5px; font-weight: 600; color: #475569; margin-bottom: 4px;">Categorie:</label>
+            <select id="bugReportCategory" class="pt-input" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12.5px;">
+              <option value="routing_ping">Routing, Ping & Verbindingen (bv. PC kan niet pingen)</option>
+              <option value="cli_commands">CLI / Commando's & Syntax (Cisco, MikroTik, Aruba, OpenWrt)</option>
+              <option value="web_gui">Web GUI / WebFig / Aruba Web Management</option>
+              <option value="cables_ports">Bekabeling & Fysieke Poorten</option>
+              <option value="grading_rubric">Opdracht, Rubric & Scoren</option>
+              <option value="general">Overig / Algemene Bug</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom: 14px;">
+            <label style="display: block; font-size: 11.5px; font-weight: 600; color: #475569; margin-bottom: 4px;">Wat ging er precies mis? Wat verwachtte je dat er zou gebeuren?</label>
+            <textarea id="bugReportDescription" required class="pt-input" rows="4" placeholder="Omschrijf het probleem zo gedetailleerd mogelijk (bijv. 'Na instellen van IP 192.168.88.1 op MikroTik ether1 reageert ping vanaf PC-1 niet')..." style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 12.5px; font-family: inherit; line-height: 1.4; resize: vertical;"></textarea>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+            <button type="button" class="pt-btn" onclick="window.PXLApp.exportCurrentBugJson()" title="Download direct het volledige diagnosebestand als JSON" style="background: #334155; color: #f8fafc; border: 1px solid #475569; font-size: 11.5px; padding: 6px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+              📥 Direct Exporteren als JSON
+            </button>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="pt-btn pt-btn-secondary" onclick="window.PXLApp.closeBugReportModal()">Annuleren</button>
+              <button type="submit" class="pt-btn pt-btn-primary" style="background: #b91c1c; border-color: #991b1b; display: flex; align-items: center; gap: 5px;">
+                🚀 Bug Melden & Opslaan
+              </button>
+            </div>
           </div>
         </form>
       </div>

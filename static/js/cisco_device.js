@@ -74,10 +74,40 @@ class CiscoDevice {
 
     // PC / End Device Specific Fields
     this.ip = options.ip || "";
-    this.mask = options.mask || "";
+    this.mask = options.mask || (this.ip && typeof IPUtils !== 'undefined' ? IPUtils.getDefaultMask(this.ip) : (this.ip ? '255.255.255.0' : ''));
     this.gateway = options.gateway || "";
     this.dns = options.dns || "8.8.8.8";
     this.dhcpEnabled = options.dhcpEnabled || false;
+
+    if (this.ip && this.interfaces) {
+      if (this.interfaces['FastEthernet0']) {
+        this.interfaces['FastEthernet0'].ip = this.ip;
+        this.interfaces['FastEthernet0'].mask = this.mask;
+        this.interfaces['FastEthernet0'].shutdown = false;
+      }
+      if (this.interfaces['Wireless0']) {
+        this.interfaces['Wireless0'].ip = this.ip;
+        this.interfaces['Wireless0'].mask = this.mask;
+      }
+    }
+
+    // MikroTik RouterOS Configuration
+    if (this.type === 'mikrotik') {
+      this.mikrotikConfig = options.mikrotikConfig || {
+        identity: this.hostname || 'MikroTik',
+        services: {
+          www: { enabled: true, port: 80 },
+          ssh: { enabled: true, port: 22 },
+          telnet: { enabled: true, port: 23 },
+          winbox: { enabled: true, port: 8291 }
+        },
+        users: {
+          admin: { password: '', group: 'full' }
+        }
+      };
+      this.ip = options.ip || '192.168.88.1';
+      this.mask = options.mask || '255.255.255.0';
+    }
 
     // Wireless Router (Cisco Linksys WRT300N) Configuration
     if (this.type === 'wireless_router') {

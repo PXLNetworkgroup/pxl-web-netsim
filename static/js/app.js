@@ -59,15 +59,60 @@ class PXLNetSimApp {
         title: 'PXL SNE - Netwerken 1: Basis Router & Switch Configuratie (Gert & David)',
         timeLimitMinutes: 80,
         showLiveScore: true,
-        instructions: `
-          ### Doel van het Lab
-          Configureer het netwerk volgens het Cisco PXL lab model:
-          - **LAN 1**: 172.16.1.0/24 (R1 Gi0/0/0 = .1, SW1 Vlan1 = .254, PCA = .5)
-          - **WAN**: 192.168.1.160/30 (R1 Gi0/0/1 = .161, R2 Gi0/0/1 = .162)
-          - **LAN 2**: 10.11.12.0/24 (R2 Gi0/0/0 = .1, SW2 Vlan1 = .254, PCB = .5)
-          
-          Zorg voor unieke hostnames, enable secret, console wachtwoord, banner motd, interface IP's, statische routes en SSH.
-        `,
+        instructions: `## PXL SNE - Netwerken 1: Basis Router & Switch Configuratie
+**Cursus:** PXL Netwerken 1 & Routing Essentials (Gert Van Waeyenberg & David Parren)
+
+### Doel van het Examen:
+Configureer een redundant Cisco netwerk bestaande uit twee routers (R1, R2), twee switches (SW1, SW2) en twee student pc's (PC1, PC2).
+
+#### Adresseringstabel
+| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |
+| :--- | :--- | :--- | :--- | :--- |
+| **PCA** | FastEthernet0 | 172.16.1.5 | 255.255.255.0 | 172.16.1.1 |
+| **SW1** | Vlan1 (SVI) | 172.16.1.254 | 255.255.255.0 | 172.16.1.1 |
+| **R1** | GigabitEthernet0/0/0 | 172.16.1.1 | 255.255.255.0 | - |
+| **R1** | GigabitEthernet0/0/1 | 192.168.1.161 | 255.255.255.252 | - |
+| **R2** | GigabitEthernet0/0/1 | 192.168.1.162 | 255.255.255.252 | - |
+| **R2** | GigabitEthernet0/0/0 | 10.11.12.1 | 255.255.255.0 | - |
+| **SW2** | Vlan1 (SVI) | 10.11.12.254 | 255.255.255.0 | 10.11.12.1 |
+| **PCB** | FastEthernet0 | 10.11.12.5 | 255.255.255.0 | 10.11.12.1 |
+
+#### Doelhostnames van Netwerkapparaten:
+* **Router 1**: \`hostname R1\`
+* **Router 2**: \`hostname R2\`
+* **Switch 1**: \`hostname SW1\`
+* **Switch 2**: \`hostname SW2\`
+
+#### Beveiligings- & Wachtwoordeneisen:
+* **Enable Secret**: \`class\` op alle routers en switches
+* **Line con 0**: \`password cisco\` en activeer \`login\`
+* **Banner MOTD**: \`Geautoriseerde toegang alleen!\`
+* **Password Encryption**: \`service password-encryption\`
+
+#### Taken & Configuratie-eisen:
+1. **Configuratie voor Router R1:**
+   * Stel hostname in op \`R1\`.
+   * Configureer enable secret, console wachtwoord en banner motd.
+   * Schakel \`service password-encryption\` in.
+   * Configureer Gi0/0/0 (172.16.1.1/24) en Gi0/0/1 (192.168.1.161/30) met \`no shutdown\`.
+   * Voeg statische route toe naar LAN 2: \`ip route 10.11.12.0 255.255.255.0 192.168.1.162\`.
+   * Sla configuratie op via \`copy run start\`.
+
+2. **Configuratie voor Router R2:**
+   * Stel hostname in op \`R2\`.
+   * Configureer basisbeveiliging en password encryption.
+   * Configureer Gi0/0/0 (10.11.12.1/24) en Gi0/0/1 (192.168.1.162/30) met \`no shutdown\`.
+   * Voeg statische route toe naar LAN 1: \`ip route 172.16.1.0 255.255.255.0 192.168.1.161\`.
+   * Sla configuratie op via \`copy run start\`.
+
+3. **Configuratie voor Switches SW1 & SW2:**
+   * Stel hostnames in op \`SW1\` en \`SW2\`.
+   * Configureer management IP op interface Vlan1 en stel \`ip default-gateway\` in.
+
+4. **Verificatie:**
+   * Verifieer dat alle fysieke poorten groen zijn.
+   * Voer een succesvolle ping uit van PCA naar PCB (\`10.11.12.5\`).
+`,
         initialTopology: {
           devices: [
             { id: 'PCA', type: 'pc', model: 'Standard', hostname: 'PC1', x: 80, y: 240, ip: '172.16.1.5', mask: '255.255.255.0', gateway: '172.16.1.1' },
@@ -107,13 +152,35 @@ class PXLNetSimApp {
         title: 'PXL SNE - Praktijkproef: Zelfstandig Bekabelen & Basisconfiguratie',
         timeLimitMinutes: 60,
         showLiveScore: true,
-        instructions: `
-          ### Zelfstandig Bekabelen en Configureren
-          Plaats een Router (4331), een Switch (2960) en een PC.
-          Verbind de PC via FastEthernet0 met Switch Fa0/1 (Straight-Through).
-          Verbind Switch Gi0/1 met Router Gi0/0/0 (Straight-Through).
-          Configureer IP 192.168.10.1/24 op de router en stel de PC in op 192.168.10.10.
-        `,
+        instructions: `## PXL SNE - Praktijkproef: Zelfstandig Bekabelen & Basisconfiguratie
+**Cursus:** PXL Netwerken 1 - Praktijk (Gert Van Waeyenberg & David Parren)
+
+### Doel van de Proef:
+In deze zelfstandige proef bekabel je een nieuw lokaal netwerk vanaf nul en configureer je de IP-adressering en basisconnectiviteit.
+
+#### Adresseringstabel
+| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |
+| :--- | :--- | :--- | :--- | :--- |
+| **PCA** | FastEthernet0 | 192.168.10.10 | 255.255.255.0 | 192.168.10.1 |
+| **SW1** | Fa0/1 & Gi0/1 | L2 Switchports | - | - |
+| **R1** | GigabitEthernet0/0/0 | 192.168.10.1 | 255.255.255.0 | - |
+
+#### Doelhostnames van Netwerkapparaten:
+* **Router**: \`hostname R1\`
+* **Switch**: \`hostname SW1\`
+
+#### Bekabelingseisen:
+* Sluit **PCA (FastEthernet0)** aan op **SW1 (FastEthernet0/1)** met een Koper Straight-Through kabel.
+* Sluit **SW1 (GigabitEthernet0/1)** aan op **R1 (GigabitEthernet0/0/0)** met een Koper Straight-Through kabel.
+
+#### Taken & Configuratie-eisen:
+1. **Bekabeling:** Sluit alle kabels aan volgens de bekabelingstabel.
+2. **Hostnames:** Stel hostname \`R1\` in op de router en \`SW1\` op de switch.
+3. **Router Interface:** Configureer IP \`192.168.10.1 255.255.255.0\` op interface GigabitEthernet0/0/0 en activeer de poort (\`no shutdown\`).
+4. **PC IP-configuratie:** Stel op PCA IP \`192.168.10.10\`, subnetmasker \`255.255.255.0\` en default gateway \`192.168.10.1\` in.
+5. **Connectiviteit:** Test via Command Prompt op PCA of je succesvol kunt pingen naar \`192.168.10.1\`.
+6. **Opslaan:** Sla de configuratie op via \`copy run start\` op R1.
+`,
         initialTopology: {
           devices: [
             { id: 'R1', type: 'router', model: '4331', hostname: 'Router', x: 500, y: 150 },
@@ -137,12 +204,30 @@ class PXLNetSimApp {
         title: 'PXL SNE - Wireless LAN (WLAN) Setup met Access Point & WPA2-PSK',
         timeLimitMinutes: 45,
         showLiveScore: true,
-        instructions: `
-          ### Draadloos Netwerk Opzetten
-          Verbind de Wireless Router / AP met de Switch.
-          Configureer SSID 'PXL-Guest' met WPA2-PSK wachtwoord 'PXL2026Net!'.
-          Ga naar de Laptop, open Desktop > PC Wireless en maak verbinding met het AP.
-        `,
+        instructions: `## PXL SNE - Wireless LAN (WLAN) Setup met Access Point & WPA2-PSK
+**Cursus:** PXL Netwerken 1 - Wireless (Gert Van Waeyenberg & David Parren)
+
+### Doel van het Lab:
+In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireless AP en verbind je een laptop via WPA2-Personal beveiliging.
+
+#### Adresseringstabel & WLAN Parameters
+| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |
+| :--- | :--- | :--- | :--- | :--- |
+| **SW1** | FastEthernet0/1 | Switchport (L2) | - | - |
+| **AP1** | Ethernet 1 (LAN) | 192.168.0.1 | 255.255.255.0 | - |
+| **LAP1** | Wireless (WLAN) | 192.168.0.100 (DHCP) | 255.255.255.0 | 192.168.0.1 |
+
+#### Draadloze Netwerkparameters:
+* **SSID**: \`PXL-Guest\`
+* **Beveiliging**: \`WPA2-Personal (PSK)\` met AES encryptie
+* **WPA Pre-Shared Key**: \`PXL2026Net!\`
+
+#### Taken & Configuratie-eisen:
+1. **Fysieke verbinding:** Sluit een Straight-Through kabel aan van **SW1 (FastEthernet0/1)** naar **AP1 (Ethernet 1)**.
+2. **Access Point Configuratie:** Open de webinterface van AP1, stel de SSID in op \`PXL-Guest\`, kies WPA2-Personal en vul de sleutel \`PXL2026Net!\` in. Sla de instellingen op.
+3. **Laptop Draadloze Verbinding:** Open op **LAP1** de app **Desktop > PC Wireless**. Klik op het tabblad **Connect**, vernieuw de lijst, selecteer \`PXL-Guest\` en meld aan met \`PXL2026Net!\`.
+4. **Verificatie:** Controleer dat de draadloze golven zichtbaar zijn en voer een succesvolle ping uit naar \`192.168.0.1\`.
+`,
         initialTopology: {
           devices: [
             { id: 'SW1', type: 'switch', model: '2960-24TT', hostname: 'Switch1', x: 300, y: 250 },
@@ -341,6 +426,7 @@ class PXLNetSimApp {
         this.closeSubmissionModal();
         this.closeStudentStudioModal();
         this.closeTestPasswordModal();
+        this.closeBugReportModal();
         if (!this.isOpdrachtPinned) {
           this.closeOpdrachtDropdown();
         }
@@ -985,11 +1071,11 @@ class PXLNetSimApp {
       </div>
       <div class="pt-form-group">
         <label>IP Adres:</label>
-        <input type="text" class="pt-input" value="${intf.ip || ''}" onchange="window.PXLApp.updatePortIp('${portName}', this.value)">
+        <input type="text" class="pt-input" id="cfgPortIpInput" value="${intf.ip || ''}" placeholder="bv. 192.168.88.1 of 192.168.88.1/24" onchange="window.PXLApp.updatePortIp('${portName}', this.value)">
       </div>
       <div class="pt-form-group">
         <label>Subnet Masker:</label>
-        <input type="text" class="pt-input" value="${intf.mask || ''}" onchange="window.PXLApp.updatePortMask('${portName}', this.value)">
+        <input type="text" class="pt-input" id="cfgPortMaskInput" value="${intf.mask || ''}" placeholder="bv. 255.255.255.0" onchange="window.PXLApp.updatePortMask('${portName}', this.value)">
       </div>
       <div class="pt-form-group">
         <label>Beschrijving:</label>
@@ -1119,12 +1205,44 @@ class PXLNetSimApp {
 
   updatePortIp(portName, ip) {
     if (this.activeDevice && this.activeDevice.interfaces[portName]) {
-      const trimmed = ip.trim();
+      let trimmed = ip.trim();
+      let detectedMask = null;
+
+      // Support CIDR notation e.g. "192.168.88.1/24"
+      if (trimmed.includes('/')) {
+        const [cleanIp, prefix] = trimmed.split('/');
+        trimmed = cleanIp.trim();
+        const pfx = parseInt(prefix, 10);
+        if (!isNaN(pfx) && pfx >= 0 && pfx <= 32) {
+          detectedMask = (typeof IPUtils !== 'undefined' && IPUtils.prefixToMask) ? IPUtils.prefixToMask(pfx) : '255.255.255.0';
+        }
+      }
+
       this.activeDevice.interfaces[portName].ip = trimmed;
       if (trimmed) {
         this.activeDevice.interfaces[portName].shutdown = false;
-        if (this.activeDevice.type === 'switch' || this.activeDevice.type === 'hpe_switch') {
+        if (detectedMask) {
+          this.activeDevice.interfaces[portName].mask = detectedMask;
+          const maskInput = document.getElementById('cfgPortMaskInput');
+          if (maskInput) maskInput.value = detectedMask;
+        } else if (!this.activeDevice.interfaces[portName].mask) {
+          const autoMask = (typeof IPUtils !== 'undefined' && IPUtils.getDefaultMask) ? IPUtils.getDefaultMask(trimmed) : '255.255.255.0';
+          this.activeDevice.interfaces[portName].mask = autoMask;
+          const maskInput = document.getElementById('cfgPortMaskInput');
+          if (maskInput) maskInput.value = autoMask;
+        }
+
+        if (this.activeDevice.type === 'switch' || this.activeDevice.type === 'hpe_switch' || this.activeDevice.type === 'mikrotik' || this.activeDevice.type === 'openwrt') {
           this.activeDevice.ip = trimmed;
+          this.activeDevice.mask = this.activeDevice.interfaces[portName].mask;
+        }
+
+        if (this.activeDevice.type === 'mikrotik' && !this.activeDevice.mikrotikConfig) {
+          this.activeDevice.mikrotikConfig = {
+            identity: this.activeDevice.hostname || 'MikroTik',
+            services: { www: { enabled: true, port: 80 } },
+            users: { admin: { password: '', group: 'full' } }
+          };
         }
       }
       this.triggerScoreUpdate();
@@ -2097,6 +2215,142 @@ Type 'help', 'ip a', or 'python3' to get started.
     this.showToast('🎉 Examen succesvol ingeleverd en gedownload!');
   }
 
+  // --- BUG REPORT & DIAGNOSTICS SYSTEM ---
+  openBugReportModal() {
+    const modal = document.getElementById('bugReportModal');
+    if (!modal) return;
+
+    // Generate unique bug code: BUG-YYYYMMDD-XXXX
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const randHex = Math.floor(Math.random() * 65535).toString(16).toUpperCase().padStart(4, '0');
+    this.currentBugCode = `BUG-${dateStr}-${randHex}`;
+
+    const codePill = document.getElementById('bugReportCodePill');
+    if (codePill) codePill.innerText = this.currentBugCode;
+
+    const user = this.currentUser || { username: 'gast', full_name: 'Anonieme Gebruiker', role: 'student', class_group: 'Geen klas' };
+    const userInfoEl = document.getElementById('bugReportUserInfo');
+    if (userInfoEl) {
+      userInfoEl.innerText = `Melder: ${user.full_name || user.username} (${user.class_group || user.role})`;
+    }
+
+    const descEl = document.getElementById('bugReportDescription');
+    if (descEl) descEl.value = '';
+
+    modal.style.display = 'flex';
+  }
+
+  closeBugReportModal() {
+    const modal = document.getElementById('bugReportModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  generateBugSnapshotPayload() {
+    const user = this.currentUser || { username: 'gast', full_name: 'Gast Gebruiker', role: 'student', class_group: '' };
+    const examSelector = document.getElementById('examSelector');
+    const examId = examSelector ? examSelector.value : 'vrij_lab';
+    const examTitle = examSelector ? examSelector.options[examSelector.selectedIndex]?.text : 'Vrij Netwerk Lab';
+
+    // 1. Export complete topology
+    const topology = this.sim ? this.sim.exportTopology() : {};
+
+    // 2. Export granular running configs & states of all devices
+    const deviceConfigs = {};
+    if (this.sim && this.sim.devices) {
+      for (const [dId, dev] of Object.entries(this.sim.devices)) {
+        deviceConfigs[dId] = {
+          id: dev.id,
+          hostname: dev.hostname,
+          type: dev.type,
+          model: dev.model,
+          powerOn: dev.powerOn,
+          runningConfig: (typeof dev.generateRunningConfig === 'function') ? dev.generateRunningConfig() : null,
+          interfaces: JSON.parse(JSON.stringify(dev.interfaces || {})),
+          staticRoutes: dev.staticRoutes ? JSON.parse(JSON.stringify(dev.staticRoutes)) : [],
+          arpTable: dev.arpTable ? JSON.parse(JSON.stringify(dev.arpTable)) : {},
+          macTable: dev.macTable ? JSON.parse(JSON.stringify(dev.macTable)) : {},
+          services: dev.services ? JSON.parse(JSON.stringify(dev.services)) : {},
+          mikrotikConfig: dev.mikrotikConfig ? JSON.parse(JSON.stringify(dev.mikrotikConfig)) : null,
+          openwrtConfig: dev.openwrtConfig ? JSON.parse(JSON.stringify(dev.openwrtConfig)) : null,
+          hpeConfig: dev.hpeConfig ? JSON.parse(JSON.stringify(dev.hpeConfig)) : null,
+          history: dev.history ? dev.history.slice(-20) : []
+        };
+      }
+    }
+
+    const category = document.getElementById('bugReportCategory')?.value || 'general';
+    const description = document.getElementById('bugReportDescription')?.value || '';
+
+    return {
+      bug_code: this.currentBugCode || `BUG-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      status: 'open',
+      reporter_username: user.username,
+      reporter_name: user.full_name || user.username,
+      reporter_role: user.role,
+      reporter_class: user.class_group || '',
+      exam_id: examId,
+      exam_title: examTitle,
+      category: category,
+      user_description: description,
+      browser_info: {
+        userAgent: navigator.userAgent,
+        screenWidth: window.innerWidth,
+        screenHeight: window.innerHeight,
+        url: window.location.href,
+        timestamp: new Date().toISOString()
+      },
+      topology: topology,
+      device_configs: deviceConfigs
+    };
+  }
+
+  async submitBugReport(event) {
+    if (event) event.preventDefault();
+    const payload = this.generateBugSnapshotPayload();
+    if (!payload.user_description || !payload.user_description.trim()) {
+      alert('Vul a.u.b. een korte toelichting in van wat er misging.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/bug-report/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.closeBugReportModal();
+        this.showToast(`✅ Bugmelding ${payload.bug_code} opgeslagen!`);
+        alert(`🎉 Bugmelding succesvol geregistreerd met unieke code:\n\n${payload.bug_code}\n\nDe docent en AI-assistent hebben nu direct toegang tot je opgeslagen topologie en running-configs om het probleem te verhelpen.`);
+        // Refresh Teacher Studio bugs tab if open
+        if (window.teacherStudio && typeof window.teacherStudio.loadBugs === 'function') {
+          window.teacherStudio.loadBugs();
+        }
+      } else {
+        alert(`Fout bij verzenden van bug: ${data.error || 'Onbekende serverfout'}`);
+      }
+    } catch (err) {
+      alert(`Netwerkfout bij bugmelding: ${err.message}`);
+    }
+  }
+
+  exportCurrentBugJson() {
+    const payload = this.generateBugSnapshotPayload();
+    const jsonStr = JSON.stringify(payload, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${payload.bug_code}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    this.showToast(`📥 ${payload.bug_code}.json gedownload`);
+  }
+
   showToast(msg) {
     const toast = document.getElementById('toastNotification');
     if (!toast) return;
@@ -2923,6 +3177,104 @@ Type 'help', 'ip a', or 'python3' to get started.
     this.adjustWorkspaceForPinnedPanel();
   }
 
+  buildDynamicAddressingTable(exam) {
+    if (!exam) return '';
+    const topo = exam.initialTopology || exam.topology || {};
+    const devs = topo.devices || [];
+    const rubric = exam.rubric || [];
+    const rows = [];
+    const seen = new Set();
+
+    const gwMap = {};
+    devs.forEach(d => {
+      const gw = d.gateway || d.defaultGateway;
+      if (gw) gwMap[d.id] = gw;
+    });
+    rubric.forEach(r => {
+      if (r.checkType === 'default_gateway' && r.condition && r.condition.expected) {
+        const did = r.condition.deviceId || r.condition.targetDevice;
+        if (did) gwMap[did] = r.condition.expected;
+      }
+    });
+
+    devs.forEach(d => {
+      const did = d.id || d.name;
+      const gw = gwMap[did] || '-';
+      if (['pc', 'laptop', 'server'].includes(d.type)) {
+        let ip = d.ip;
+        let mask = d.mask || '255.255.255.0';
+        if (!ip) {
+          const r = rubric.find(rb => rb.condition && rb.condition.deviceId === did && rb.condition.expectedIp);
+          if (r) {
+            ip = r.condition.expectedIp;
+            mask = r.condition.expectedMask || '255.255.255.0';
+          }
+        }
+        if (ip) {
+          const key = `${did}_FastEthernet0`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            rows.push(`<tr><td style="padding:6px 10px; font-weight:700;">${did}</td><td style="padding:6px 10px;">FastEthernet0</td><td style="padding:6px 10px; font-family:monospace;">${ip}</td><td style="padding:6px 10px; font-family:monospace;">${mask}</td><td style="padding:6px 10px; font-family:monospace;">${gw}</td></tr>`);
+          }
+        }
+      }
+      if (d.interfaces) {
+        Object.entries(d.interfaces).forEach(([pname, pcfg]) => {
+          if (pcfg && pcfg.ip && pcfg.ip !== '0.0.0.0') {
+            const key = `${did}_${pname}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              rows.push(`<tr><td style="padding:6px 10px; font-weight:700;">${did}</td><td style="padding:6px 10px;">${pname}</td><td style="padding:6px 10px; font-family:monospace;">${pcfg.ip}</td><td style="padding:6px 10px; font-family:monospace;">${pcfg.mask || '255.255.255.0'}</td><td style="padding:6px 10px; font-family:monospace;">${gw}</td></tr>`);
+            }
+          }
+        });
+      }
+    });
+
+    rubric.forEach(r => {
+      const cond = r.condition || {};
+      if (r.checkType === 'switch_svi' && cond.expectedIp) {
+        const did = cond.switchId || 'Switch';
+        const key = `${did}_Vlan1`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          rows.push(`<tr><td style="padding:6px 10px; font-weight:700;">${did}</td><td style="padding:6px 10px;">Vlan1 (SVI)</td><td style="padding:6px 10px; font-family:monospace;">${cond.expectedIp}</td><td style="padding:6px 10px; font-family:monospace;">${cond.expectedMask || '255.255.255.0'}</td><td style="padding:6px 10px; font-family:monospace;">${gwMap[did] || '-'}</td></tr>`);
+        }
+      } else if (r.checkType === 'interface_ip' && cond.expectedIp) {
+        const did = cond.deviceId || 'Router';
+        const port = cond.portName || 'FastEthernet0';
+        const key = `${did}_${port}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          rows.push(`<tr><td style="padding:6px 10px; font-weight:700;">${did}</td><td style="padding:6px 10px;">${port}</td><td style="padding:6px 10px; font-family:monospace;">${cond.expectedIp}</td><td style="padding:6px 10px; font-family:monospace;">${cond.expectedMask || '255.255.255.0'}</td><td style="padding:6px 10px; font-family:monospace;">${gwMap[did] || '-'}</td></tr>`);
+        }
+      }
+    });
+
+    if (rows.length === 0) return '';
+    return `
+      <div style="margin: 16px 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+        <div style="background: #0284c7; color: #ffffff; padding: 7px 12px; font-weight: 700; font-size: 12.5px; display: flex; align-items: center; gap: 6px;">
+          <span>📊</span> Adresseringstabel &amp; Interfaces
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11.5px;">
+          <thead>
+            <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
+              <th style="padding: 6px 10px;">Apparaat</th>
+              <th style="padding: 6px 10px;">Interface</th>
+              <th style="padding: 6px 10px;">IP-adres</th>
+              <th style="padding: 6px 10px;">Subnetmasker</th>
+              <th style="padding: 6px 10px;">Standaardgateway</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   formatMarkdownInstructions(md) {
     if (!md) return '';
     if (md.includes('<table') || md.includes('<html')) {
@@ -2937,7 +3289,7 @@ Type 'help', 'ip a', or 'python3' to get started.
 
     const flushTable = () => {
       if (!inTable) return;
-      html += '<table style="width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12px; background: #ffffff;">';
+      html += '<table style="width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden;">';
       if (tableHeaders.length > 0) {
         html += '<thead style="background: #0284c7; color: #ffffff;"><tr>';
         for (const h of tableHeaders) {
@@ -2959,11 +3311,18 @@ Type 'help', 'ip a', or 'python3' to get started.
       tableRows = [];
     };
 
+    const formatInline = (t) => {
+      return t
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #0284c7; text-decoration: underline; font-weight: 600;">$1</a>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code style="background: #e2e8f0; color: #0f172a; padding: 2px 5px; border-radius: 4px; font-family: monospace; font-size: 11px;">$1</code>');
+    };
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
 
       if (line.startsWith('|') && line.endsWith('|')) {
-        const cells = line.slice(1, -1).split('|').map(c => c.trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'));
+        const cells = line.slice(1, -1).split('|').map(c => formatInline(c.trim()));
         if (cells.every(c => /^:?-+:?$/.test(c))) {
           continue;
         }
@@ -2984,15 +3343,21 @@ Type 'help', 'ip a', or 'python3' to get started.
       }
 
       if (line.startsWith('#### ')) {
-        html += `<h4 style="margin: 14px 0 6px; color: #0284c7; font-size: 13.5px; font-weight: 700;">${line.slice(5)}</h4>`;
+        html += `<h4 style="margin: 14px 0 6px; color: #0284c7; font-size: 13.5px; font-weight: 700;">${formatInline(line.slice(5))}</h4>`;
       } else if (line.startsWith('### ')) {
-        html += `<h3 style="margin: 16px 0 8px; color: #0f172a; font-size: 15px; font-weight: 700;">${line.slice(4)}</h3>`;
+        html += `<h3 style="margin: 16px 0 8px; color: #0f172a; font-size: 15px; font-weight: 700; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">${formatInline(line.slice(4))}</h3>`;
+      } else if (line.startsWith('## ')) {
+        html += `<h2 style="margin: 18px 0 10px; color: #0369a1; font-size: 16.5px; font-weight: 800;">${formatInline(line.slice(3))}</h2>`;
+      } else if (line.startsWith('# ')) {
+        html += `<h1 style="margin: 20px 0 12px; color: #0f172a; font-size: 18px; font-weight: 800;">${formatInline(line.slice(2))}</h1>`;
       } else if (line.startsWith('* ') || line.startsWith('- ')) {
-        const text = line.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code style="background: #e2e8f0; color: #0f172a; padding: 2px 5px; border-radius: 4px; font-family: monospace; font-size: 11px;">$1</code>');
-        html += `<div style="margin-left: 18px; margin-bottom: 4px; line-height: 1.5;">• ${text}</div>`;
+        html += `<div style="margin-left: 18px; margin-bottom: 4px; line-height: 1.5;">• ${formatInline(line.slice(2))}</div>`;
+      } else if (/^\d+\.\s+/.test(line)) {
+        const num = line.match(/^(\d+)\.\s+/)[1];
+        const rest = line.replace(/^\d+\.\s+/, '');
+        html += `<div style="margin-left: 12px; margin-bottom: 6px; line-height: 1.5; display: flex; gap: 6px;"><strong style="color: #0284c7;">${num}.</strong> <div>${formatInline(rest)}</div></div>`;
       } else {
-        const text = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code style="background: #e2e8f0; color: #0f172a; padding: 2px 5px; border-radius: 4px; font-family: monospace; font-size: 11px;">$1</code>');
-        html += `<p style="margin: 4px 0; line-height: 1.5;">${text}</p>`;
+        html += `<p style="margin: 4px 0; line-height: 1.5;">${formatInline(line)}</p>`;
       }
     }
     if (inTable) flushTable();
@@ -3011,7 +3376,16 @@ Type 'help', 'ip a', or 'python3' to get started.
 
     const evalRes = this.gradingEngine ? this.gradingEngine.evaluate() : { earnedPoints: 0, totalPoints: 100, percentage: 0, objectives: [] };
     const objectives = evalRes.objectives || [];
-    const formattedInstructions = this.formatMarkdownInstructions(exam.instructions || '');
+    const rawInstr = exam.instructions || '';
+    let formattedInstructions = this.formatMarkdownInstructions(rawInstr);
+
+    // Fallback: If instructions do not contain an addressing table, dynamically build and append one!
+    if (!rawInstr.includes('Adresseringstabel') && !rawInstr.includes('| Interface |')) {
+      const dynamicTable = this.buildDynamicAddressingTable(exam);
+      if (dynamicTable) {
+        formattedInstructions += dynamicTable;
+      }
+    }
 
     bodyEl.innerHTML = `
       <!-- DEEL 1: DE OPDRACHT -->
@@ -3414,35 +3788,144 @@ Type 'help', 'ip a', or 'python3' to get started.
   switchStudentStudioTab(tab) {
     const btnLabs = document.getElementById('tabBtnStudentLabs');
     const btnAcc = document.getElementById('tabBtnStudentAccount');
+    const btnBugs = document.getElementById('tabBtnStudentBugs');
     const paneLabs = document.getElementById('paneStudentLabs');
     const paneAcc = document.getElementById('paneStudentAccount');
+    const paneBugs = document.getElementById('paneStudentBugs');
 
-    if (tab === 'labs') {
-      if (btnLabs) {
-        btnLabs.classList.add('active');
-        btnLabs.style.borderBottom = '3px solid #0284c7';
-        btnLabs.style.color = '#0f172a';
+    const tabs = [
+      { key: 'labs', btn: btnLabs, pane: paneLabs },
+      { key: 'account', btn: btnAcc, pane: paneAcc },
+      { key: 'bugs', btn: btnBugs, pane: paneBugs }
+    ];
+
+    tabs.forEach(t => {
+      const isActive = t.key === tab;
+      if (t.btn) {
+        t.btn.classList.toggle('active', isActive);
+        t.btn.style.borderBottom = isActive ? '3px solid #0284c7' : '3px solid transparent';
+        t.btn.style.color = isActive ? '#0f172a' : '#64748b';
       }
-      if (btnAcc) {
-        btnAcc.classList.remove('active');
-        btnAcc.style.borderBottom = '3px solid transparent';
-        btnAcc.style.color = '#64748b';
+      if (t.pane) t.pane.style.display = isActive ? 'block' : 'none';
+    });
+
+    if (tab === 'bugs') {
+      this.loadStudentBugs();
+    }
+  }
+
+  async loadStudentBugs() {
+    const container = document.getElementById('studentBugsContainer');
+    if (!container) return;
+
+    if (!this.currentUser) {
+      container.innerHTML = `<div style="padding: 20px; text-align: center; color: #64748b;">Log eerst in om je gemelde bugs te bekijken.</div>`;
+      return;
+    }
+
+    container.innerHTML = `<div style="padding: 30px; text-align: center; color: #64748b;">⏳ Je gemelde bugs ophalen...</div>`;
+
+    try {
+      const res = await fetch(`/api/bug-report/list?reporter_username=${encodeURIComponent(this.currentUser.username)}`);
+      const data = await res.json();
+      const bugs = data.bugs || [];
+
+      if (bugs.length === 0) {
+        container.innerHTML = `
+          <div style="padding: 40px 20px; text-align: center; background: #fff; border: 1.5px dashed #cbd5e1; border-radius: 8px;">
+            <div style="font-size: 36px; margin-bottom: 8px;">✨</div>
+            <h4 style="margin: 0 0 6px 0; color: #1e293b; font-size: 14px;">Geen Gemelde Bugs</h4>
+            <p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.5;">
+              Je hebt nog geen bugs gemeld. Loop je vast of werkt iets niet naar verwachting?<br>
+              Klik bovenaan op de knop <strong>🐞 Bug Melden</strong> om direct een snapshot van je lab door te sturen!
+            </p>
+          </div>
+        `;
+        return;
       }
-      if (paneLabs) paneLabs.style.display = 'block';
-      if (paneAcc) paneAcc.style.display = 'none';
-    } else {
-      if (btnAcc) {
-        btnAcc.classList.add('active');
-        btnAcc.style.borderBottom = '3px solid #0284c7';
-        btnAcc.style.color = '#0f172a';
+
+      let html = `
+        <div style="border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #fff;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
+                <th style="padding: 8px 12px; width: 130px;">Bug Code</th>
+                <th style="padding: 8px 12px; width: 120px;">Datum</th>
+                <th style="padding: 8px 12px; width: 140px;">Lab</th>
+                <th style="padding: 8px 12px;">Omschrijving</th>
+                <th style="padding: 8px 12px; width: 110px; text-align: center;">Status</th>
+                <th style="padding: 8px 12px; width: 140px; text-align: right;">Actie</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      bugs.forEach((b, idx) => {
+        const isResolved = b.status === 'resolved';
+        const dateStr = b.created_at ? new Date(b.created_at).toLocaleString('nl-BE', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+        const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+
+        html += `
+          <tr style="background: ${rowBg}; border-bottom: 1px solid #e2e8f0; line-height: 1.4;">
+            <td style="padding: 10px 12px;">
+              <strong style="color: #b91c1c; font-family: monospace;">${b.bug_code}</strong>
+            </td>
+            <td style="padding: 10px 12px; color: #64748b; font-size: 11px;">${dateStr}</td>
+            <td style="padding: 10px 12px; color: #334155;">${b.exam_title || b.exam_id || 'Vrij Lab'}</td>
+            <td style="padding: 10px 12px;">
+              <div style="color: #0f172a; font-weight: 600;">${b.user_description}</div>
+              ${b.resolution_notes ? `
+                <div style="margin-top: 4px; padding: 6px 10px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 4px; font-size: 11.5px; color: #166534;">
+                  <strong>💡 Oplossing / Testinstructie:</strong> ${b.resolution_notes}
+                </div>
+              ` : ''}
+            </td>
+            <td style="padding: 10px 12px; text-align: center;">
+              <span class="pt-badge" style="background: ${isResolved ? '#dcfce7' : '#fee2e2'}; color: ${isResolved ? '#166534' : '#991b1b'}; border: 1px solid ${isResolved ? '#86efac' : '#fca5a5'}; padding: 3px 8px; border-radius: 12px; font-weight: 700;">
+                ${isResolved ? '🟢 Opgelost' : '🔴 In Behandeling'}
+              </span>
+            </td>
+            <td style="padding: 10px 12px; text-align: right; white-space: nowrap;">
+              <a href="/api/bug-report/${b.bug_code}/export" class="pt-btn pt-btn-secondary" style="font-size: 11px; padding: 4px 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 3px;" title="Download JSON bestand">
+                📥 JSON
+              </a>
+              ${!isResolved ? `
+                <button class="pt-btn" style="font-size: 11px; padding: 4px 8px; background: #dcfce7; color: #166534; border: 1px solid #86efac; border-radius: 4px; cursor: pointer; font-weight: 600;" onclick="window.PXLApp.confirmStudentBugResolved('${b.bug_code}')" title="Bevestig dat het probleem voor jou is opgelost">
+                  ✅ Opgelost
+                </button>
+              ` : ''}
+            </td>
+          </tr>
+        `;
+      });
+
+      html += `</tbody></table></div>`;
+      container.innerHTML = html;
+    } catch (err) {
+      container.innerHTML = `<div style="padding: 20px; color: #ef4444; text-align: center;">Fout bij ophalen bugs: ${err.message}</div>`;
+    }
+  }
+
+  async confirmStudentBugResolved(bugCode) {
+    if (!confirm(`Wil je bug '${bugCode}' als opgelost bevestigen?`)) return;
+    try {
+      const res = await fetch('/api/bug-report/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bug_code: bugCode,
+          status: 'resolved',
+          resolution_notes: 'Bevestigd als opgelost door student na testen',
+          resolved_by: this.currentUser ? this.currentUser.username : 'student'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.showToast(`✅ ${bugCode} als opgelost bevestigd!`);
+        this.loadStudentBugs();
       }
-      if (btnLabs) {
-        btnLabs.classList.remove('active');
-        btnLabs.style.borderBottom = '3px solid transparent';
-        btnLabs.style.color = '#64748b';
-      }
-      if (paneAcc) paneAcc.style.display = 'block';
-      if (paneLabs) paneLabs.style.display = 'none';
+    } catch (err) {
+      alert(`Fout bij bijwerken bug: ${err.message}`);
     }
   }
 

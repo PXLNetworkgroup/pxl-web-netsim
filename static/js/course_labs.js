@@ -2,6 +2,7 @@
  * course_labs.js - PXL Network Essentials Course Labs Repository
  * Sourced from https://vwgert.github.io/networksess/ (Gert Van Waeyenberg)
  * Hogeschool PXL (Toegepaste Informatica / SNE)
+ * Fully enriched with complete Addressing Tables, Hostnames, and Verification Tasks.
  */
 
 window.PXL_COURSE_LABS = [
@@ -13,7 +14,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 45,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 01 Labo: Rechtstreekse verbinding tussen 2 Laptops - APIPA\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les01_Labo.html](https://vwgert.github.io/networksess/Les01_Labo.html)\n\n### Doel van het labo:\nIn dit labo onderzoek je hoe twee laptops rechtstreeks met elkaar communiceren zonder tussenkomst van een router of DHCP-server. Je bestudeert het automatisch toekennen van een **APIPA-adres** (169.254.0.0/16) en test de connectiviteit via zowel **Command Prompt** als **PowerShell**.\n\n### Opdrachten:\n1. **Fysieke verbinding:** Sluit een netwerkkabel aan tussen `Laptop0` (FastEthernet0) en `Laptop1` (FastEthernet0).\n2. **DHCP controle:** Beide laptops staan ingesteld op DHCP. Windows kent automatisch een APIPA-adres toe (169.254.x.x / 255.255.0.0).\n3. **PowerShell onderzoek:**\n   - Open op `Laptop0` de **PowerShell** terminal.\n   - Voer `Get-NetIPAddress` (`gip`) en `Get-NetIPConfiguration` (`gipconfig`) uit.\n4. **Connectiviteitstest:** Ping vanuit PowerShell naar `Laptop1` via `Test-NetConnection 169.254.1.20` of `ping 169.254.1.20`.\n",
+    "instructions": "## H01-Labo1: Les 01 Labo: Rechtstreekse verbinding tussen 2 Laptops - APIPA\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les01_Labo.html](https://vwgert.github.io/networksess/Les01_Labo.html)\n\n### Doel van het labo:\nIn dit labo onderzoek je hoe twee laptops rechtstreeks met elkaar communiceren zonder tussenkomst van een router of DHCP-server. Je bestudeert het automatisch toekennen van een **APIPA-adres** (169.254.0.0/16) en test de connectiviteit via zowel **Command Prompt** als **PowerShell**.\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **Laptop0** | FastEthernet0 | 169.254.1.10 | 255.255.0.0 | - |\n| **Laptop1** | FastEthernet0 | 169.254.1.20 | 255.255.0.0 | - |\n\n#### Doelhostnames van Netwerkapparaten:\n* Apparaten behouden hun standaard hostnaam.\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor Laptop0:**\n   * Rechtstreekse kabelverbinding tussen Laptop0 en Laptop1\n   * Laptop0 heeft een geldig APIPA 169.254.x.x adres met /16 subnetmasker\n   * Succesvolle ping / Test-NetConnection tussen Laptop0 en Laptop1\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -99,7 +100,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 45,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 02 Labo: Statische IP-configuratie (PC ↔ Webserver)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les02_Labo.html](https://vwgert.github.io/networksess/Les02_Labo.html)\n\n### Doel van het labo:\nIn dit labo configureer je handmatig statische IP-adressen op een PC en een Server. Je test de connectiviteit via `Test-Connection` (of `ping`) en bezoekt de webpagina van de server via de webbrowser en PowerShell (`Invoke-WebRequest`).\n\n### Netwerktabel:\n| Apparaat | Interface | IP-Adres | Subnetmasker |\n| :--- | :--- | :--- | :--- |\n| PC0 | FastEthernet0 | 192.168.1.10 | 255.255.255.0 |\n| Server0 | FastEthernet0 | 192.168.1.100 | 255.255.255.0 |\n",
+    "instructions": "## H02-Labo1: Les 02 Labo: Statische IP-configuratie (PC ↔ Webserver)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les02_Labo.html](https://vwgert.github.io/networksess/Les02_Labo.html)\n\n### Doel van het labo:\nIn dit labo configureer je handmatig statische IP-adressen op een PC en een Server. Je test de connectiviteit via `Test-Connection` (of `ping`) en bezoekt de webpagina van de server via de webbrowser en PowerShell (`Invoke-WebRequest`).\n\n### Netwerktabel:\n| Apparaat | Interface | IP-Adres | Subnetmasker |\n| :--- | :--- | :--- | :--- |\n| PC0 | FastEthernet0 | 192.168.1.10 | 255.255.255.0 |\n| Server0 | FastEthernet0 | 192.168.1.100 | 255.255.255.0 |\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **PC0** | FastEthernet0 | 192.168.1.10 | 255.255.255.0 | - |\n| **Server0** | FastEthernet0 | 192.168.1.100 | 255.255.255.0 | - |\n\n#### Doelhostnames van Netwerkapparaten:\n* Apparaten behouden hun standaard hostnaam.\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor PC0:**\n   * PC0 heeft statisch IP 192.168.1.10 en masker 255.255.255.0\n   * Succesvolle ping tussen PC0 en Server0 (192.168.1.100)\n\n2. **Taken voor Algemeen:**\n   * HTTP webserver service actief op Server0\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -196,7 +197,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 50,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 03 Challenge 2: Ketting van Switches tot aan de Lector Webserver\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les03_Challenge2.html](https://vwgert.github.io/networksess/Les03_Challenge2.html)\n\n### Overzicht Challenge:\nIn deze challenge koppelen studenten hun switches aan elkaar in een ketting tot aan de laptop/server van de lector:\n1. De lector draait een webserver op `192.168.100.42` in het /24-netwerk `192.168.100.0/24`.\n2. Verbind de switches met elkaar via Gigabit trunk-uplinks.\n3. Configureer handmatig een IP-adres op je studenten-laptop (bijv. `192.168.100.10` t/m `192.168.100.50`).\n4. Test de connectiviteit via ping en bezoek de webpagina van de lector via de browser of PowerShell `Invoke-WebRequest`.\n",
+    "instructions": "## H03-Challenge2: Les 03 Challenge 2: Ketting van Switches & Lector Webserver\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les03_Challenge2.html](https://vwgert.github.io/networksess/Les03_Challenge2.html)\n\n### Overzicht Challenge:\nIn deze challenge koppelen studenten hun switches aan elkaar in een ketting tot aan de laptop/server van de lector:\n1. De lector draait een webserver op `192.168.100.42` in het /24-netwerk `192.168.100.0/24`.\n2. Verbind de switches met elkaar via Gigabit trunk-uplinks.\n3. Configureer handmatig een IP-adres op je studenten-laptop (bijv. `192.168.100.10` t/m `192.168.100.50`).\n4. Test de connectiviteit via ping en bezoek de webpagina van de lector via de browser of PowerShell `Invoke-WebRequest`.\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **Lector-Server** | FastEthernet0 | 192.168.100.42 | 255.255.255.0 | - |\n| **Laptop-Student2** | FastEthernet0 | 192.168.100.12 | 255.255.255.0 | - |\n\n#### Doelhostnames van Netwerkapparaten:\n* **Switch-Lector**: Hostname behouden of instellen op `Switch-Lector`\n* **Switch-Studenten**: Hostname behouden of instellen op `Switch-Studenten`\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor Laptop-Student1:**\n   * Laptop-Student1 verbonden met Switch-Studenten\n   * Laptop-Student1 geconfigureerd in netwerk 192.168.100.0/24\n   * Succesvolle ping van Laptop-Student1 naar Lector-Server (192.168.100.42)\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -333,7 +334,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 45,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 03 PT: Switch, ARP, ICMP en MAC-Address-Table\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les03_PT_ARP_MAC_ADDR_TAB.html](https://vwgert.github.io/networksess/Les03_PT_ARP_MAC_ADDR_TAB.html)\n\n### Doel van het labo:\nOnderzoek hoe een switch Layer 2 frames doorschakelt en hoe de **MAC-address-table** dynamisch wordt opgebouwd. Je bestudeert ARP-verzoeken en ICMP echo-pakketten.\n\n### Opdrachten:\n1. Bekijk de initiële MAC-adrestabel van `Switch0` via de CLI: `show mac-address-table`.\n2. Configureer het IP-adres op `PC1`: `192.168.1.20` met masker `255.255.255.0`.\n3. Ping vanuit `PC0` (192.168.1.10) naar `PC1` (192.168.1.20).\n4. Controleer de MAC-adrestabel opnieuw en verifieer dat beide poorten geregistreerd zijn.\n",
+    "instructions": "## H03-PT1: Les 03 PT: Switch, ARP, ICMP en MAC-Address-Table\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les03_PT_ARP_MAC_ADDR_TAB.html](https://vwgert.github.io/networksess/Les03_PT_ARP_MAC_ADDR_TAB.html)\n\n### Doel van het labo:\nOnderzoek hoe een switch Layer 2 frames doorschakelt en hoe de **MAC-address-table** dynamisch wordt opgebouwd. Je bestudeert ARP-verzoeken en ICMP echo-pakketten.\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **PC0** | FastEthernet0 | 192.168.1.10 | 255.255.255.0 | - |\n| **PC1** | FastEthernet0 | 192.168.1.20 | 255.255.255.0 | - |\n\n#### Doelhostnames van Netwerkapparaten:\n* **Switch0**: Hostname behouden of instellen op `Switch0`\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor PC1:**\n   * PC1 heeft IP 192.168.1.20 met masker 255.255.255.0\n\n2. **Taken voor PC0:**\n   * Succesvolle ping tussen PC0 en PC1\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -426,7 +427,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 50,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 03 PT: Meerdere MAC-adressen per switchpoort\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les03_PT_MAC_ADDR_TAB_Multi.html](https://vwgert.github.io/networksess/Les03_PT_MAC_ADDR_TAB_Multi.html)\n\n### Doel van het labo:\nOnderzoek hoe een switch MAC-adressen leert wanneer er achter een poort een tweede switch staat gekoppeld. Een switch leert het bron-MAC-adres van frames op de poort waar ze binnenkomen. Staan er meerdere toestellen achter die poort (zoals via een uplink-kabel), dan krijgen meerdere dynamische MAC-adressen dezelfde poort toegewezen.\n\n### Opdrachten:\n1. Verbind `Switch-Links` (GigabitEthernet0/1) met `Switch-Rechts` (GigabitEthernet0/1).\n2. Configureer IP `192.168.1.10` op `Laptop0` en `192.168.1.50` op `Laptop4`.\n3. Ping tussen `Laptop0` en `Laptop4`.\n4. Voer op `Switch-Links` het commando `show mac-address-table` uit en merk op dat de MAC-adressen van de rechterzijde allemaal op `GigabitEthernet0/1` verschijnen.\n",
+    "instructions": "## H03-PT2: Les 03 PT: Meerdere MAC-adressen per switchpoort\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les03_PT_MAC_ADDR_TAB_Multi.html](https://vwgert.github.io/networksess/Les03_PT_MAC_ADDR_TAB_Multi.html)\n\n### Doel van het labo:\nOnderzoek hoe een switch MAC-adressen leert wanneer er achter een poort een tweede switch staat gekoppeld. Een switch leert het bron-MAC-adres van frames op de poort waar ze binnenkomen. Staan er meerdere toestellen achter die poort (zoals via een uplink-kabel), dan krijgen meerdere dynamische MAC-adressen dezelfde poort toegewezen.\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **Laptop0** | FastEthernet0 | 192.168.1.10 | 255.255.255.0 | - |\n| **Laptop1** | FastEthernet0 | 192.168.1.20 | 255.255.255.0 | - |\n| **Laptop4** | FastEthernet0 | 192.168.1.50 | 255.255.255.0 | - |\n| **Laptop5** | FastEthernet0 | 192.168.1.60 | 255.255.255.0 | - |\n\n#### Doelhostnames van Netwerkapparaten:\n* **Switch-Links**: Hostname behouden of instellen op `Switch-Links`\n* **Switch-Rechts**: Hostname behouden of instellen op `Switch-Rechts`\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor Switch-Links:**\n   * Gigabit-kabel tussen Switch-Links en Switch-Rechts\n\n2. **Taken voor Laptop4:**\n   * Laptop4 aangesloten op Switch-Rechts FastEthernet0/1\n   * Laptop4 geconfigureerd met IP 192.168.1.50 / 255.255.255.0\n\n3. **Taken voor Laptop0:**\n   * Succesvolle ping tussen Laptop0 en Laptop4 over beide switches\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -589,7 +590,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 45,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 04 Challenge: De hosts-file manipuleren\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les04_Challenge.html](https://vwgert.github.io/networksess/Les04_Challenge.html)\n\n### Overzicht Challenge:\nIn deze individuele opdracht ontdek je hoe Windows URL-namen naar IP-adressen omzet, en hoe je dat proces zelf kan beïnvloeden via de `hosts`-file (`C:\\Windows\\System32\\drivers\\etc\\hosts`).\nDe entries in deze file worden geraadpleegd vóór een DNS-server wordt gecontacteerd.\n\n### Opdrachten:\n1. Inspecteer de DNS instellingen op `Client-PC` via PowerShell: `Get-DnsClientServerAddress`.\n2. Verifieer dat `www.pxl.be` resolvet naar de PXL Webserver `192.168.1.20` via `Resolve-DnsName www.pxl.be`.\n3. Bekijk de lokale hosts entry via PowerShell `Get-Content C:\\Windows\\System32\\drivers\\etc\\hosts`.\n4. Pas de configuratie aan zodat `Client-PC` direct verbinding kan maken met de PXL Webserver.\n",
+    "instructions": "## H04-Challenge1: Les 04 Challenge: De hosts-file manipuleren & DNS Blackholing\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les04_Challenge.html](https://vwgert.github.io/networksess/Les04_Challenge.html)\n\n### Overzicht Challenge:\nIn deze individuele opdracht ontdek je hoe Windows URL-namen naar IP-adressen omzet, en hoe je dat proces zelf kan beïnvloeden via de `hosts`-file (`C:\\Windows\\System32\\drivers\\etc\\hosts`).\nDe entries in deze file worden geraadpleegd vóór een DNS-server wordt gecontacteerd.\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **Client-PC** | FastEthernet0 | 192.168.1.50 | 255.255.255.0 | 192.168.1.1 |\n| **DNS-Server** | FastEthernet0 | 192.168.1.10 | 255.255.255.0 | 192.168.1.1 |\n| **PXL-Webserver** | FastEthernet0 | 192.168.1.20 | 255.255.255.0 | 192.168.1.1 |\n\n#### Doelhostnames van Netwerkapparaten:\n* **Switch0**: Hostname behouden of instellen op `Switch0`\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor Algemeen:**\n   * A-record voor www.pxl.be wijst naar 192.168.1.20\n\n2. **Taken voor Client-PC:**\n   * Client-PC kan DNS-server pingen\n   * Client-PC kan PXL Webserver pingen\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -726,7 +727,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 50,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 04 Challenge 2: Eigen DNS-server (labo.local) & Wireshark\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les04_Challenge2.html](https://vwgert.github.io/networksess/Les04_Challenge2.html)\n\n### Overzicht Challenge:\nIn deze challenge richt één van de apparaten een DNS-zone `labo.local` in:\n1. Server configureert een forward lookup zone voor domein `labo.local` met A-records voor `ns1.labo.local` en `www.labo.local`.\n2. De client-laptop stelt het IP van deze DNS-server in (`192.168.1.10`).\n3. De client gebruikt PowerShell `Resolve-DnsName www.labo.local` en surft naar `http://www.labo.local` via `Invoke-WebRequest` of de browser.\n",
+    "instructions": "## H04-Challenge2: Les 04 Challenge 2: Eigen DNS-server (labo.local) & Wireshark\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les04_Challenge2.html](https://vwgert.github.io/networksess/Les04_Challenge2.html)\n\n### Overzicht Challenge:\nIn deze challenge richt één van de apparaten een DNS-zone `labo.local` in:\n1. Server configureert een forward lookup zone voor domein `labo.local` met A-records voor `ns1.labo.local` en `www.labo.local`.\n2. De client-laptop stelt het IP van deze DNS-server in (`192.168.1.10`).\n3. De client gebruikt PowerShell `Resolve-DnsName www.labo.local` en surft naar `http://www.labo.local` via `Invoke-WebRequest` of de browser.\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **Student-Laptop** | FastEthernet0 | 192.168.1.50 | 255.255.255.0 | - |\n| **Labo-Server** | FastEthernet0 | 192.168.1.10 | 255.255.255.0 | - |\n\n#### Doelhostnames van Netwerkapparaten:\n* **Switch-Lab**: Hostname behouden of instellen op `Switch-Lab`\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor Student-Laptop:**\n   * Student-Laptop heeft DNS server 192.168.1.10 geconfigureerd\n   * Succesvolle ping tussen Student-Laptop en Labo-Server\n\n2. **Taken voor Algemeen:**\n   * A-record www.labo.local aanwezig op Labo-Server\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -847,7 +848,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 50,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 04 PT: DHCP + DNS + HTTP in Simulation Mode\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les04_PT_DNS.html](https://vwgert.github.io/networksess/Les04_PT_DNS.html)\n\n### Doel van het labo:\nIn dit labo zie je hoe DHCP automatisch IP-adressen toekent, hoe DNS domeinnamen vertaalt naar IP-adressen, en hoe HTTP webpagina's serveert. Je test dit zowel via de browser als via Windows PowerShell.\n",
+    "instructions": "## H04-PT1: Les 04 PT: DHCP, DNS en HTTP Webserver in Simulation Mode\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les04_PT_DNS.html](https://vwgert.github.io/networksess/Les04_PT_DNS.html)\n\n### Doel van het labo:\nIn dit labo zie je hoe DHCP automatisch IP-adressen toekent, hoe DNS domeinnamen vertaalt naar IP-adressen, en hoe HTTP webpagina's serveert. Je test dit zowel via de browser als via Windows PowerShell.\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **DHCP-DNS-Server** | FastEthernet0 | 192.168.1.10 | 255.255.255.0 | - |\n| **Webserver** | FastEthernet0 | 192.168.1.100 | 255.255.255.0 | - |\n\n#### Doelhostnames van Netwerkapparaten:\n* **Switch0**: Hostname behouden of instellen op `Switch0`\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor PC0:**\n   * PC0 ontvangt een geldig IP in subnet 192.168.1.0/24\n\n2. **Taken voor Algemeen:**\n   * DNS-server heeft record www.pxl.be -> 192.168.1.100\n   * HTTP service actief op Webserver\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -981,441 +982,6 @@ window.PXL_COURSE_LABS = [
     ]
   },
   {
-    "id": "h05_labo1_mikrotik",
-    "code": "H05-Labo1",
-    "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
-    "title": "Les 05 Labo 1: MikroTik hEX lite als Router (4 Netwerken)",
-    "timeLimitMinutes": 50,
-    "showLiveScore": true,
-    "liveInternet": false,
-    "instructions": "## Les 05 Labo 1: MikroTik hEX lite als Router\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Labo1.html](https://vwgert.github.io/networksess/Les05_Labo1.html)\n\n### Doel van het labo:\nIn dit labo configureer je een **MikroTik hEX lite** router via RouterOS CLI. Je kent IP-adressen toe aan interfaces en routeert verkeer tussen clients in afzonderlijke subnetten.\n",
-    "initialTopology": {
-      "devices": [
-        {
-          "id": "MikroTik-R1",
-          "name": "MikroTik-R1",
-          "type": "mikrotik",
-          "x": 360,
-          "y": 180,
-          "interfaces": {
-            "ether1": {
-              "ip": "192.168.1.1",
-              "mask": "255.255.255.0",
-              "shutdown": false
-            },
-            "ether2": {
-              "ip": "192.168.2.1",
-              "mask": "255.255.255.0",
-              "shutdown": false
-            }
-          }
-        },
-        {
-          "id": "PC-LAN1",
-          "name": "PC-LAN1",
-          "type": "pc",
-          "x": 160,
-          "y": 280,
-          "dhcpEnabled": false,
-          "ip": "192.168.1.10",
-          "mask": "255.255.255.0",
-          "gateway": "192.168.1.1",
-          "dns": ""
-        },
-        {
-          "id": "PC-LAN2",
-          "name": "PC-LAN2",
-          "type": "pc",
-          "x": 560,
-          "y": 280,
-          "dhcpEnabled": false,
-          "ip": "",
-          "mask": "",
-          "gateway": "",
-          "dns": ""
-        }
-      ],
-      "cables": [
-        {
-          "fromDevice": "PC-LAN1",
-          "fromPort": "FastEthernet0",
-          "toDevice": "MikroTik-R1",
-          "toPort": "ether1",
-          "type": "copper_straight"
-        },
-        {
-          "fromDevice": "PC-LAN2",
-          "fromPort": "FastEthernet0",
-          "toDevice": "MikroTik-R1",
-          "toPort": "ether2",
-          "type": "copper_straight"
-        }
-      ]
-    },
-    "rubric": [
-      {
-        "id": "pc_lan2_ip",
-        "category": "interface_ip",
-        "title": "PC-LAN2 IP & Gateway",
-        "desc": "PC-LAN2 heeft IP 192.168.2.10 en gateway 192.168.2.1",
-        "type": "interface_ip",
-        "checkType": "interface_ip",
-        "points": 40,
-        "enabled": true,
-        "condition": {
-          "deviceId": "PC-LAN2",
-          "portName": "FastEthernet0",
-          "expectedIp": "192.168.2.10",
-          "expectedMask": "255.255.255.0"
-        }
-      },
-      {
-        "id": "pc_lan2_gw",
-        "category": "routing",
-        "title": "Default Gateway",
-        "desc": "Default gateway van PC-LAN2 is 192.168.2.1",
-        "type": "default_gateway",
-        "checkType": "default_gateway",
-        "points": 30,
-        "enabled": true,
-        "condition": {
-          "deviceId": "PC-LAN2",
-          "expected": "192.168.2.1"
-        }
-      },
-      {
-        "id": "ping_inter_lan",
-        "category": "connectivity",
-        "title": "Inter-LAN Routing Ping",
-        "desc": "Succesvolle ping van PC-LAN1 naar PC-LAN2 (192.168.2.10)",
-        "type": "ping_test",
-        "checkType": "ping_test",
-        "points": 30,
-        "enabled": true,
-        "condition": {
-          "fromDevice": "PC-LAN1",
-          "targetIp": "192.168.2.10"
-        }
-      }
-    ]
-  },
-  {
-    "id": "h05_labo2_mikrotik_2lans",
-    "code": "H05-Labo2",
-    "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
-    "title": "Les 05 Labo 2: MikroTik routeert tussen twee LAN-netwerken",
-    "timeLimitMinutes": 50,
-    "showLiveScore": true,
-    "liveInternet": false,
-    "instructions": "## Les 05 - Labo 2: MikroTik routeert tussen twee LAN-netwerken\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Labo2.html](https://vwgert.github.io/networksess/Les05_Labo2.html)\n\n### Overzicht en netwerktopologie:\nIn dit labo werken 2 teams (Team 1 en Team 2). Elk team hangt via een switch aan een poort van de MikroTik-router:\n- **Team 1:** `192.168.100.0/24` via switch op `ether2` (`192.168.100.1`)\n- **Team 2:** `192.168.200.0/24` via switch op `ether3` (`192.168.200.1`)\nDe MikroTik verzorgt de routering tussen beide netwerken zodat alle studenten met elkaar kunnen communiceren.\n",
-    "initialTopology": {
-      "devices": [
-        {
-          "id": "MikroTik-Router",
-          "name": "MikroTik-Router",
-          "type": "mikrotik",
-          "x": 370,
-          "y": 140,
-          "interfaces": {
-            "ether2": {
-              "ip": "192.168.100.1",
-              "mask": "255.255.255.0",
-              "shutdown": false
-            },
-            "ether3": {
-              "ip": "192.168.200.1",
-              "mask": "255.255.255.0",
-              "shutdown": false
-            }
-          }
-        },
-        {
-          "id": "Switch-Team1",
-          "name": "Switch-Team1",
-          "type": "switch",
-          "x": 200,
-          "y": 240
-        },
-        {
-          "id": "Switch-Team2",
-          "name": "Switch-Team2",
-          "type": "switch",
-          "x": 540,
-          "y": 240
-        },
-        {
-          "id": "PC-Team1",
-          "name": "PC-Team1",
-          "type": "pc",
-          "x": 120,
-          "y": 340,
-          "dhcpEnabled": false,
-          "ip": "192.168.100.10",
-          "mask": "255.255.255.0",
-          "gateway": "192.168.100.1",
-          "dns": ""
-        },
-        {
-          "id": "PC-Team2",
-          "name": "PC-Team2",
-          "type": "pc",
-          "x": 620,
-          "y": 340,
-          "dhcpEnabled": false,
-          "ip": "",
-          "mask": "",
-          "gateway": "",
-          "dns": ""
-        }
-      ],
-      "cables": [
-        {
-          "fromDevice": "MikroTik-Router",
-          "fromPort": "ether2",
-          "toDevice": "Switch-Team1",
-          "toPort": "FastEthernet0/1",
-          "type": "copper_straight"
-        },
-        {
-          "fromDevice": "MikroTik-Router",
-          "fromPort": "ether3",
-          "toDevice": "Switch-Team2",
-          "toPort": "FastEthernet0/1",
-          "type": "copper_straight"
-        },
-        {
-          "fromDevice": "PC-Team1",
-          "fromPort": "FastEthernet0",
-          "toDevice": "Switch-Team1",
-          "toPort": "FastEthernet0/2",
-          "type": "copper_straight"
-        }
-      ]
-    },
-    "rubric": [
-      {
-        "id": "cable_team2",
-        "category": "cabling",
-        "title": "Bekabeling Team 2",
-        "desc": "PC-Team2 verbonden met Switch-Team2",
-        "type": "cabling",
-        "checkType": "cabling",
-        "points": 25,
-        "enabled": true,
-        "condition": {
-          "fromDevice": "PC-Team2",
-          "fromPort": "FastEthernet0",
-          "toDevice": "Switch-Team2",
-          "toPort": "FastEthernet0/2"
-        }
-      },
-      {
-        "id": "ip_team2",
-        "category": "interface_ip",
-        "title": "IP PC-Team2",
-        "desc": "PC-Team2 heeft IP in 192.168.200.0/24",
-        "type": "ip_subnet",
-        "checkType": "ip_subnet",
-        "points": 25,
-        "enabled": true,
-        "condition": {
-          "deviceId": "PC-Team2",
-          "subnetPrefix": "192.168.200.",
-          "expectedMask": "255.255.255.0"
-        }
-      },
-      {
-        "id": "gw_team2",
-        "category": "routing",
-        "title": "Gateway Team 2",
-        "desc": "PC-Team2 heeft default gateway 192.168.200.1",
-        "type": "default_gateway",
-        "checkType": "default_gateway",
-        "points": 25,
-        "enabled": true,
-        "condition": {
-          "deviceId": "PC-Team2",
-          "expected": "192.168.200.1"
-        }
-      },
-      {
-        "id": "ping_teams",
-        "category": "connectivity",
-        "title": "Inter-Team Ping",
-        "desc": "Succesvolle ping tussen Team 1 en Team 2",
-        "type": "ping_test",
-        "checkType": "ping_test",
-        "points": 25,
-        "enabled": true,
-        "condition": {
-          "fromDevice": "PC-Team1",
-          "target": "PC-Team2"
-        }
-      }
-    ]
-  },
-  {
-    "id": "h05_labo3_mikrotik_static_routes",
-    "code": "H05-Labo3",
-    "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
-    "title": "Les 05 Labo 3: Static routes tussen twee MikroTik routers",
-    "timeLimitMinutes": 55,
-    "showLiveScore": true,
-    "liveInternet": false,
-    "instructions": "## Les 05 - Labo 3: Static routes tussen twee routers en twee LAN-netwerken\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Labo3.html](https://vwgert.github.io/networksess/Les05_Labo3.html)\n\n### Overzicht en netwerktopologie:\nTwee teams zijn verbonden via twee routers met een inter-router link (`10.0.0.0/30`):\n- **Router 1:** `ether2` = `192.168.100.1/24`, `ether1` = `10.0.0.1/30`\n- **Router 2:** `ether2` = `192.168.200.1/24`, `ether1` = `10.0.0.2/30`\nOmdat routers elkaars LAN niet automatisch kennen, moeten **static routes** toegevoegd worden:\n- Op Router 1: route naar `192.168.200.0/24` via gateway `10.0.0.2`\n- Op Router 2: route naar `192.168.100.0/24` via gateway `10.0.0.1`\n",
-    "initialTopology": {
-      "devices": [
-        {
-          "id": "MikroTik-R1",
-          "name": "MikroTik-R1",
-          "type": "mikrotik",
-          "x": 260,
-          "y": 160,
-          "interfaces": {
-            "ether1": {
-              "ip": "10.0.0.1",
-              "mask": "255.255.255.252",
-              "shutdown": false
-            },
-            "ether2": {
-              "ip": "192.168.100.1",
-              "mask": "255.255.255.0",
-              "shutdown": false
-            }
-          },
-          "staticRoutes": [
-            {
-              "network": "192.168.200.0",
-              "mask": "255.255.255.0",
-              "nextHop": "10.0.0.2"
-            }
-          ]
-        },
-        {
-          "id": "MikroTik-R2",
-          "name": "MikroTik-R2",
-          "type": "mikrotik",
-          "x": 520,
-          "y": 160,
-          "interfaces": {
-            "ether1": {
-              "ip": "10.0.0.2",
-              "mask": "255.255.255.252",
-              "shutdown": false
-            },
-            "ether2": {
-              "ip": "192.168.200.1",
-              "mask": "255.255.255.0",
-              "shutdown": false
-            }
-          },
-          "staticRoutes": [
-            {
-              "network": "192.168.100.0",
-              "mask": "255.255.255.0",
-              "nextHop": "10.0.0.1"
-            }
-          ]
-        },
-        {
-          "id": "PC-Team1",
-          "name": "PC-Team1",
-          "type": "pc",
-          "x": 120,
-          "y": 260,
-          "dhcpEnabled": false,
-          "ip": "192.168.100.10",
-          "mask": "255.255.255.0",
-          "gateway": "192.168.100.1",
-          "dns": ""
-        },
-        {
-          "id": "PC-Team2",
-          "name": "PC-Team2",
-          "type": "pc",
-          "x": 660,
-          "y": 260,
-          "dhcpEnabled": false,
-          "ip": "192.168.200.10",
-          "mask": "255.255.255.0",
-          "gateway": "192.168.200.1",
-          "dns": ""
-        }
-      ],
-      "cables": [
-        {
-          "fromDevice": "MikroTik-R1",
-          "fromPort": "ether1",
-          "toDevice": "MikroTik-R2",
-          "toPort": "ether1",
-          "type": "copper_straight"
-        },
-        {
-          "fromDevice": "PC-Team1",
-          "fromPort": "FastEthernet0",
-          "toDevice": "MikroTik-R1",
-          "toPort": "ether2",
-          "type": "copper_straight"
-        },
-        {
-          "fromDevice": "PC-Team2",
-          "fromPort": "FastEthernet0",
-          "toDevice": "MikroTik-R2",
-          "toPort": "ether2",
-          "type": "copper_straight"
-        }
-      ]
-    },
-    "rubric": [
-      {
-        "id": "r1_static_route",
-        "category": "routing",
-        "title": "Static Route R1",
-        "desc": "Router 1 heeft route naar 192.168.200.0/24 via 10.0.0.2",
-        "type": "static_route",
-        "checkType": "static_route",
-        "points": 35,
-        "enabled": true,
-        "condition": {
-          "routerId": "MikroTik-R1",
-          "network": "192.168.200.0",
-          "mask": "255.255.255.0",
-          "nextHop": "10.0.0.2"
-        }
-      },
-      {
-        "id": "r2_static_route",
-        "category": "routing",
-        "title": "Static Route R2",
-        "desc": "Router 2 heeft route naar 192.168.100.0/24 via 10.0.0.1",
-        "type": "static_route",
-        "checkType": "static_route",
-        "points": 35,
-        "enabled": true,
-        "condition": {
-          "routerId": "MikroTik-R2",
-          "network": "192.168.100.0",
-          "mask": "255.255.255.0",
-          "nextHop": "10.0.0.1"
-        }
-      },
-      {
-        "id": "end_to_end_ping",
-        "category": "connectivity",
-        "title": "End-to-End Ping",
-        "desc": "Succesvolle ping tussen PC-Team1 en PC-Team2 over beide routers",
-        "type": "ping_test",
-        "checkType": "ping_test",
-        "points": 30,
-        "enabled": true,
-        "condition": {
-          "fromDevice": "PC-Team1",
-          "targetIp": "192.168.200.10"
-        }
-      }
-    ]
-  },
-  {
     "id": "h05_challenge1_gateway_last_resort",
     "code": "H05-Challenge1",
     "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
@@ -1423,7 +989,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 55,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 05 Challenge 1: Routerketen en Gateway of Last Resort\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Challenge1.html](https://vwgert.github.io/networksess/Les05_Challenge1.html)\n\n### Overzicht Challenge:\nIn deze challenge tonen we aan dat een **default route** (`0.0.0.0/0` of Gateway of Last Resort) werkt als \"fallback\" naar de volgende router richting de lector/internet.\nZo hoef je niet op elke router alle individuele netwerken in te geven voor uitgaand verkeer.\n",
+    "instructions": "## H05-Challenge1: Les 05 Challenge 1: Routerketen & Gateway of Last Resort (0.0.0.0/0)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les05_Challenge1.html](https://vwgert.github.io/networksess/Les05_Challenge1.html)\n\n### Overzicht Challenge:\nIn deze challenge tonen we aan dat een **default route** (`0.0.0.0/0` of Gateway of Last Resort) werkt als \"fallback\" naar de volgende router richting de lector/internet.\nZo hoef je niet op elke router alle individuele netwerken in te geven voor uitgaand verkeer.\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **Student-PC** | FastEthernet0 | 192.168.100.10 | 255.255.255.0 | 192.168.100.1 |\n| **Team-Router** | ether1 | 10.10.10.2 | 255.255.255.252 | - |\n| **Team-Router** | ether2 | 192.168.100.1 | 255.255.255.0 | - |\n| **Lector-Router** | ether1 | 10.10.10.1 | 255.255.255.252 | - |\n| **Lector-Router** | ether2 | 172.16.0.1 | 255.255.255.0 | - |\n| **Lector-Webserver** | FastEthernet0 | 172.16.0.50 | 255.255.255.0 | 172.16.0.1 |\n\n#### Doelhostnames van Netwerkapparaten:\n* Apparaten behouden hun standaard hostnaam.\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor Team-Router:**\n   * Team-Router heeft default route 0.0.0.0/0 via 10.10.10.1\n\n2. **Taken voor Student-PC:**\n   * Succesvolle ping van Student-PC naar Lector-Webserver (172.16.0.50)\n\n3. **Taken voor Algemeen:**\n   * Webserver actief op Lector-Webserver\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -1584,7 +1150,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 55,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 05 Challenge 2: Routerketen en RIP Dynamische Routering\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_Challenge2.html](https://vwgert.github.io/networksess/Les05_Challenge2.html)\n\n### Overzicht Challenge:\nIn deze challenge bouwen routers een dynamische keten via het protocol **RIP** (Routing Information Protocol).\nAlle routers wisselen automatisch routes uit zodat elk team verbinding kan maken zonder handmatige static routes.\n",
+    "instructions": "## H05-Challenge2: Les 05 Challenge 2: Routerketen & Dynamische Routering met RIP\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les05_Challenge2.html](https://vwgert.github.io/networksess/Les05_Challenge2.html)\n\n### Overzicht Challenge:\nIn deze challenge bouwen routers een dynamische keten via het protocol **RIP** (Routing Information Protocol).\nAlle routers wisselen automatisch routes uit zodat elk team verbinding kan maken zonder handmatige static routes.\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **PC-LAN1** | FastEthernet0 | 192.168.10.10 | 255.255.255.0 | 192.168.10.1 |\n| **Router1** | GigabitEthernet0/0/0 | 192.168.10.1 | 255.255.255.0 | - |\n| **Router1** | GigabitEthernet0/0/1 | 10.0.12.1 | 255.255.255.252 | - |\n| **Router2** | GigabitEthernet0/0/0 | 10.0.12.2 | 255.255.255.252 | - |\n| **Router2** | GigabitEthernet0/0/1 | 192.168.30.1 | 255.255.255.0 | - |\n| **PC-LAN3** | FastEthernet0 | 192.168.30.10 | 255.255.255.0 | 192.168.30.1 |\n\n#### Doelhostnames van Netwerkapparaten:\n* **Router1**: Hostname behouden of instellen op `Router1`\n* **Router2**: Hostname behouden of instellen op `Router2`\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor Router1:**\n   * Gig0/0/0 geconfigureerd met 192.168.10.1\n\n2. **Taken voor Router2:**\n   * Gig0/0/1 geconfigureerd met 192.168.30.1\n\n3. **Taken voor PC-LAN1:**\n   * Succesvolle communicatie tussen PC-LAN1 en PC-LAN3\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -1738,6 +1304,441 @@ window.PXL_COURSE_LABS = [
     ]
   },
   {
+    "id": "h05_labo1_mikrotik",
+    "code": "H05-Labo1",
+    "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
+    "title": "Les 05 Labo 1: MikroTik hEX lite als Router (4 Netwerken)",
+    "timeLimitMinutes": 50,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## H05-Labo1: Les 05 Labo 1: MikroTik hEX lite als Router (4 Netwerken)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les05_Labo1.html](https://vwgert.github.io/networksess/Les05_Labo1.html)\n\n### Doel van het labo:\nIn dit labo configureer je een **MikroTik hEX lite** router via RouterOS CLI. Je kent IP-adressen toe aan interfaces en routeert verkeer tussen clients in afzonderlijke subnetten.\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **MikroTik-R1** | ether1 | 192.168.1.1 | 255.255.255.0 | - |\n| **MikroTik-R1** | ether2 | 192.168.2.1 | 255.255.255.0 | - |\n| **PC-LAN1** | FastEthernet0 | 192.168.1.10 | 255.255.255.0 | 192.168.1.1 |\n| **PC-LAN2** | FastEthernet0 | 192.168.2.10 | 255.255.255.0 | 192.168.2.1 |\n\n#### Doelhostnames van Netwerkapparaten:\n* Apparaten behouden hun standaard hostnaam.\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor PC-LAN2:**\n   * PC-LAN2 heeft IP 192.168.2.10 en gateway 192.168.2.1\n   * Default gateway van PC-LAN2 is 192.168.2.1\n\n2. **Taken voor PC-LAN1:**\n   * Succesvolle ping van PC-LAN1 naar PC-LAN2 (192.168.2.10)\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
+    "initialTopology": {
+      "devices": [
+        {
+          "id": "MikroTik-R1",
+          "name": "MikroTik-R1",
+          "type": "mikrotik",
+          "x": 360,
+          "y": 180,
+          "interfaces": {
+            "ether1": {
+              "ip": "192.168.1.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            },
+            "ether2": {
+              "ip": "192.168.2.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          }
+        },
+        {
+          "id": "PC-LAN1",
+          "name": "PC-LAN1",
+          "type": "pc",
+          "x": 160,
+          "y": 280,
+          "dhcpEnabled": false,
+          "ip": "192.168.1.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.1",
+          "dns": ""
+        },
+        {
+          "id": "PC-LAN2",
+          "name": "PC-LAN2",
+          "type": "pc",
+          "x": 560,
+          "y": 280,
+          "dhcpEnabled": false,
+          "ip": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "PC-LAN1",
+          "fromPort": "FastEthernet0",
+          "toDevice": "MikroTik-R1",
+          "toPort": "ether1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "PC-LAN2",
+          "fromPort": "FastEthernet0",
+          "toDevice": "MikroTik-R1",
+          "toPort": "ether2",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "pc_lan2_ip",
+        "category": "interface_ip",
+        "title": "PC-LAN2 IP & Gateway",
+        "desc": "PC-LAN2 heeft IP 192.168.2.10 en gateway 192.168.2.1",
+        "type": "interface_ip",
+        "checkType": "interface_ip",
+        "points": 40,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC-LAN2",
+          "portName": "FastEthernet0",
+          "expectedIp": "192.168.2.10",
+          "expectedMask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "pc_lan2_gw",
+        "category": "routing",
+        "title": "Default Gateway",
+        "desc": "Default gateway van PC-LAN2 is 192.168.2.1",
+        "type": "default_gateway",
+        "checkType": "default_gateway",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC-LAN2",
+          "expected": "192.168.2.1"
+        }
+      },
+      {
+        "id": "ping_inter_lan",
+        "category": "connectivity",
+        "title": "Inter-LAN Routing Ping",
+        "desc": "Succesvolle ping van PC-LAN1 naar PC-LAN2 (192.168.2.10)",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC-LAN1",
+          "targetIp": "192.168.2.10"
+        }
+      }
+    ]
+  },
+  {
+    "id": "h05_labo2_mikrotik_2lans",
+    "code": "H05-Labo2",
+    "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
+    "title": "Les 05 Labo 2: MikroTik routeert tussen twee LAN-netwerken",
+    "timeLimitMinutes": 50,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## H05-Labo2: Les 05 Labo 2: MikroTik routeert tussen twee LAN-netwerken\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les05_Labo2.html](https://vwgert.github.io/networksess/Les05_Labo2.html)\n\n### Overzicht en netwerktopologie:\nIn dit labo werken 2 teams (Team 1 en Team 2). Elk team hangt via een switch aan een poort van de MikroTik-router:\n- **Team 1:** `192.168.100.0/24` via switch op `ether2` (`192.168.100.1`)\n- **Team 2:** `192.168.200.0/24` via switch op `ether3` (`192.168.200.1`)\nDe MikroTik verzorgt de routering tussen beide netwerken zodat alle studenten met elkaar kunnen communiceren.\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **MikroTik-Router** | ether2 | 192.168.100.1 | 255.255.255.0 | - |\n| **MikroTik-Router** | ether3 | 192.168.200.1 | 255.255.255.0 | - |\n| **PC-Team1** | FastEthernet0 | 192.168.100.10 | 255.255.255.0 | 192.168.100.1 |\n\n#### Doelhostnames van Netwerkapparaten:\n* **Switch-Team1**: Hostname behouden of instellen op `Switch-Team1`\n* **Switch-Team2**: Hostname behouden of instellen op `Switch-Team2`\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor PC-Team2:**\n   * PC-Team2 verbonden met Switch-Team2\n   * PC-Team2 heeft IP in 192.168.200.0/24\n   * PC-Team2 heeft default gateway 192.168.200.1\n\n2. **Taken voor PC-Team1:**\n   * Succesvolle ping tussen Team 1 en Team 2\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
+    "initialTopology": {
+      "devices": [
+        {
+          "id": "MikroTik-Router",
+          "name": "MikroTik-Router",
+          "type": "mikrotik",
+          "x": 370,
+          "y": 140,
+          "interfaces": {
+            "ether2": {
+              "ip": "192.168.100.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            },
+            "ether3": {
+              "ip": "192.168.200.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          }
+        },
+        {
+          "id": "Switch-Team1",
+          "name": "Switch-Team1",
+          "type": "switch",
+          "x": 200,
+          "y": 240
+        },
+        {
+          "id": "Switch-Team2",
+          "name": "Switch-Team2",
+          "type": "switch",
+          "x": 540,
+          "y": 240
+        },
+        {
+          "id": "PC-Team1",
+          "name": "PC-Team1",
+          "type": "pc",
+          "x": 120,
+          "y": 340,
+          "dhcpEnabled": false,
+          "ip": "192.168.100.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.100.1",
+          "dns": ""
+        },
+        {
+          "id": "PC-Team2",
+          "name": "PC-Team2",
+          "type": "pc",
+          "x": 620,
+          "y": 340,
+          "dhcpEnabled": false,
+          "ip": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "MikroTik-Router",
+          "fromPort": "ether2",
+          "toDevice": "Switch-Team1",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "MikroTik-Router",
+          "fromPort": "ether3",
+          "toDevice": "Switch-Team2",
+          "toPort": "FastEthernet0/1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "PC-Team1",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch-Team1",
+          "toPort": "FastEthernet0/2",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "cable_team2",
+        "category": "cabling",
+        "title": "Bekabeling Team 2",
+        "desc": "PC-Team2 verbonden met Switch-Team2",
+        "type": "cabling",
+        "checkType": "cabling",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC-Team2",
+          "fromPort": "FastEthernet0",
+          "toDevice": "Switch-Team2",
+          "toPort": "FastEthernet0/2"
+        }
+      },
+      {
+        "id": "ip_team2",
+        "category": "interface_ip",
+        "title": "IP PC-Team2",
+        "desc": "PC-Team2 heeft IP in 192.168.200.0/24",
+        "type": "ip_subnet",
+        "checkType": "ip_subnet",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC-Team2",
+          "subnetPrefix": "192.168.200.",
+          "expectedMask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "gw_team2",
+        "category": "routing",
+        "title": "Gateway Team 2",
+        "desc": "PC-Team2 heeft default gateway 192.168.200.1",
+        "type": "default_gateway",
+        "checkType": "default_gateway",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "deviceId": "PC-Team2",
+          "expected": "192.168.200.1"
+        }
+      },
+      {
+        "id": "ping_teams",
+        "category": "connectivity",
+        "title": "Inter-Team Ping",
+        "desc": "Succesvolle ping tussen Team 1 en Team 2",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 25,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC-Team1",
+          "target": "PC-Team2"
+        }
+      }
+    ]
+  },
+  {
+    "id": "h05_labo3_mikrotik_static_routes",
+    "code": "H05-Labo3",
+    "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
+    "title": "Les 05 Labo 3: Static routes tussen twee MikroTik routers",
+    "timeLimitMinutes": 55,
+    "showLiveScore": true,
+    "liveInternet": false,
+    "instructions": "## H05-Labo3: Les 05 Labo 3: Static routes tussen twee MikroTik routers\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les05_Labo3.html](https://vwgert.github.io/networksess/Les05_Labo3.html)\n\n### Overzicht en netwerktopologie:\nTwee teams zijn verbonden via twee routers met een inter-router link (`10.0.0.0/30`):\n- **Router 1:** `ether2` = `192.168.100.1/24`, `ether1` = `10.0.0.1/30`\n- **Router 2:** `ether2` = `192.168.200.1/24`, `ether1` = `10.0.0.2/30`\nOmdat routers elkaars LAN niet automatisch kennen, moeten **static routes** toegevoegd worden:\n- Op Router 1: route naar `192.168.200.0/24` via gateway `10.0.0.2`\n- Op Router 2: route naar `192.168.100.0/24` via gateway `10.0.0.1`\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **MikroTik-R1** | ether1 | 10.0.0.1 | 255.255.255.252 | - |\n| **MikroTik-R1** | ether2 | 192.168.100.1 | 255.255.255.0 | - |\n| **MikroTik-R2** | ether1 | 10.0.0.2 | 255.255.255.252 | - |\n| **MikroTik-R2** | ether2 | 192.168.200.1 | 255.255.255.0 | - |\n| **PC-Team1** | FastEthernet0 | 192.168.100.10 | 255.255.255.0 | 192.168.100.1 |\n| **PC-Team2** | FastEthernet0 | 192.168.200.10 | 255.255.255.0 | 192.168.200.1 |\n\n#### Doelhostnames van Netwerkapparaten:\n* Apparaten behouden hun standaard hostnaam.\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor MikroTik-R1:**\n   * Router 1 heeft route naar 192.168.200.0/24 via 10.0.0.2\n\n2. **Taken voor MikroTik-R2:**\n   * Router 2 heeft route naar 192.168.100.0/24 via 10.0.0.1\n\n3. **Taken voor PC-Team1:**\n   * Succesvolle ping tussen PC-Team1 en PC-Team2 over beide routers\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
+    "initialTopology": {
+      "devices": [
+        {
+          "id": "MikroTik-R1",
+          "name": "MikroTik-R1",
+          "type": "mikrotik",
+          "x": 260,
+          "y": 160,
+          "interfaces": {
+            "ether1": {
+              "ip": "10.0.0.1",
+              "mask": "255.255.255.252",
+              "shutdown": false
+            },
+            "ether2": {
+              "ip": "192.168.100.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          },
+          "staticRoutes": [
+            {
+              "network": "192.168.200.0",
+              "mask": "255.255.255.0",
+              "nextHop": "10.0.0.2"
+            }
+          ]
+        },
+        {
+          "id": "MikroTik-R2",
+          "name": "MikroTik-R2",
+          "type": "mikrotik",
+          "x": 520,
+          "y": 160,
+          "interfaces": {
+            "ether1": {
+              "ip": "10.0.0.2",
+              "mask": "255.255.255.252",
+              "shutdown": false
+            },
+            "ether2": {
+              "ip": "192.168.200.1",
+              "mask": "255.255.255.0",
+              "shutdown": false
+            }
+          },
+          "staticRoutes": [
+            {
+              "network": "192.168.100.0",
+              "mask": "255.255.255.0",
+              "nextHop": "10.0.0.1"
+            }
+          ]
+        },
+        {
+          "id": "PC-Team1",
+          "name": "PC-Team1",
+          "type": "pc",
+          "x": 120,
+          "y": 260,
+          "dhcpEnabled": false,
+          "ip": "192.168.100.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.100.1",
+          "dns": ""
+        },
+        {
+          "id": "PC-Team2",
+          "name": "PC-Team2",
+          "type": "pc",
+          "x": 660,
+          "y": 260,
+          "dhcpEnabled": false,
+          "ip": "192.168.200.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.200.1",
+          "dns": ""
+        }
+      ],
+      "cables": [
+        {
+          "fromDevice": "MikroTik-R1",
+          "fromPort": "ether1",
+          "toDevice": "MikroTik-R2",
+          "toPort": "ether1",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "PC-Team1",
+          "fromPort": "FastEthernet0",
+          "toDevice": "MikroTik-R1",
+          "toPort": "ether2",
+          "type": "copper_straight"
+        },
+        {
+          "fromDevice": "PC-Team2",
+          "fromPort": "FastEthernet0",
+          "toDevice": "MikroTik-R2",
+          "toPort": "ether2",
+          "type": "copper_straight"
+        }
+      ]
+    },
+    "rubric": [
+      {
+        "id": "r1_static_route",
+        "category": "routing",
+        "title": "Static Route R1",
+        "desc": "Router 1 heeft route naar 192.168.200.0/24 via 10.0.0.2",
+        "type": "static_route",
+        "checkType": "static_route",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "routerId": "MikroTik-R1",
+          "network": "192.168.200.0",
+          "mask": "255.255.255.0",
+          "nextHop": "10.0.0.2"
+        }
+      },
+      {
+        "id": "r2_static_route",
+        "category": "routing",
+        "title": "Static Route R2",
+        "desc": "Router 2 heeft route naar 192.168.100.0/24 via 10.0.0.1",
+        "type": "static_route",
+        "checkType": "static_route",
+        "points": 35,
+        "enabled": true,
+        "condition": {
+          "routerId": "MikroTik-R2",
+          "network": "192.168.100.0",
+          "mask": "255.255.255.0",
+          "nextHop": "10.0.0.1"
+        }
+      },
+      {
+        "id": "end_to_end_ping",
+        "category": "connectivity",
+        "title": "End-to-End Ping",
+        "desc": "Succesvolle ping tussen PC-Team1 en PC-Team2 over beide routers",
+        "type": "ping_test",
+        "checkType": "ping_test",
+        "points": 30,
+        "enabled": true,
+        "condition": {
+          "fromDevice": "PC-Team1",
+          "targetIp": "192.168.200.10"
+        }
+      }
+    ]
+  },
+  {
     "id": "h05_pt1_cisco_1router",
     "code": "H05-PT1",
     "chapter": "Hoofdstuk 05 - Routering, Subnets & Gateways",
@@ -1745,7 +1746,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 50,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 05 PT: Twee netwerken gekoppeld met 1 Cisco router\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_PT_1router.html](https://vwgert.github.io/networksess/Les05_PT_1router.html)\n\n### Doel van het labo:\nIn dit labo koppel je twee afzonderlijke LAN's via één Cisco router:\n- **LAN 1:** `192.168.1.0/24` via `GigabitEthernet0/0/0` (`192.168.1.1`)\n- **LAN 2:** `192.168.2.0/24` via `GigabitEthernet0/0/1` (`192.168.2.1`)\n",
+    "instructions": "## H05-PT1: Les 05 PT: Twee LANs via Eén Cisco Router\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les05_PT_1router.html](https://vwgert.github.io/networksess/Les05_PT_1router.html)\n\n### Doel van het labo:\nIn dit labo koppel je twee afzonderlijke LAN's via één Cisco router:\n- **LAN 1:** `192.168.1.0/24` via `GigabitEthernet0/0/0` (`192.168.1.1`)\n- **LAN 2:** `192.168.2.0/24` via `GigabitEthernet0/0/1` (`192.168.2.1`)\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **PC0** | FastEthernet0 | 192.168.1.10 | 255.255.255.0 | 192.168.1.1 |\n| **Router0** | GigabitEthernet0/0/0 | 192.168.1.1 | 255.255.255.0 | - |\n| **Router0** | GigabitEthernet0/0/1 | 192.168.2.1 | 255.255.255.0 | - |\n| **PC1** | FastEthernet0 | 192.168.2.10 | 255.255.255.0 | 192.168.2.1 |\n\n#### Doelhostnames van Netwerkapparaten:\n* **Switch0**: Hostname behouden of instellen op `Switch0`\n* **Router0**: Hostname behouden of instellen op `Router0`\n* **Switch1**: Hostname behouden of instellen op `Switch1`\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor PC1:**\n   * PC1 heeft IP 192.168.2.10 en masker 255.255.255.0\n   * Default gateway van PC1 is 192.168.2.1\n\n2. **Taken voor PC0:**\n   * Succesvolle ping tussen PC0 en PC1 over de router\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -1892,7 +1893,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 55,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 05 PT: Twee netwerken via twee Cisco routers (Static Routing)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les05_PT_2routers.html](https://vwgert.github.io/networksess/Les05_PT_2routers.html)\n\n### Doel van het labo:\nIn dit labo verbind je twee routers met een point-to-point link en configureer je static routes op beide routers:\n- **Router0:** `GigabitEthernet0/0/0` = `192.168.1.1/24`, `GigabitEthernet0/0/1` = `10.0.0.1/30`\n- **Router1:** `GigabitEthernet0/0/0` = `10.0.0.2/30`, `GigabitEthernet0/0/1` = `192.168.2.1/24`\n- Static route op Router0: `ip route 192.168.2.0 255.255.255.0 10.0.0.2`\n- Static route op Router1: `ip route 192.168.1.0 255.255.255.0 10.0.0.1`\n",
+    "instructions": "## H05-PT2: Les 05 PT: Twee LANs via Twee Cisco Routers (Static Routing)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les05_PT_2routers.html](https://vwgert.github.io/networksess/Les05_PT_2routers.html)\n\n### Doel van het labo:\nIn dit labo verbind je twee routers met een point-to-point link en configureer je static routes op beide routers:\n- **Router0:** `GigabitEthernet0/0/0` = `192.168.1.1/24`, `GigabitEthernet0/0/1` = `10.0.0.1/30`\n- **Router1:** `GigabitEthernet0/0/0` = `10.0.0.2/30`, `GigabitEthernet0/0/1` = `192.168.2.1/24`\n- Static route op Router0: `ip route 192.168.2.0 255.255.255.0 10.0.0.2`\n- Static route op Router1: `ip route 192.168.1.0 255.255.255.0 10.0.0.1`\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **PC0** | FastEthernet0 | 192.168.1.10 | 255.255.255.0 | 192.168.1.1 |\n| **Router0** | GigabitEthernet0/0/0 | 192.168.1.1 | 255.255.255.0 | - |\n| **Router0** | GigabitEthernet0/0/1 | 10.0.0.1 | 255.255.255.252 | - |\n| **Router1** | GigabitEthernet0/0/0 | 10.0.0.2 | 255.255.255.252 | - |\n| **Router1** | GigabitEthernet0/0/1 | 192.168.2.1 | 255.255.255.0 | - |\n| **PC1** | FastEthernet0 | 192.168.2.10 | 255.255.255.0 | 192.168.2.1 |\n\n#### Doelhostnames van Netwerkapparaten:\n* **Router0**: Hostname behouden of instellen op `Router0`\n* **Router1**: Hostname behouden of instellen op `Router1`\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor Router0:**\n   * Route op Router0 naar 192.168.2.0/24 via 10.0.0.2\n\n2. **Taken voor Router1:**\n   * Route op Router1 naar 192.168.1.0/24 via 10.0.0.1\n\n3. **Taken voor PC0:**\n   * Succesvolle ping tussen PC0 en PC1\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -2053,7 +2054,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 50,
     "showLiveScore": true,
     "liveInternet": true,
-    "instructions": "## Les 06 PT: Thuisrouter, NAT, DHCP, DNS, WiFi en Port Forwarding\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les06_PT_Thuisrouter.html](https://vwgert.github.io/networksess/Les06_PT_Thuisrouter.html)\n\n### Doel van het labo:\nIn dit labo onderzoek je een complete thuisnetwerktopologie met een geïntegreerde thuisrouter (zoals OpenWrt of Cisco SOHO):\n- WAN-zijde met publieke IP-translatie (NAT Masquerade)\n- LAN-zijde met DHCP server en switchpoorten\n- WiFi Access Point\n- Echte internettoegang via `internet_public` of veilige simulatie via `internet_simulated`.\n",
+    "instructions": "## H06-PT1: Les 06 PT: Thuisrouter, NAT, DHCP, DNS, WiFi en WAN Internet\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les06_PT_Thuisrouter.html](https://vwgert.github.io/networksess/Les06_PT_Thuisrouter.html)\n\n### Doel van het labo:\nIn dit labo onderzoek je een complete thuisnetwerktopologie met een geïntegreerde thuisrouter (zoals OpenWrt of Cisco SOHO):\n- WAN-zijde met publieke IP-translatie (NAT Masquerade)\n- LAN-zijde met DHCP server en switchpoorten\n- WiFi Access Point\n- Echte internettoegang via `internet_public` of veilige simulatie via `internet_simulated`.\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **HomeRouter** | eth0 | 203.0.113.2 | 255.255.255.0 | - |\n| **HomeRouter** | br-lan | 192.168.1.1 | 255.255.255.0 | - |\n| **PC-Thuis** | FastEthernet0 | 192.168.1.15 | 255.255.255.0 | 192.168.1.1 |\n\n#### Doelhostnames van Netwerkapparaten:\n* Apparaten behouden hun standaard hostnaam.\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor PC-Thuis:**\n   * PC-Thuis heeft geldig IP in subnet 192.168.1.0/24\n   * PC-Thuis kan default gateway 192.168.1.1 pingen\n   * Succesvolle verbinding via NAT naar Internet-Cloud\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -2168,7 +2169,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 55,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Les 07 - Labo: Firewall, NAT, publishing en rules\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Les07_Labo.html](https://vwgert.github.io/networksess/Les07_Labo.html)\n\n### Opzet van het labo:\nIn dit labo configureer je een **MikroTik Firewall** met WAN- en LAN-zijde:\n- WAN switch met WAN-laptops (`172.20.40.10/24`)\n- MikroTik ether1 (WAN): `172.20.40.1/24`\n- MikroTik ether2 (LAN): `192.168.123.1/24`\n- LAN-zijde met interne webserver (`192.168.123.80`)\n- NAT Masquerade rule voor uitgaand LAN-verkeer\n- Port Forwarding (dstnat) poort 80 WAN -> 192.168.123.80 (Web publishing)\n",
+    "instructions": "## H07-Labo: Les 07 Labo: Firewall, NAT Masquerade, Port Forwarding & Filter Rules\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Les07_Labo.html](https://vwgert.github.io/networksess/Les07_Labo.html)\n\n### Opzet van het labo:\nIn dit labo configureer je een **MikroTik Firewall** met WAN- en LAN-zijde:\n- WAN switch met WAN-laptops (`172.20.40.10/24`)\n- MikroTik ether1 (WAN): `172.20.40.1/24`\n- MikroTik ether2 (LAN): `192.168.123.1/24`\n- LAN-zijde met interne webserver (`192.168.123.80`)\n- NAT Masquerade rule voor uitgaand LAN-verkeer\n- Port Forwarding (dstnat) poort 80 WAN -> 192.168.123.80 (Web publishing)\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **WAN-Laptop** | FastEthernet0 | 172.20.40.10 | 255.255.255.0 | 172.20.40.1 |\n| **MikroTik-Firewall** | ether1 | 172.20.40.1 | 255.255.255.0 | - |\n| **MikroTik-Firewall** | ether2 | 192.168.123.1 | 255.255.255.0 | - |\n| **LAN-Webserver** | FastEthernet0 | 192.168.123.80 | 255.255.255.0 | 192.168.123.1 |\n\n#### Doelhostnames van Netwerkapparaten:\n* **WAN-Switch**: Hostname behouden of instellen op `WAN-Switch`\n* **LAN-Switch**: Hostname behouden of instellen op `LAN-Switch`\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor WAN-Laptop:**\n   * WAN-Laptop kan MikroTik ether1 (172.20.40.1) pingen\n\n2. **Taken voor Algemeen:**\n   * HTTP service actief op LAN-Webserver\n\n3. **Taken voor MikroTik-Firewall:**\n   * MikroTik ether1 en ether2 correct geconfigureerd\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -2317,7 +2318,7 @@ window.PXL_COURSE_LABS = [
     "timeLimitMinutes": 60,
     "showLiveScore": true,
     "liveInternet": false,
-    "instructions": "## Zelfstudie: Cisco IOS Packet Tracer (PC-SW-R-SW-PC)\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg) • [vwgert.github.io/networksess/Cisco_IOS_PT.html](https://vwgert.github.io/networksess/Cisco_IOS_PT.html)\n\n### Doel van de zelfstudie:\nIn deze oefening configureer je een volledig Cisco netwerk met twee switches en één router:\n- Hostnames instellen (`hostname R1`, `hostname S1`)\n- Beveiliging: `enable secret class`, `line console 0` met `password cisco`\n- Encryptie: `service password-encryption`\n- Banner: `banner motd #Geautoriseerde toegang alleen!#`\n- Interface IP's en `no shutdown`\n- SSH beheer configureren\n- Startup-configuratie opslaan in NVRAM (`copy run start`).\n",
+    "instructions": "## H08-Cisco: Zelfstudie: Cisco IOS Netwerk (PC-SW-R-SW-PC) met SSH\n**Cursus:** PXL Network Essentials (Gert Van Waeyenberg & David Parren) • [vwgert.github.io/networksess/Cisco_IOS_PT.html](https://vwgert.github.io/networksess/Cisco_IOS_PT.html)\n\n### Doel van de zelfstudie:\nIn deze oefening configureer je een volledig Cisco netwerk met twee switches en één router:\n- Hostnames instellen (`hostname R1`, `hostname S1`)\n- Beveiliging: `enable secret class`, `line console 0` met `password cisco`\n- Encryptie: `service password-encryption`\n- Banner: `banner motd #Geautoriseerde toegang alleen!#`\n- Interface IP's en `no shutdown`\n- SSH beheer configureren\n- Startup-configuratie opslaan in NVRAM (`copy run start`).\n\n#### Adresseringstabel\n| Apparaat | Interface | IP-adres | Subnetmasker | Standaardgateway |\n| :--- | :--- | :--- | :--- | :--- |\n| **PC0** | FastEthernet0 | 192.168.1.10 | 255.255.255.0 | 192.168.1.1 |\n| **R1** | GigabitEthernet0/0/0 | 192.168.1.1 | 255.255.255.0 | - |\n| **R1** | GigabitEthernet0/0/1 | 192.168.2.1 | 255.255.255.0 | - |\n| **PC1** | FastEthernet0 | 192.168.2.10 | 255.255.255.0 | 192.168.2.1 |\n\n#### Doelhostnames van Netwerkapparaten:\n* **R1**: Doel Hostname instellen op `R1`\n* **S1**: Doel Hostname instellen op `S1`\n\n#### Taken & Configuratie-eisen:\n1. **Taken voor R1:**\n   * Router heeft hostname R1\n   * service password-encryption actief op R1\n\n2. **Taken voor S1:**\n   * Switch 1 heeft hostname S1\n\n3. **Taken voor PC0:**\n   * Succesvolle ping tussen PC0 en PC1\n\n#### Verificatie & Connectiviteit:\n* Controleer dat alle fysieke switch- en routerverbindingen groen zijn (`no shutdown`).\n* Test de end-to-end connectiviteit tussen alle hosts en netwerkapparaten met `ping`.\n* Sla je actieve configuratie op in het NVRAM (`copy run start` of `write memory`) waar van toepassing.\n",
     "initialTopology": {
       "devices": [
         {
@@ -2469,306 +2470,5 @@ window.PXL_COURSE_LABS = [
         }
       }
     ]
-  },
-  {
-    "id": "h08_wifi_standalone_ap",
-    "code": "H08-Labo1",
-    "chapter": "Hoofdstuk 08 - Draadloze Netwerken (Wi-Fi)",
-    "title": "Les 08 Labo 1: Standalone AP, WMP300N Wi-Fi Kaart & Signaalsterkte (PXL Golden Rule)",
-    "timeLimitMinutes": 45,
-    "showLiveScore": true,
-    "liveInternet": false,
-    "instructions": "## Les 08 Labo 1: Standalone Access Point & PC Wireless (PXL Golden Rule)\n**Cursus:** PXL Network Essentials • Hoofdstuk 8 (Wi-Fi)\n\n### Doel van het labo:\nIn dit labo leer je een standalone Cisco Aironet / EAP320 Access Point (`AP1`) integreren in een bedraad switch-netwerk en draadloze clients (`PC0` en `Laptop0`) verbinden via WPA2-PSK.\n\n### Belangrijke PXL Wi-Fi Theorie:\n- **Gouden Regel voor Enterprise Wi-Fi:** Voor VoIP (bellen/Teams) en videostreaming is een minimale signaalsterkte van **-67 dBm** vereist (SNR ≥ 25 dB).\n- **Afstand & Demping (Path Loss):** Verplaats de apparaten op het canvas om te zien hoe de RF-straal visueel verandert:\n  - Dichtbij (<100px): Donkergroen (> -52 dBm, 4 bars, 433.3 Mbps)\n  - PXL VoIP-zone (100-180px): Blauw (≥ -67 dBm, 3 bars, 173.3 Mbps)\n  - Roaming alert (180-270px): Geel (-76 dBm, 2 bars, 72.2 Mbps)\n  - Grenszone (270-380px): Lichter/fauver rood (-88 dBm, 1 bar, 14.4 Mbps)\n  - Buiten bereik (>380px): Verbinding verbreekt automatisch!\n\n### Opdrachten:\n1. **WMP300N Kaart Installeren op PC0:** Open `PC0` (tabblad Physical of Desktop) en installeer de draadloze `WMP300N` netwerkkaart.\n2. **Access Point Configureren:**\n   - Open `AP1` en controleer de SSID (`PXL-Klas-AP`) en WPA2-PSK wachtwoord (`PXL_Geheim2026!`).\n3. **Verbinding maken via PC Wireless:**\n   - Open op `Laptop0` de **PC Wireless** app, ga naar **Site Survey**, klik op **Vernieuwen / Scan**, selecteer `PXL-Klas-AP` en verbind met wachtwoord `PXL_Geheim2026!`.\n   - Doe hetzelfde op `PC0` via de geïnstalleerde PC Wireless app.\n4. **Connectiviteitstest:** Ping vanaf `PC0` over Wi-Fi naar `SRV1` (`192.168.1.10`).",
-    "initialTopology": {
-      "devices": [
-        {
-          "id": "SRV1",
-          "name": "SRV1",
-          "type": "server",
-          "x": 140,
-          "y": 180,
-          "ip": "192.168.1.10",
-          "mask": "255.255.255.0",
-          "gateway": "192.168.1.1",
-          "dns": "192.168.1.10"
-        },
-        {
-          "id": "SW1",
-          "name": "SW1",
-          "type": "switch",
-          "model": "2960",
-          "x": 340,
-          "y": 180
-        },
-        {
-          "id": "AP1",
-          "name": "AP1",
-          "type": "wireless_ap",
-          "model": "Aironet-3702",
-          "x": 540,
-          "y": 180,
-          "ssid": "PXL-Klas-AP",
-          "authMode": "WPA2-PSK",
-          "passphrase": "PXL_Geheim2026!",
-          "channel": 6,
-          "band": "2.4GHz"
-        },
-        {
-          "id": "PC0",
-          "name": "PC0",
-          "type": "pc",
-          "x": 500,
-          "y": 300,
-          "dhcpEnabled": true,
-          "ip": "192.168.1.105",
-          "mask": "255.255.255.0",
-          "gateway": "192.168.1.1",
-          "hasWireless": false
-        },
-        {
-          "id": "Laptop0",
-          "name": "Laptop0",
-          "type": "laptop",
-          "x": 680,
-          "y": 240,
-          "dhcpEnabled": true,
-          "ip": "192.168.1.106",
-          "mask": "255.255.255.0",
-          "gateway": "192.168.1.1"
-        }
-      ],
-      "cables": [
-        {
-          "fromDevice": "SRV1",
-          "fromPort": "FastEthernet0",
-          "toDevice": "SW1",
-          "toPort": "FastEthernet0/1",
-          "type": "copper_straight"
-        },
-        {
-          "fromDevice": "SW1",
-          "fromPort": "FastEthernet0/2",
-          "toDevice": "AP1",
-          "toPort": "GigabitEthernet0",
-          "type": "copper_straight"
-        }
-      ]
-    },
-    "rubric": [
-      {
-        "id": "pc0_wifi_card",
-        "category": "wireless",
-        "title": "WMP300N Kaart Installeren",
-        "desc": "WMP300N Wi-Fi adapter is geïnstalleerd in PC0",
-        "type": "wireless_adapter",
-        "checkType": "wireless_adapter",
-        "points": 25,
-        "enabled": true,
-        "condition": {
-          "deviceId": "PC0",
-          "checkCardInstalled": true
-        }
-      },
-      {
-        "id": "pc0_wifi_connect",
-        "category": "wireless",
-        "title": "PC0 Draadloze Koppeling",
-        "desc": "PC0 is verbonden met SSID PXL-Klas-AP via AP1",
-        "type": "wireless_associated",
-        "checkType": "wireless_associated",
-        "points": 25,
-        "enabled": true,
-        "condition": {
-          "clientId": "PC0",
-          "expectedAp": "AP1",
-          "expectedSsid": "PXL-Klas-AP"
-        }
-      },
-      {
-        "id": "laptop0_wifi_connect",
-        "category": "wireless",
-        "title": "Laptop0 Draadloze Koppeling",
-        "desc": "Laptop0 is verbonden met SSID PXL-Klas-AP via AP1",
-        "type": "wireless_associated",
-        "checkType": "wireless_associated",
-        "points": 25,
-        "enabled": true,
-        "condition": {
-          "clientId": "Laptop0",
-          "expectedAp": "AP1",
-          "expectedSsid": "PXL-Klas-AP"
-        }
-      },
-      {
-        "id": "ping_pc0_server",
-        "category": "connectivity",
-        "title": "ICMP Connectiviteit over Wi-Fi",
-        "desc": "Succesvolle ping vanaf PC0 naar SRV1 (192.168.1.10)",
-        "type": "ping_test",
-        "checkType": "ping_test",
-        "points": 25,
-        "enabled": true,
-        "condition": {
-          "fromDevice": "PC0",
-          "targetIp": "192.168.1.10"
-        }
-      }
-    ]
-  },
-  {
-    "id": "h08_wifi_enterprise_wlc",
-    "code": "H08-Labo2",
-    "chapter": "Hoofdstuk 08 - Draadloze Netwerken (Wi-Fi)",
-    "title": "Les 08 Labo 2: Cisco 3504 WLC Multi-SSID & VLAN Segmentatie (Staff & Guest)",
-    "timeLimitMinutes": 50,
-    "showLiveScore": true,
-    "liveInternet": false,
-    "instructions": "## Les 08 Labo 2: Cisco 3504 WLC Multi-SSID & VLAN Segmentatie\n**Cursus:** PXL Network Essentials • Hoofdstuk 8 (Enterprise WLAN Controller)\n\n### Doel van het labo:\nIn dit enterprise labo beheer je een centrale Cisco 3504 Wireless LAN Controller (WLC). De WLC beheert het Lightweight Access Point (`LAP1`) via CAPWAP-tunnels en scheidt het netwerkverkeer over verschillende VLAN's:\n- **Management:** VLAN 10 (10.10.0.0/24, WLC IP: 10.10.0.254)\n- **WLAN 1 (PXL-Staff):** VLAN 20 (10.20.0.0/24, WPA2-PSK CiscoStaff123!)\n- **WLAN 2 (PXL-Guest):** VLAN 30 (10.30.0.0/24, Open met Captive Portal)\n\n### Opdrachten:\n1. **WLC WebGUI Inspectie:**\n   - Open `WLC1` en bekijk het tabblad **Cisco WLC 3504 WebGUI**.\n   - Controleer onder **Controller Interfaces** de toewijzing van VLAN 20 (`int_staff`) en VLAN 30 (`int_guest`).\n   - Controleer onder **WLANs** dat zowel `PXL-Staff` als `PXL-Guest` zijn ingeschakeld.\n2. **Laptop-Staff Verbinden:**\n   - Open `Laptop-Staff` -> **PC Wireless** app.\n   - Ga naar **Site Survey** of **Connect**, kies SSID `PXL-Staff`, beveiliging `WPA2-PSK` en wachtwoord `CiscoStaff123!`.\n   - Controleer dat de laptop een IP-adres krijgt in `10.20.0.x`.\n3. **Laptop-Guest Verbinden:**\n   - Open `Laptop-Guest` -> **PC Wireless** app.\n   - Verbind met het open gastnetwerk `PXL-Guest`.\n   - Controleer dat de laptop een IP-adres krijgt in `10.30.0.x`.\n4. **Connectiviteitstest:**\n   - Ping vanaf `Laptop-Staff` naar de WLC management interface (`10.10.0.254`).",
-    "initialTopology": {
-      "devices": [
-        {
-          "id": "R1",
-          "name": "R1",
-          "type": "router",
-          "model": "1941",
-          "x": 160,
-          "y": 140,
-          "interfaces": {
-            "GigabitEthernet0/0": { "ip": "10.10.0.1", "mask": "255.255.255.0", "shutdown": false }
-          }
-        },
-        {
-          "id": "SW1",
-          "name": "SW1",
-          "type": "switch",
-          "model": "2960",
-          "x": 380,
-          "y": 140
-        },
-        {
-          "id": "WLC1",
-          "name": "WLC1",
-          "type": "wlc",
-          "model": "3504",
-          "x": 380,
-          "y": 280,
-          "mgmtIp": "10.10.0.254",
-          "mgmtMask": "255.255.255.0",
-          "mgmtGateway": "10.10.0.1"
-        },
-        {
-          "id": "LAP1",
-          "name": "LAP1",
-          "type": "wireless_ap",
-          "model": "LAP-PT",
-          "x": 600,
-          "y": 140
-        },
-        {
-          "id": "Laptop-Staff",
-          "name": "Laptop-Staff",
-          "type": "laptop",
-          "x": 600,
-          "y": 280,
-          "dhcpEnabled": true
-        },
-        {
-          "id": "Laptop-Guest",
-          "name": "Laptop-Guest",
-          "type": "laptop",
-          "x": 750,
-          "y": 200,
-          "dhcpEnabled": true
-        }
-      ],
-      "cables": [
-        {
-          "fromDevice": "R1",
-          "fromPort": "GigabitEthernet0/0",
-          "toDevice": "SW1",
-          "toPort": "GigabitEthernet0/1",
-          "type": "copper_straight"
-        },
-        {
-          "fromDevice": "SW1",
-          "fromPort": "GigabitEthernet0/2",
-          "toDevice": "WLC1",
-          "toPort": "GigabitEthernet0/1",
-          "type": "copper_straight"
-        },
-        {
-          "fromDevice": "SW1",
-          "fromPort": "GigabitEthernet0/3",
-          "toDevice": "LAP1",
-          "toPort": "GigabitEthernet0",
-          "type": "copper_straight"
-        }
-      ]
-    },
-    "rubric": [
-      {
-        "id": "wlc_staff_wlan",
-        "category": "wireless",
-        "title": "WLC WLAN Staff Configuratie",
-        "desc": "WLC1 heeft WLAN PXL-Staff actief op VLAN 20",
-        "type": "wlc_wlan",
-        "checkType": "wlc_wlan",
-        "points": 25,
-        "enabled": true,
-        "condition": {
-          "wlcId": "WLC1",
-          "expectedSsid": "PXL-Staff",
-          "expectedVlan": 20
-        }
-      },
-      {
-        "id": "staff_associated",
-        "category": "wireless",
-        "title": "Laptop-Staff Verbonden (VLAN 20)",
-        "desc": "Laptop-Staff is verbonden met PXL-Staff en heeft een 10.20.0.x IP-adres",
-        "type": "wireless_associated",
-        "checkType": "wireless_associated",
-        "points": 25,
-        "enabled": true,
-        "condition": {
-          "clientId": "Laptop-Staff",
-          "expectedSsid": "PXL-Staff",
-          "subnetPrefix": "10.20.0."
-        }
-      },
-      {
-        "id": "guest_associated",
-        "category": "wireless",
-        "title": "Laptop-Guest Verbonden (VLAN 30)",
-        "desc": "Laptop-Guest is verbonden met PXL-Guest en heeft een 10.30.0.x IP-adres",
-        "type": "wireless_associated",
-        "checkType": "wireless_associated",
-        "points": 25,
-        "enabled": true,
-        "condition": {
-          "clientId": "Laptop-Guest",
-          "expectedSsid": "PXL-Guest",
-          "subnetPrefix": "10.30.0."
-        }
-      },
-      {
-        "id": "ping_staff_mgmt",
-        "category": "connectivity",
-        "title": "ICMP Connectiviteit Staff naar WLC",
-        "desc": "Succesvolle ping vanaf Laptop-Staff naar WLC Management (10.10.0.254)",
-        "type": "ping_test",
-        "checkType": "ping_test",
-        "points": 25,
-        "enabled": true,
-        "condition": {
-          "fromDevice": "Laptop-Staff",
-          "targetIp": "10.10.0.254"
-        }
-      }
-    ]
   }
 ];
-
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { PXL_COURSE_LABS: window.PXL_COURSE_LABS };
-}

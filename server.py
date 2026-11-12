@@ -56,7 +56,13 @@ from backend.database import (
     verify_test_access,
     reset_student_lab,
     reset_student_exam_by_teacher,
-    change_user_password
+    change_user_password,
+    create_bug_report,
+    list_bug_reports,
+    get_bug_report,
+    update_bug_report_status,
+    apply_bug_solution,
+    delete_bug_report
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -765,6 +771,82 @@ def convert_pka_endpoint():
         return jsonify({"error": f"Fout bij verwerken van Packet Tracer bestand: {str(e)}"}), 500
 
 
+@app.route("/api/pka/analyze", methods=["POST"])
+def pka_analyze_endpoint():
+    """
+    Receives an uploaded .pka or .pkt file, analyzes finished running-configs and settings,
+    and returns a structured list of configurable items for interactive rubric generation.
+    """
+    if "file" not in request.files:
+        return jsonify({"error": "Geen bestand meegestuurd"}), 400
+    uploaded_file = request.files["file"]
+    if not uploaded_file.filename:
+        return jsonify({"error": "Bestandsnaam ontbreekt"}), 400
+
+    try:
+        content = uploaded_file.read()
+        from backend.pka_generator import analyze_pka_finished_configs
+        result = analyze_pka_finished_configs(content, uploaded_file.filename)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": f"Fout bij analyseren Packet Tracer bestand: {str(e)}"}), 500
+
+
+@app.route("/api/pka/generate-exam", methods=["POST"])
+def pka_generate_exam_endpoint():
+    """
+    Generates a new Lab or Test based on teacher's checked settings:
+    - Checked items become rubric criteria with points.
+    - Checked items are stripped from the student initial topology.
+    - Unchecked items stay pre-configured for the student.
+    - Automatically saves to SQLite database.
+    """
+    try:
+        data = request.get_json(force=True)
+        analysis = data.get("analysis", {})
+        selected_ids = data.get("selected_item_ids", [])
+        custom_points = data.get("custom_points", {})
+        assignment_type = data.get("assignment_type", "lab")
+        test_password = data.get("test_password", "")
+        time_limit = int(data.get("time_limit_minutes", 80))
+        title = data.get("title", "").strip()
+        custom_instr = data.get("custom_instructions", "")
+
+        if not title:
+            title = analysis.get("title", "Cisco Lab")
+
+        from backend.pka_generator import generate_exam_from_pka_selection
+        exam = generate_exam_from_pka_selection(
+            analyzed_data=analysis,
+            selected_item_ids=selected_ids,
+            custom_points=custom_points,
+            assignment_type=assignment_type,
+            test_password=test_password,
+            time_limit_minutes=time_limit,
+            title=title,
+            custom_instructions=custom_instr
+        )
+
+        from backend.database import save_exam
+        saved_id = save_exam(
+            exam_id=exam.get("id"),
+            title=exam.get("title"),
+            instructions=exam.get("instructions", ""),
+            topology=exam.get("initialTopology"),
+            rubric=exam.get("rubric", []),
+            time_limit_minutes=exam.get("timeLimitMinutes", 80),
+            category="pka_import",
+            created_by=session.get("username", "teacher"),
+            kind=assignment_type,
+            test_password=test_password
+        )
+        exam["id"] = saved_id
+
+        return jsonify({"success": True, "exam": exam})
+    except Exception as e:
+        return jsonify({"error": f"Fout bij genereren van opdracht: {str(e)}"}), 500
+
+
 @app.route("/api/submit", methods=["POST"])
 def submit_exam_endpoint():
     """
@@ -978,6 +1060,117 @@ def gateway_probe():
             "target": target,
             "reason": f"Bestemming onbereikbaar via fysieke adapter: {str(e)}"
         })
+
+
+# --- BUG REPORT & DIAGNOSTICS APIS ---
+
+@app.route("/api/bug-report/create", methods=["POST"])
+def api_create_bug_report():
+    data = request.get_json(force=True) or {}
+    try:
+        res = create_bug_report(data)
+        return jsonify({
+            "success": True,
+            "bug_code": res.get("bug_code"),
+            "message": f"Bugmelding {res.get('bug_code')} succesvol geregistreerd in het Bug Center!"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Fout bij opslaan bugmelding: {str(e)}"}), 500
+
+
+@app.route("/api/bug-report/list", methods=["GET"])
+def api_list_bug_reports():
+    reporter = request.args.get("reporter_username")
+    status_filter = request.args.get("status")
+    try:
+        bugs = list_bug_reports(reporter_username=reporter, status_filter=status_filter)
+        return jsonify({"success": True, "count": len(bugs), "bugs": bugs})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/bug-report/<bug_code>", methods=["GET"])
+def api_get_bug_report(bug_code):
+    bug = get_bug_report(bug_code)
+    if not bug:
+        return jsonify({"success": False, "error": f"Bug {bug_code} niet gevonden"}), 404
+    return jsonify({"success": True, "bug": bug})
+
+
+@app.route("/api/bug-report/<bug_code>/export", methods=["GET"])
+def api_export_bug_report(bug_code):
+    bug = get_bug_report(bug_code)
+    if not bug:
+        return jsonify({"success": False, "error": f"Bug {bug_code} niet gevonden"}), 404
+
+    # Structure complete diagnostic payload for AI and teacher analysis
+    export_payload = {
+        "bug_code": bug.get("bug_code"),
+        "created_at": bug.get("created_at"),
+        "status": bug.get("status", "open"),
+        "reporter": {
+            "username": bug.get("reporter_username"),
+            "name": bug.get("reporter_name"),
+            "role": bug.get("reporter_role"),
+            "class": bug.get("reporter_class")
+        },
+        "lab_info": {
+            "exam_id": bug.get("exam_id"),
+            "title": bug.get("exam_title"),
+            "category": bug.get("category")
+        },
+        "user_description": bug.get("user_description"),
+        "resolution_notes": bug.get("resolution_notes", ""),
+        "resolved_by": bug.get("resolved_by", ""),
+        "resolved_at": bug.get("resolved_at"),
+        "browser_info": bug.get("browser_info", {}),
+        "topology": bug.get("topology", {}),
+        "device_configs": bug.get("device_configs", {}),
+        "solution_template": {
+            "bug_code": bug.get("bug_code"),
+            "status": "resolved",
+            "resolution_notes": "Toelichting van de bugfix en oorzaak...",
+            "resolved_by": "Antigravity AI / Docent",
+            "test_instructions": "Stappen voor de gebruiker om de fix te testen..."
+        }
+    }
+
+    dumped = json.dumps(export_payload, indent=2, ensure_ascii=False)
+    resp = Response(dumped, mimetype="application/json")
+    resp.headers["Content-Disposition"] = f"attachment; filename={bug_code}.json"
+    return resp
+
+
+@app.route("/api/bug-report/resolve", methods=["POST"])
+def api_resolve_bug_report():
+    data = request.get_json(force=True) or {}
+    bug_code = data.get("bug_code")
+    if not bug_code:
+        return jsonify({"success": False, "error": "bug_code verplicht"}), 400
+
+    status = data.get("status", "resolved")
+    resolution_notes = data.get("resolution_notes", "")
+    resolved_by = data.get("resolved_by") or session.get("username", "docent")
+
+    res = update_bug_report_status(bug_code, status, resolution_notes, resolved_by)
+    return jsonify({"success": res.get("ok", False), "status": status, "bug_code": bug_code})
+
+
+@app.route("/api/bug-report/apply-solution", methods=["POST"])
+def api_apply_bug_solution():
+    data = request.get_json(force=True) or {}
+    res = apply_bug_solution(data)
+    return jsonify(res)
+
+
+@app.route("/api/bug-report/delete", methods=["POST"])
+def api_delete_bug_report():
+    data = request.get_json(force=True) or {}
+    bug_code = data.get("bug_code")
+    if not bug_code:
+        return jsonify({"success": False, "error": "bug_code verplicht"}), 400
+    res = delete_bug_report(bug_code)
+    return jsonify({"success": res.get("ok", False)})
 
 
 @app.route("/<path:path>")
