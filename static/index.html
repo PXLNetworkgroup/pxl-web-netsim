@@ -22,10 +22,29 @@
 
     <div class="pt-header-center">
       <select id="examSelector" class="pt-input" style="font-weight: 600; max-width: 250px;">
-        <option value="01_pxl_standard">Lab 1: PXL LAN/WAN Routing (Standaard)</option>
-        <option value="02_cabling_scratch">Lab 2: Zelfstandig Bekabelen & Setup</option>
-        <option value="03_wireless_lan">Lab 3: Wireless LAN & WPA2-PSK</option>
+        <option value="blank_canvas">✨ Blanco Workspace (Van nul beginnen)</option>
+        <optgroup label="📚 Standaard Labs & Examens">
+          <option value="01_pxl_standard" selected>Lab 1: PXL LAN/WAN Routing (Standaard)</option>
+          <option value="02_cabling_scratch">Lab 2: Zelfstandig Bekabelen & Setup</option>
+          <option value="03_wireless_lan">Lab 3: Wireless LAN & WPA2-PSK</option>
+        </optgroup>
+        <optgroup id="optgroupCustomProjects" label="🎨 Mijn Eigen Netwerken & Ontwerpen">
+          <!-- Dynamically populated -->
+        </optgroup>
       </select>
+
+      <!-- BLANCO & OPSLAAN VOOR EIGEN NETWERKEN -->
+      <div class="pt-custom-project-group" style="display: flex; align-items: center; gap: 4px;">
+        <button class="pt-btn" onclick="window.PXLApp.startBlankCanvas()" title="Start met een blanco canvas en bouw je eigen netwerk van nul" style="font-size: 11px; padding: 5px 9px; background: #0f766e; color: #ffffff; border: 1px solid #115e59; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600;">
+          ✨ Blanco
+        </button>
+        <button class="pt-btn" id="btnSaveCustomProject" onclick="window.PXLApp.handleSaveProject()" title="Sla dit netwerk op onder je eigen projecten" style="font-size: 11px; padding: 5px 10px; background: #15803d; color: #ffffff; border: 1px solid #166534; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 700;">
+          💾 Opslaan
+        </button>
+        <span id="currentProjectBadge" style="display: none; font-size: 11px; background: #0284c7; color: white; padding: 3px 8px; border-radius: 4px; font-weight: 600;" title="Huidig actief project">
+          📁 <span id="currentProjectNameDisplay"></span>
+        </span>
+      </div>
 
       <!-- TRIO: IMPORT, EXPORT, INLEVEREN VLAK NAAST ELKAAR -->
       <div class="pt-trio-btn-group" style="display: flex; align-items: center; gap: 4px;">
@@ -181,6 +200,7 @@
         <button class="pt-tab-btn" id="tabBtnDesktop" onclick="window.PXLApp.switchDeviceModalTab('desktop')" style="display:none;">Desktop (Apps)</button>
         <button class="pt-tab-btn" id="tabBtnServices" onclick="window.PXLApp.switchDeviceModalTab('services')" style="display:none;">Services (HTTP/DHCP/DNS/LDAP/FTP)</button>
         <button class="pt-tab-btn" id="tabBtnWebFig" onclick="window.PXLApp.switchDeviceModalTab('webfig')" style="display:none; background: #0284c7; color: white;">🌐 WebFig</button>
+        <button class="pt-tab-btn" id="tabBtnLuciWeb" onclick="window.PXLApp.switchDeviceModalTab('luciweb')" style="display:none; background: #008cd6; color: white;">🌐 LuCI Web GUI</button>
         <button class="pt-tab-btn" id="tabBtnHpeWeb" onclick="window.PXLApp.switchDeviceModalTab('hpeweb')" style="display:none; background: #ff7900; color: white;">🌐 Aruba Web GUI</button>
         <button class="pt-tab-btn" id="tabBtnWrtWeb" onclick="window.PXLApp.switchDeviceModalTab('wrtweb')" style="display:none; background: #0284c7; color: white;">🌐 WRT300N GUI</button>
         <button class="pt-tab-btn" id="tabBtnWlcWeb" onclick="window.PXLApp.switchDeviceModalTab('wlcweb')" style="display:none; background: #0c4a6e; color: #38bdf8; border: 1px solid #0284c7;">🌐 WLC 3504 GUI</button>
@@ -190,6 +210,7 @@
         <button class="pt-tab-btn" id="tabBtnOpnWeb" onclick="window.PXLApp.switchDeviceModalTab('opnweb')" style="display:none; background: #991b1b; color: white;">🌐 OPNsense GUI</button>
         <button class="pt-tab-btn" id="tabBtnPfWeb" onclick="window.PXLApp.switchDeviceModalTab('pfweb')" style="display:none; background: #002d62; color: white;">🌐 pfSense GUI</button>
         <button class="pt-tab-btn" id="tabBtnWgWeb" onclick="window.PXLApp.switchDeviceModalTab('wgweb')" style="display:none; background: #c8102e; color: white;">🌐 WatchGuard GUI</button>
+        <button class="pt-tab-btn" id="tabBtnAsaWeb" onclick="window.PXLApp.switchDeviceModalTab('asaweb')" style="display:none; background: #0284c7; color: white;">🌐 Cisco ASDM GUI</button>
       </div>
 
       <div class="pt-device-body">
@@ -199,6 +220,7 @@
         <div class="pt-modal-pane" id="modalPaneDesktop"></div>
         <div class="pt-modal-pane" id="modalPaneServices"></div>
         <div class="pt-modal-pane" id="modalPaneWebfig"></div>
+        <div class="pt-modal-pane" id="modalPaneLuciweb"></div>
         <div class="pt-modal-pane" id="modalPaneHpeweb"></div>
         <div class="pt-modal-pane" id="modalPaneWrtweb"></div>
         <div class="pt-modal-pane" id="modalPaneWlcweb"></div>
@@ -208,6 +230,7 @@
         <div class="pt-modal-pane" id="modalPaneOpnweb"></div>
         <div class="pt-modal-pane" id="modalPanePfweb"></div>
         <div class="pt-modal-pane" id="modalPaneWgweb"></div>
+        <div class="pt-modal-pane" id="modalPaneAsaweb"></div>
       </div>
     </div>
   </div>
@@ -301,6 +324,9 @@
         <button id="tabBtnStudentBugs" class="pt-btn" onclick="window.PXLApp.switchStudentStudioTab('bugs')" style="border-radius: 0; border: none; border-bottom: 3px solid transparent; background: transparent; font-weight: 600; color: #64748b; padding: 10px 16px;">
           🐞 Mijn Gemelde Bugs
         </button>
+        <button id="tabBtnStudentProjects" class="pt-btn" onclick="window.PXLApp.switchStudentStudioTab('projects')" style="border-radius: 0; border: none; border-bottom: 3px solid transparent; background: transparent; font-weight: 600; color: #64748b; padding: 10px 16px;">
+          🎨 Mijn Eigen Netwerken
+        </button>
       </div>
 
       <div id="studentStudioModalBody" style="padding: 18px; overflow-y: auto; flex: 1; background: #f8fafc;">
@@ -375,10 +401,86 @@
             <div style="padding: 30px; text-align: center; color: #64748b;">⏳ Je gemelde bugs ophalen...</div>
           </div>
         </div>
+
+        <!-- TAB 4: MIJN EIGEN NETWERKEN -->
+        <div id="paneStudentProjects" style="display: none;">
+          <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; color: #475569;">
+              💡 <em>Hier vind je al je zelfgebouwde en opgeslagen netwerkontwerpen. Je kunt ze op elk moment openen, bewerken, hernoemen of verwijderen.</em>
+            </span>
+            <div style="display: flex; gap: 8px;">
+              <button class="pt-btn" style="font-size: 11px; padding: 5px 10px; background: #0f766e; color: #fff; border-radius: 4px; cursor: pointer;" onclick="window.PXLApp.closeStudentStudioModal(); window.PXLApp.startBlankCanvas();">
+                ✨ Nieuw Blanco Netwerk
+              </button>
+              <button class="pt-btn pt-btn-secondary" style="font-size: 11px; padding: 5px 8px;" onclick="window.PXLApp.renderStudentProjectsTab()">
+                🔄 Vernieuwen
+              </button>
+            </div>
+          </div>
+          <div id="studentProjectsListContainer">
+            <div style="padding: 30px; text-align: center; color: #64748b;">⏳ Je opgeslagen netwerken ophalen...</div>
+          </div>
+        </div>
       </div>
 
       <div style="padding: 10px 18px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; align-items: center;">
         <button class="pt-btn pt-btn-secondary" onclick="window.PXLApp.closeStudentStudioModal()">Sluiten</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAVE CUSTOM PROJECT MODAL -->
+  <div class="pt-modal-overlay" id="saveProjectModal" style="display: none;">
+    <div class="pt-device-dialog" style="width: 440px; max-width: 95vw;">
+      <div class="pt-device-header" style="background: linear-gradient(135deg, #15803d, #166534); color: #fff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">💾</span>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Project Opslaan</h3>
+        </div>
+        <button class="pt-btn-close" onclick="window.PXLApp.closeSaveProjectModal()" style="color: #fff; font-size: 18px;">✕</button>
+      </div>
+      <div style="padding: 18px; background: #fff;">
+        <p style="margin: 0 0 12px 0; font-size: 12.5px; color: #334155; line-height: 1.4;">
+          Geef een naam op voor je eigen netwerkontwerp. Hierna kan je op elk moment snel tussentijds opslaan onder deze naam.
+        </p>
+        <form id="saveProjectForm" onsubmit="window.PXLApp.submitSaveProject(event)">
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; font-size: 11.5px; font-weight: 600; color: #475569; margin-bottom: 4px;">Projectnaam:</label>
+            <input type="text" id="inputSaveProjectName" required autofocus class="pt-input" placeholder="bv. Mijn Bedrijfsnetwerk V1" style="width: 100%; box-sizing: border-box; padding: 8px 12px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px;">
+          </div>
+          <div id="saveProjectAlert" style="display: none; font-size: 12px; padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c;"></div>
+          <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button type="button" class="pt-btn pt-btn-secondary" onclick="window.PXLApp.closeSaveProjectModal()">Annuleren</button>
+            <button type="submit" class="pt-btn pt-btn-primary" style="background: #15803d; border-color: #166534;">💾 Opslaan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- RENAME CUSTOM PROJECT MODAL -->
+  <div class="pt-modal-overlay" id="renameProjectModal" style="display: none;">
+    <div class="pt-device-dialog" style="width: 440px; max-width: 95vw;">
+      <div class="pt-device-header" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">✏️</span>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Project Hernoemen</h3>
+        </div>
+        <button class="pt-btn-close" onclick="window.PXLApp.closeRenameProjectModal()" style="color: #fff; font-size: 18px;">✕</button>
+      </div>
+      <div style="padding: 18px; background: #fff;">
+        <form id="renameProjectForm" onsubmit="window.PXLApp.submitRenameProject(event)">
+          <input type="hidden" id="inputRenameProjectId">
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; font-size: 11.5px; font-weight: 600; color: #475569; margin-bottom: 4px;">Nieuwe Projectnaam:</label>
+            <input type="text" id="inputRenameProjectName" required class="pt-input" style="width: 100%; box-sizing: border-box; padding: 8px 12px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px;">
+          </div>
+          <div id="renameProjectAlert" style="display: none; font-size: 12px; padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c;"></div>
+          <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button type="button" class="pt-btn pt-btn-secondary" onclick="window.PXLApp.closeRenameProjectModal()">Annuleren</button>
+            <button type="submit" class="pt-btn pt-btn-primary" style="background: #0284c7; border-color: #0369a1;">✏️ Opslaan</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -483,6 +585,7 @@
   <script src="js/mikrotik_cli.js?v=20261111_v5"></script>
   <script src="js/mikrotik_webfig.js?v=20261111_v5"></script>
   <script src="js/openwrt_cli.js?v=20261111_v5"></script>
+  <script src="js/openwrt_luci.js?v=20261112_v1"></script>
   <script src="js/linux_cli.js?v=20261111_v5"></script>
   <script src="js/python_engine.js?v=20261111_v5"></script>
   <script src="js/putty_app.js?v=20261111_v5"></script>

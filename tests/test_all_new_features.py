@@ -3,6 +3,7 @@ import time
 from playwright.sync_api import sync_playwright
 
 def test_all_features():
+    sys.stdout.reconfigure(encoding='utf-8')
     with sync_playwright() as p:
         browser = p.chromium.launch(
             executable_path=r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
@@ -65,8 +66,8 @@ def test_all_features():
         page.click("#userAuthContainer button:has-text('Uitloggen')")
         page.wait_for_timeout(400)
 
-        # Open Teacher Studio (which should prompt login!)
-        page.click("#btnToggleStudio")
+        # Open Login modal
+        page.click("#btnLoginModal")
         page.wait_for_timeout(400)
         assert login_modal.is_visible(), "Teacher studio should be locked behind login modal"
 

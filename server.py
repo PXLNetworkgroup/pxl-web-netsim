@@ -62,7 +62,12 @@ from backend.database import (
     get_bug_report,
     update_bug_report_status,
     apply_bug_solution,
-    delete_bug_report
+    delete_bug_report,
+    save_custom_project,
+    list_custom_projects,
+    get_custom_project,
+    rename_custom_project,
+    delete_custom_project
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1171,6 +1176,65 @@ def api_delete_bug_report():
         return jsonify({"success": False, "error": "bug_code verplicht"}), 400
     res = delete_bug_report(bug_code)
     return jsonify({"success": res.get("ok", False)})
+
+
+# --- CUSTOM USER NETWORKS / PROJECTS APIS ---
+@app.route("/api/projects", methods=["GET"])
+def api_list_projects():
+    user_id = request.args.get("user_id") or session.get("user_id") or "gast"
+    projects = list_custom_projects(user_id)
+    return jsonify({"success": True, "projects": projects})
+
+
+@app.route("/api/projects/save", methods=["POST"])
+def api_save_project():
+    data = request.get_json(force=True) or {}
+    user_id = data.get("user_id") or session.get("user_id") or "gast"
+
+    project_id = str(data.get("project_id") or "").strip()
+    name = (data.get("name") or "").strip()
+    topology = data.get("topology") or {}
+
+    res = save_custom_project(user_id, project_id, name, topology)
+    return jsonify({"success": res.get("ok", False), "project": res.get("project")})
+
+
+@app.route("/api/projects/<project_id>", methods=["GET"])
+def api_get_project(project_id):
+    user_id = request.args.get("user_id") or session.get("user_id") or "gast"
+    res = get_custom_project(user_id, project_id)
+    if not res.get("ok"):
+        return jsonify({"success": False, "error": res.get("error", "Project niet gevonden")}), 404
+    return jsonify({"success": True, "project": res.get("project")})
+
+
+@app.route("/api/projects/<project_id>/rename", methods=["POST"])
+def api_rename_project(project_id):
+    data = request.get_json(force=True) or {}
+    user_id = data.get("user_id") or session.get("user_id") or "gast"
+
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"success": False, "error": "Naam mag niet leeg zijn"}), 400
+
+    res = rename_custom_project(user_id, project_id, name)
+    return jsonify({"success": res.get("ok", False), "name": name, "id": project_id})
+
+
+@app.route("/api/projects/<project_id>", methods=["DELETE"])
+def api_delete_project(project_id):
+    user_id = request.args.get("user_id") or session.get("user_id")
+    if not user_id:
+        try:
+            data = request.get_json(silent=True) or {}
+            user_id = data.get("user_id")
+        except Exception:
+            pass
+    user_id = user_id or "gast"
+
+    res = delete_custom_project(user_id, project_id)
+    return jsonify({"success": res.get("ok", False), "id": project_id})
+
 
 
 @app.route("/<path:path>")

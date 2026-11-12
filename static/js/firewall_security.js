@@ -962,203 +962,250 @@
   }
 
   // =========================================================================
-  // 6. WEB GUI RENDERERS (FORTINET, PALO ALTO, OPNSENSE, PFSENSE)
+  // 6. WEB GUI RENDERERS (FORTINET, PALO ALTO, OPNSENSE, PFSENSE, CISCO ASA)
   // =========================================================================
   const FirewallGuiRenderers = {
-    renderFortiWebTab(device, container) {
-      if (!device || !container) return;
-      const wanIp = device.interfaces['wan1']?.ip || '198.51.100.2';
-      const lanIp = device.interfaces['port1']?.ip || '192.168.1.99';
+    activeSubTabs: {},
 
-      container.innerHTML = `
-        <div style="background: #0f172a; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100%; display: flex; flex-direction: column;">
-          <!-- FortiOS Header -->
-          <div style="background: #1e293b; border-bottom: 2px solid #0d9488; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="background: #dc2626; color: white; padding: 3px 8px; border-radius: 4px; font-weight: 900; font-size: 13px; letter-spacing: 1px;">FORTINET</span>
-              <strong style="font-size: 15px; color: #38bdf8;">FortiGate-60F (${device.hostname})</strong>
-              <span style="background: #064e3b; color: #34d399; padding: 2px 8px; border-radius: 10px; font-size: 11px;">FortiOS v7.4.2</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 14px; font-size: 12px; color: #94a3b8;">
-              <span>👤 admin</span>
-              <span>🔒 VDOM: root</span>
-              <span style="color: #22c55e;">● HA Standalone</span>
-            </div>
-          </div>
+    switchSubTab(devId, fwType, subTab) {
+      if (!this.activeSubTabs[devId]) this.activeSubTabs[devId] = {};
+      this.activeSubTabs[devId][fwType] = subTab;
+      const dev = window.PXLApp?.sim?.devices[devId];
+      if (!dev) return;
 
-          <!-- Main Body -->
-          <div style="flex: 1; display: flex; overflow: hidden;">
-            <!-- Left Navigation Bar -->
-            <div style="width: 200px; background: #0f172a; border-right: 1px solid #334155; padding: 10px; font-size: 12px;">
-              <div style="color: #0d9488; font-weight: bold; margin-bottom: 8px;">DASHBOARD</div>
-              <div style="padding: 6px 10px; background: #1e293b; color: #38bdf8; border-radius: 4px; font-weight: 600; margin-bottom: 4px;">📊 Status</div>
-              <div style="color: #64748b; font-weight: bold; margin: 12px 0 6px;">NETWORK</div>
-              <div style="padding: 6px 10px; color: #cbd5e1; cursor: pointer;">🔌 Interfaces</div>
-              <div style="padding: 6px 10px; color: #cbd5e1; cursor: pointer;">🛣️ Static Routes</div>
-              <div style="color: #64748b; font-weight: bold; margin: 12px 0 6px;">POLICY & OBJECTS</div>
-              <div style="padding: 6px 10px; color: #cbd5e1; cursor: pointer;">🛡️ Firewall Policy</div>
-            </div>
+      const paneMap = {
+        'fortigate': 'modalPaneFortiweb',
+        'paloalto': 'modalPanePanweb',
+        'opnsense': 'modalPaneOpnweb',
+        'pfsense': 'modalPanePfweb',
+        'cisco_asa': 'modalPaneAsaweb',
+        'watchguard': 'modalPaneWgweb'
+      };
 
-            <!-- Content Area -->
-            <div style="flex: 1; padding: 16px; overflow-y: auto;">
-              <!-- Grid Widgets -->
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
-                <!-- System Information Widget -->
-                <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 14px;">
-                  <h4 style="margin: 0 0 10px; font-size: 13px; color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 6px;">System Information</h4>
-                  <table style="width: 100%; font-size: 12px; line-height: 1.8;">
-                    <tr><td style="color: #94a3b8;">Host Name:</td><td><strong>${device.hostname}</strong></td></tr>
-                    <tr><td style="color: #94a3b8;">Serial Number:</td><td><code>${device.fortiConfig?.serial || 'FGT60FTK23048921'}</code></td></tr>
-                    <tr><td style="color: #94a3b8;">Firmware:</td><td>FortiOS v7.4.2 build2573</td></tr>
-                    <tr><td style="color: #94a3b8;">System Time:</td><td>${new Date().toUTCString()}</td></tr>
-                    <tr><td style="color: #94a3b8;">Operation Mode:</td><td>NAT / Route</td></tr>
-                  </table>
-                </div>
-
-                <!-- Interface Summary Widget -->
-                <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 14px;">
-                  <h4 style="margin: 0 0 10px; font-size: 13px; color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 6px;">Active Interfaces</h4>
-                  <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
-                    <tr style="color: #94a3b8; border-bottom: 1px solid #334155; text-align: left;">
-                      <th style="padding: 4px;">Port</th><th>IP / Netmask</th><th>Access</th><th>Status</th>
-                    </tr>
-                    <tr>
-                      <td style="padding: 6px 4px; font-weight: 600; color: #38bdf8;">wan1</td>
-                      <td>${wanIp}/24</td>
-                      <td>ping, https, ssh</td>
-                      <td><span style="color: #22c55e;">● UP</span></td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 6px 4px; font-weight: 600; color: #38bdf8;">port1 (LAN)</td>
-                      <td>${lanIp}/24</td>
-                      <td>ping, https, http</td>
-                      <td><span style="color: #22c55e;">● UP</span></td>
-                    </tr>
-                  </table>
-                </div>
-              </div>
-
-              <!-- Firewall Policies Table -->
-              <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 14px;">
-                <h4 style="margin: 0 0 10px; font-size: 13px; color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 6px;">Active Firewall Policies (IPv4)</h4>
-                <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
-                  <thead style="background: #0f172a; color: #94a3b8;">
-                    <tr>
-                      <th style="padding: 6px; text-align: left;">ID</th>
-                      <th style="text-align: left;">Name</th>
-                      <th style="text-align: left;">From</th>
-                      <th style="text-align: left;">To</th>
-                      <th style="text-align: left;">Action</th>
-                      <th style="text-align: left;">NAT</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style="border-bottom: 1px solid #334155;">
-                      <td style="padding: 6px;">1</td>
-                      <td style="font-weight: 600; color: #f8fafc;">Internet-Access</td>
-                      <td><span style="background: #0369a1; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">port1</span></td>
-                      <td><span style="background: #b45309; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">wan1</span></td>
-                      <td><span style="color: #22c55e; font-weight: bold;">✔ ACCEPT</span></td>
-                      <td><span style="color: #38bdf8; font-weight: bold;">✔ ENABLED</span></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
+      const container = document.getElementById(paneMap[fwType]);
+      if (container) {
+        if (fwType === 'fortigate') this.renderFortiWebTab(dev, container, subTab);
+        else if (fwType === 'paloalto') this.renderPanWebTab(dev, container, subTab);
+        else if (fwType === 'opnsense') this.renderOpnWebTab(dev, container, subTab);
+        else if (fwType === 'pfsense') this.renderPfWebTab(dev, container, subTab);
+        else if (fwType === 'cisco_asa') this.renderAsaWebTab(dev, container, subTab);
+        else if (fwType === 'watchguard') this.renderWatchGuardWebTab(dev, container, subTab);
+      }
     },
 
-    renderPanWebTab(device, container) {
+    saveLanSettings(devId, fwType) {
+      const dev = window.PXLApp?.sim?.devices[devId];
+      if (!dev) return;
+      const ipInput = document.getElementById(`fwLanIp_${devId}`);
+      const maskInput = document.getElementById(`fwLanMask_${devId}`);
+      if (!ipInput || !ipInput.value) return;
+
+      const newIp = ipInput.value.trim();
+      const newMask = maskInput ? maskInput.value.trim() : '255.255.255.0';
+
+      if (fwType === 'opnsense') {
+        const intfKey = Object.keys(dev.interfaces).find(k => k.includes('LAN') || k.includes('vtnet0')) || 'vtnet0 (LAN)';
+        if (dev.interfaces[intfKey]) {
+          dev.interfaces[intfKey].ip = newIp;
+          dev.interfaces[intfKey].mask = newMask;
+        }
+      } else if (fwType === 'pfsense') {
+        const intfKey = Object.keys(dev.interfaces).find(k => k.includes('LAN') || k.includes('vtnet1')) || 'vtnet1 (LAN)';
+        if (dev.interfaces[intfKey]) {
+          dev.interfaces[intfKey].ip = newIp;
+          dev.interfaces[intfKey].mask = newMask;
+        }
+      } else if (fwType === 'fortigate') {
+        if (dev.interfaces['port1']) {
+          dev.interfaces['port1'].ip = newIp;
+          dev.interfaces['port1'].mask = newMask;
+        }
+      } else if (fwType === 'paloalto') {
+        if (dev.interfaces['ethernet1/2']) {
+          dev.interfaces['ethernet1/2'].ip = newIp;
+          dev.interfaces['ethernet1/2'].mask = newMask;
+        }
+      } else if (fwType === 'cisco_asa') {
+        if (dev.interfaces['GigabitEthernet1/2']) {
+          dev.interfaces['GigabitEthernet1/2'].ip = newIp;
+          dev.interfaces['GigabitEthernet1/2'].mask = newMask;
+        }
+      } else if (fwType === 'watchguard') {
+        const intfKey = Object.keys(dev.interfaces).find(k => k.includes('Trusted') || k.includes('eth1')) || 'eth1 (Trusted)';
+        if (dev.interfaces[intfKey]) {
+          dev.interfaces[intfKey].ip = newIp;
+          dev.interfaces[intfKey].mask = newMask;
+        }
+      }
+
+      dev.ip = newIp;
+      dev.mask = newMask;
+
+      if (window.PXLApp) {
+        window.PXLApp.canvasWorkspace.render();
+        window.PXLApp.triggerScoreUpdate();
+        window.PXLApp.showToast(`✅ ${dev.hostname} LAN IP bijgewerkt naar ${newIp}`);
+      }
+      this.switchSubTab(devId, fwType, 'dashboard');
+    },
+
+    saveDhcpSettings(devId, fwType) {
+      const dev = window.PXLApp?.sim?.devices[devId];
+      if (!dev) return;
+      if (!dev.services) dev.services = {};
+      if (!dev.services.dhcp) dev.services.dhcp = { enabled: true };
+
+      const rangeStart = document.getElementById(`fwDhcpStart_${devId}`);
+      const rangeEnd = document.getElementById(`fwDhcpEnd_${devId}`);
+      if (rangeStart) dev.services.dhcp.startIp = rangeStart.value.trim();
+      if (rangeEnd) dev.services.dhcp.endIp = rangeEnd.value.trim();
+
+      if (window.PXLApp) {
+        window.PXLApp.showToast(`✅ ${dev.hostname} DHCP Server instellingen opgeslagen`);
+      }
+    },
+
+    // --- OPNSENSE 24.1 WEB GUI ---
+    renderOpnWebTab(device, container, subTab) {
       if (!device || !container) return;
-      const mgtIp = device.interfaces['management']?.ip || '192.168.1.1';
-      const eth1Ip = device.interfaces['ethernet1/1']?.ip || '10.0.0.1';
-      const eth2Ip = device.interfaces['ethernet1/2']?.ip || '192.168.10.1';
+      subTab = subTab || this.activeSubTabs[device.id]?.['opnsense'] || 'dashboard';
+      container.innerHTML = this.renderOpnWebTabHtml(device, window.PXLApp?.sim, subTab);
+    },
 
-      container.innerHTML = `
-        <div style="background: #1e293b; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100%; display: flex; flex-direction: column;">
-          <!-- PAN-OS Top Bar -->
-          <div style="background: #0f172a; border-bottom: 2px solid #f97316; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="color: #f97316; font-weight: 900; font-size: 15px; letter-spacing: 0.5px;">paloalto</span>
-              <span style="color: #94a3b8;">|</span>
-              <strong style="color: #f8fafc; font-size: 13px;">${device.hostname} (PA-440)</strong>
-              <span style="background: #7c2d12; color: #fdba74; font-size: 10px; padding: 1px 6px; border-radius: 4px;">PAN-OS 11.0.2</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <button onclick="alert('Commit succeeded: 100%')" style="background: #f97316; color: white; border: none; padding: 4px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px;">💾 Commit</button>
-              <span style="font-size: 12px; color: #94a3b8;">admin@${device.hostname}</span>
-            </div>
-          </div>
+    renderOpnWebTabHtml(device, sim, subTab = 'dashboard') {
+      if (!device) return '<div style="padding:20px; color:#fff;">Geen apparaat.</div>';
+      const lanKey = Object.keys(device.interfaces).find(k => k.includes('LAN') || k.includes('vtnet0')) || 'vtnet0 (LAN)';
+      const wanKey = Object.keys(device.interfaces).find(k => k.includes('WAN') || k.includes('vtnet1')) || 'vtnet1 (WAN)';
+      const lanIp = device.interfaces[lanKey]?.ip || '192.168.1.1';
+      const lanMask = device.interfaces[lanKey]?.mask || '255.255.255.0';
+      const wanIp = device.interfaces[wanKey]?.ip || '192.168.100.10';
 
-          <!-- Navigation Tabs -->
-          <div style="background: #1e293b; border-bottom: 1px solid #334155; padding: 0 16px; display: flex; gap: 20px; font-size: 12px; font-weight: 600;">
-            <div style="padding: 8px 0; color: #f97316; border-bottom: 2px solid #f97316;">DASHBOARD</div>
-            <div style="padding: 8px 0; color: #94a3b8; cursor: pointer;">ACC (Application Command Center)</div>
-            <div style="padding: 8px 0; color: #94a3b8; cursor: pointer;">POLICIES</div>
-            <div style="padding: 8px 0; color: #94a3b8; cursor: pointer;">NETWORK</div>
-            <div style="padding: 8px 0; color: #94a3b8; cursor: pointer;">DEVICE</div>
-          </div>
+      const navBtnStyle = (tab) => (tab === subTab)
+        ? 'padding: 6px 14px; background: #991b1b; color: white; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; font-size: 12px;'
+        : 'padding: 6px 14px; background: transparent; color: #cbd5e1; border-radius: 4px; cursor: pointer; border: none; font-size: 12px;';
 
-          <!-- Body -->
-          <div style="flex: 1; padding: 16px; overflow-y: auto;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-              <!-- System Dashboard Widget -->
-              <div style="background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 12px;">
-                <h4 style="margin: 0 0 10px; font-size: 12px; color: #f97316; border-bottom: 1px solid #334155; padding-bottom: 4px;">General Information</h4>
-                <table style="width: 100%; font-size: 11px; line-height: 1.8;">
-                  <tr><td style="color: #94a3b8;">Model:</td><td>PA-440</td></tr>
-                  <tr><td style="color: #94a3b8;">Management IP:</td><td>${mgtIp}</td></tr>
-                  <tr><td style="color: #94a3b8;">Software Version:</td><td>11.0.2</td></tr>
-                  <tr><td style="color: #94a3b8;">Application Version:</td><td>8761-8201</td></tr>
-                  <tr><td style="color: #94a3b8;">Threat Version:</td><td>8761-8201</td></tr>
-                </table>
+      let bodyContent = '';
+
+      if (subTab === 'interfaces') {
+        bodyContent = `
+          <div style="max-width: 850px; margin: 0 auto;">
+            <h3 style="margin-top:0; color:#f87171; border-bottom: 1px solid #334155; padding-bottom: 8px;">Interfaces: [LAN] (vtnet0)</h3>
+            <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 18px; margin-bottom: 16px;">
+              <h4 style="margin:0 0 12px; color:#f87171;">General Configuration</h4>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                <div>
+                  <label style="display:block; font-size:12px; color:#cbd5e1; font-weight:600; margin-bottom:4px;">IPv4 Configuration Type:</label>
+                  <select style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px; border-radius:4px;"><option>Static IPv4</option><option>DHCP</option></select>
+                </div>
+                <div>
+                  <label style="display:block; font-size:12px; color:#cbd5e1; font-weight:600; margin-bottom:4px;">IPv4 Address:</label>
+                  <input type="text" id="fwLanIp_${device.id}" value="${lanIp}" style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px; border-radius:4px;">
+                </div>
+                <div>
+                  <label style="display:block; font-size:12px; color:#cbd5e1; font-weight:600; margin-bottom:4px;">Subnet Mask:</label>
+                  <input type="text" id="fwLanMask_${device.id}" value="${lanMask}" style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px; border-radius:4px;">
+                </div>
+                <div>
+                  <label style="display:block; font-size:12px; color:#cbd5e1; font-weight:600; margin-bottom:4px;">WAN Uplink IP (vtnet1):</label>
+                  <input type="text" value="${wanIp}" readonly style="width:100%; background:#1e293b; border:1px solid #334155; color:#94a3b8; padding:6px; border-radius:4px;">
+                </div>
               </div>
-
-              <!-- Interface Summary Widget -->
-              <div style="background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 12px;">
-                <h4 style="margin: 0 0 10px; font-size: 12px; color: #f97316; border-bottom: 1px solid #334155; padding-bottom: 4px;">Data Plane Interfaces</h4>
-                <table style="width: 100%; font-size: 11px; border-collapse: collapse;">
-                  <tr style="color: #94a3b8; border-bottom: 1px solid #334155; text-align: left;">
-                    <th style="padding: 4px;">Interface</th><th>Zone</th><th>IP Address</th><th>Status</th>
+              <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+                <button onclick="window.FirewallGuiRenderers.saveLanSettings('${device.id}', 'opnsense')" style="background: #991b1b; color: white; border: none; padding: 7px 18px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;">💾 Save &amp; Apply Changes</button>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (subTab === 'firewall') {
+        bodyContent = `
+          <div style="max-width: 900px; margin: 0 auto;">
+            <h3 style="margin-top:0; color:#f87171; border-bottom: 1px solid #334155; padding-bottom: 8px;">Firewall &raquo; Rules &raquo; LAN</h3>
+            <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 14px;">
+              <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                <thead>
+                  <tr style="border-bottom: 2px solid #334155; color: #94a3b8; text-align: left;">
+                    <th style="padding: 6px;">Action</th><th>Proto</th><th>Source</th><th>Port</th><th>Destination</th><th>Gateway</th>
                   </tr>
-                  <tr><td style="padding: 4px;">ethernet1/1</td><td><span style="color: #f87171;">UNTRUST</span></td><td>${eth1Ip}/24</td><td><span style="color: #22c55e;">● Up</span></td></tr>
-                  <tr><td style="padding: 4px;">ethernet1/2</td><td><span style="color: #34d399;">TRUST</span></td><td>${eth2Ip}/24</td><td><span style="color: #22c55e;">● Up</span></td></tr>
-                </table>
+                </thead>
+                <tbody>
+                  <tr style="border-bottom: 1px solid #334155;">
+                    <td style="padding: 8px 6px;"><span style="background: #16a34a; color: white; padding: 2px 8px; border-radius: 3px; font-weight: bold;">PASS</span></td>
+                    <td>IPv4 *</td><td>LAN net</td><td>*</td><td>*</td><td>*</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #334155;">
+                    <td style="padding: 8px 6px;"><span style="background: #16a34a; color: white; padding: 2px 8px; border-radius: 3px; font-weight: bold;">PASS</span></td>
+                    <td>IPv4 TCP</td><td>LAN net</td><td>*</td><td>This Firewall (80, 443)</td><td>*</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 6px;"><span style="background: #dc2626; color: white; padding: 2px 8px; border-radius: 3px; font-weight: bold;">BLOCK</span></td>
+                    <td>IPv4 *</td><td>*</td><td>*</td><td>*</td><td>*</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div style="margin-top: 12px; display: flex; gap: 10px;">
+                <button onclick="alert('Regel toegevoegd')" style="background: #334155; color: white; border: 1px solid #475569; padding: 5px 12px; border-radius: 4px; font-size: 11px; cursor: pointer;">➕ Add Rule</button>
               </div>
             </div>
-
-            <!-- Security Policies Table -->
-            <div style="background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 12px; margin-top: 14px;">
-              <h4 style="margin: 0 0 10px; font-size: 12px; color: #f97316; border-bottom: 1px solid #334155; padding-bottom: 4px;">Security Policy Rules</h4>
-              <table style="width: 100%; font-size: 11px; border-collapse: collapse;">
-                <tr style="color: #94a3b8; border-bottom: 1px solid #334155; text-align: left;">
-                  <th style="padding: 4px;">Name</th><th>Source Zone</th><th>Dest Zone</th><th>Application</th><th>Action</th>
-                </tr>
-                <tr>
-                  <td style="padding: 4px; font-weight: 600;">Allow-Internal-Out</td>
-                  <td>TRUST</td>
-                  <td>UNTRUST</td>
-                  <td>any (App-ID)</td>
-                  <td><span style="color: #22c55e; font-weight: bold;">allow</span></td>
-                </tr>
+          </div>
+        `;
+      } else if (subTab === 'services') {
+        bodyContent = `
+          <div style="max-width: 850px; margin: 0 auto;">
+            <h3 style="margin-top:0; color:#f87171; border-bottom: 1px solid #334155; padding-bottom: 8px;">Services: DHCPv4: [LAN]</h3>
+            <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 18px;">
+              <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#cbd5e1; margin-bottom:12px; cursor:pointer;">
+                <input type="checkbox" checked> Enable DHCP server on LAN interface
+              </label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                <div>
+                  <label style="font-size:12px; color:#94a3b8;">Range From:</label>
+                  <input type="text" id="fwDhcpStart_${device.id}" value="192.168.1.100" style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px; border-radius:4px;">
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#94a3b8;">Range To:</label>
+                  <input type="text" id="fwDhcpEnd_${device.id}" value="192.168.1.200" style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px; border-radius:4px;">
+                </div>
+              </div>
+              <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+                <button onclick="window.FirewallGuiRenderers.saveDhcpSettings('${device.id}', 'opnsense')" style="background: #991b1b; color: white; border: none; padding: 7px 18px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;">💾 Save DHCP Settings</button>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        // Dashboard
+        bodyContent = `
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 14px;">
+              <h4 style="margin: 0 0 10px; font-size: 13px; color: #f87171; border-bottom: 1px solid #334155; padding-bottom: 6px;">System Information</h4>
+              <table style="width: 100%; font-size: 12px; line-height: 1.9;">
+                <tr><td style="color: #94a3b8;">Name:</td><td><strong>${device.hostname}.localdomain</strong></td></tr>
+                <tr><td style="color: #94a3b8;">Version:</td><td>OPNsense 24.1 (amd64/OpenSSL)</td></tr>
+                <tr><td style="color: #94a3b8;">Kernel:</td><td>FreeBSD 13.2-RELEASE-p7</td></tr>
+                <tr><td style="color: #94a3b8;">CPU Usage:</td><td><span style="color: #22c55e;">● 2% (4 Cores)</span></td></tr>
+                <tr><td style="color: #94a3b8;">Memory Usage:</td><td><span style="color: #38bdf8;">14% of 4096 MB</span></td></tr>
               </table>
             </div>
+
+            <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 14px;">
+              <h4 style="margin: 0 0 10px; font-size: 13px; color: #f87171; border-bottom: 1px solid #334155; padding-bottom: 6px;">Interfaces Status</h4>
+              <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #334155; color: #94a3b8;"><th style="text-align: left; padding: 6px;">Interface</th><th>IP Address</th><th>Status</th></tr>
+                <tr><td style="padding: 6px; font-weight: bold; color: #f87171;">LAN (${lanKey})</td><td>${lanIp}/${lanMask}</td><td><span style="color: #22c55e;">● Up (1000Base-T)</span></td></tr>
+                <tr><td style="padding: 6px; font-weight: bold; color: #38bdf8;">WAN (${wanKey})</td><td>${wanIp}</td><td><span style="color: #22c55e;">● Up (DHCP)</span></td></tr>
+              </table>
+              <div style="margin-top: 14px; background: #0f172a; padding: 8px; border-radius: 4px; font-size: 11px; color: #94a3b8;">
+                💡 <em>Bereikbaar via Web Browser op <code style="color:#f87171;">http://${lanIp}</code></em>
+              </div>
+            </div>
           </div>
-        </div>
-      `;
-    },
+        `;
+      }
 
-    renderOpnWebTab(device, container) {
-      if (!device || !container) return;
-      const lanIp = device.interfaces['vtnet0 (LAN)']?.ip || '192.168.1.1';
-      const wanIp = device.interfaces['vtnet1 (WAN)']?.ip || '192.168.100.10';
-
-      container.innerHTML = `
+      return `
         <div style="background: #0f172a; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100%; display: flex; flex-direction: column;">
           <!-- OPNsense Top Bar -->
-          <div style="background: #a80000; color: white; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="background: #a80000; color: white; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
             <div style="display: flex; align-items: center; gap: 10px;">
               <span style="font-weight: 900; font-size: 16px; letter-spacing: 0.5px;">OPNsense</span>
               <span style="font-size: 12px; opacity: 0.9;">${device.hostname}.localdomain</span>
@@ -1166,52 +1213,156 @@
             <div style="font-size: 12px;">👤 root@${device.hostname}</div>
           </div>
 
-          <!-- Navigation Ribbon -->
-          <div style="background: #1e293b; border-bottom: 1px solid #334155; padding: 6px 16px; display: flex; gap: 18px; font-size: 12px; font-weight: 600; color: #cbd5e1;">
-            <span style="color: #f87171;">Lobby (Dashboard)</span>
-            <span>System</span>
-            <span>Interfaces</span>
-            <span>Firewall</span>
-            <span>VPN</span>
-            <span>Services</span>
+          <!-- Navigation Ribbon (Clickable) -->
+          <div style="background: #1e293b; border-bottom: 1px solid #334155; padding: 6px 16px; display: flex; gap: 8px; font-size: 12px; font-weight: 600; flex-shrink: 0;">
+            <button onclick="window.FirewallGuiRenderers.switchSubTab('${device.id}', 'opnsense', 'dashboard')" style="${navBtnStyle('dashboard')}">📊 Dashboard</button>
+            <button onclick="window.FirewallGuiRenderers.switchSubTab('${device.id}', 'opnsense', 'interfaces')" style="${navBtnStyle('interfaces')}">🔌 Interfaces</button>
+            <button onclick="window.FirewallGuiRenderers.switchSubTab('${device.id}', 'opnsense', 'firewall')" style="${navBtnStyle('firewall')}">🛡️ Firewall Regels</button>
+            <button onclick="window.FirewallGuiRenderers.switchSubTab('${device.id}', 'opnsense', 'services')" style="${navBtnStyle('services')}">📋 DHCP Server</button>
           </div>
 
           <!-- Body -->
-          <div style="flex: 1; padding: 16px; overflow-y: auto;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-              <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 12px;">
-                <h4 style="margin: 0 0 8px; font-size: 12px; color: #f87171; border-bottom: 1px solid #334155; padding-bottom: 4px;">System Information</h4>
-                <table style="width: 100%; font-size: 11px; line-height: 1.8;">
-                  <tr><td style="color: #94a3b8;">Name:</td><td>${device.hostname}.localdomain</td></tr>
-                  <tr><td style="color: #94a3b8;">Versions:</td><td>OPNsense 24.1 (amd64/OpenSSL)</td></tr>
-                  <tr><td style="color: #94a3b8;">FreeBSD Kernel:</td><td>FreeBSD 13.2-RELEASE-p7</td></tr>
-                  <tr><td style="color: #94a3b8;">CPU Usage:</td><td><span style="color: #22c55e;">2% (4 cores)</span></td></tr>
-                </table>
-              </div>
-
-              <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 12px;">
-                <h4 style="margin: 0 0 8px; font-size: 12px; color: #f87171; border-bottom: 1px solid #334155; padding-bottom: 4px;">Interfaces Status</h4>
-                <table style="width: 100%; font-size: 11px; border-collapse: collapse;">
-                  <tr style="border-bottom: 1px solid #334155;"><th style="text-align: left; padding: 4px;">Interface</th><th>IP Address</th><th>Status</th></tr>
-                  <tr><td style="padding: 4px; font-weight: bold; color: #f87171;">LAN (vtnet0)</td><td>${lanIp}/24</td><td><span style="color: #22c55e;">● Up (1000Base-T)</span></td></tr>
-                  <tr><td style="padding: 4px; font-weight: bold; color: #38bdf8;">WAN (vtnet1)</td><td>${wanIp}/24</td><td><span style="color: #22c55e;">● Up (DHCP)</span></td></tr>
-                </table>
-              </div>
-            </div>
+          <div style="flex: 1; padding: 18px; overflow-y: auto;">
+            ${bodyContent}
           </div>
         </div>
       `;
     },
 
-    renderPfWebTab(device, container) {
+    // --- PFSENSE PLUS WEB GUI ---
+    renderPfWebTab(device, container, subTab) {
       if (!device || !container) return;
-      const wanIp = device.interfaces['vtnet0 (WAN)']?.ip || '198.51.100.15';
-      const lanIp = device.interfaces['vtnet1 (LAN)']?.ip || '192.168.1.1';
+      subTab = subTab || this.activeSubTabs[device.id]?.['pfsense'] || 'dashboard';
+      container.innerHTML = this.renderPfWebTabHtml(device, window.PXLApp?.sim, subTab);
+    },
 
-      container.innerHTML = `
+    renderPfWebTabHtml(device, sim, subTab = 'dashboard') {
+      if (!device) return '<div style="padding:20px; color:#fff;">Geen apparaat.</div>';
+      const wanKey = Object.keys(device.interfaces).find(k => k.includes('WAN') || k.includes('vtnet0')) || 'vtnet0 (WAN)';
+      const lanKey = Object.keys(device.interfaces).find(k => k.includes('LAN') || k.includes('vtnet1')) || 'vtnet1 (LAN)';
+      const wanIp = device.interfaces[wanKey]?.ip || '198.51.100.15';
+      const lanIp = device.interfaces[lanKey]?.ip || '192.168.1.1';
+      const lanMask = device.interfaces[lanKey]?.mask || '255.255.255.0';
+
+      const navBtnStyle = (tab) => (tab === subTab)
+        ? 'padding: 6px 12px; background: #002d62; color: white; border-radius: 3px; font-weight: 700; cursor: pointer; border: none; font-size: 12px;'
+        : 'padding: 6px 12px; background: transparent; color: #e2e8f0; border-radius: 3px; cursor: pointer; border: none; font-size: 12px;';
+
+      let bodyContent = '';
+
+      if (subTab === 'interfaces') {
+        bodyContent = `
+          <div style="max-width: 850px; margin: 0 auto;">
+            <h3 style="margin-top:0; color:#002d62; border-bottom: 2px solid #002d62; padding-bottom: 6px;">Interfaces / LAN (vtnet1)</h3>
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <h4 style="margin:0 0 12px; color:#0f172a;">General Configuration</h4>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                <div>
+                  <label style="display:block; font-size:12px; color:#334155; font-weight:600; margin-bottom:4px;">IPv4 Configuration Type:</label>
+                  <select style="width:100%; background:#fff; border:1px solid #cbd5e1; color:#0f172a; padding:6px; border-radius:4px;"><option>Static IPv4</option><option>DHCP</option></select>
+                </div>
+                <div>
+                  <label style="display:block; font-size:12px; color:#334155; font-weight:600; margin-bottom:4px;">IPv4 Address:</label>
+                  <input type="text" id="fwLanIp_${device.id}" value="${lanIp}" style="width:100%; background:#fff; border:1px solid #cbd5e1; color:#0f172a; padding:6px; border-radius:4px;">
+                </div>
+                <div>
+                  <label style="display:block; font-size:12px; color:#334155; font-weight:600; margin-bottom:4px;">Subnet Mask:</label>
+                  <input type="text" id="fwLanMask_${device.id}" value="${lanMask}" style="width:100%; background:#fff; border:1px solid #cbd5e1; color:#0f172a; padding:6px; border-radius:4px;">
+                </div>
+                <div>
+                  <label style="display:block; font-size:12px; color:#334155; font-weight:600; margin-bottom:4px;">WAN IP Address:</label>
+                  <input type="text" value="${wanIp}" readonly style="width:100%; background:#f1f5f9; border:1px solid #cbd5e1; color:#64748b; padding:6px; border-radius:4px;">
+                </div>
+              </div>
+              <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+                <button onclick="window.FirewallGuiRenderers.saveLanSettings('${device.id}', 'pfsense')" style="background: #002d62; color: white; border: none; padding: 7px 18px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;">💾 Save &amp; Apply</button>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (subTab === 'firewall') {
+        bodyContent = `
+          <div style="max-width: 900px; margin: 0 auto;">
+            <h3 style="margin-top:0; color:#002d62; border-bottom: 2px solid #002d62; padding-bottom: 6px;">Firewall / Rules / LAN</h3>
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                <thead>
+                  <tr style="border-bottom: 2px solid #cbd5e1; color: #475569; text-align: left;">
+                    <th style="padding: 6px;">States</th><th>Protocol</th><th>Source</th><th>Port</th><th>Destination</th><th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 6px;"><span style="color:#16a34a; font-weight:bold;">✔ Pass</span></td>
+                    <td>IPv4 *</td><td>LAN net</td><td>*</td><td>*</td><td>Default allow LAN to any rule</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 6px;"><span style="color:#16a34a; font-weight:bold;">✔ Pass</span></td>
+                    <td>IPv4 TCP</td><td>*</td><td>*</td><td>LAN address (80, 443)</td><td>Anti-Lockout Rule</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } else if (subTab === 'services') {
+        bodyContent = `
+          <div style="max-width: 850px; margin: 0 auto;">
+            <h3 style="margin-top:0; color:#002d62; border-bottom: 2px solid #002d62; padding-bottom: 6px;">Services / DHCP Server / LAN</h3>
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#0f172a; margin-bottom:12px; cursor:pointer;">
+                <input type="checkbox" checked> Enable DHCP server on LAN interface
+              </label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                <div>
+                  <label style="font-size:12px; color:#475569;">From IP:</label>
+                  <input type="text" id="fwDhcpStart_${device.id}" value="192.168.1.100" style="width:100%; background:#fff; border:1px solid #cbd5e1; color:#0f172a; padding:6px; border-radius:4px;">
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#475569;">To IP:</label>
+                  <input type="text" id="fwDhcpEnd_${device.id}" value="192.168.1.200" style="width:100%; background:#fff; border:1px solid #cbd5e1; color:#0f172a; padding:6px; border-radius:4px;">
+                </div>
+              </div>
+              <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+                <button onclick="window.FirewallGuiRenderers.saveDhcpSettings('${device.id}', 'pfsense')" style="background: #002d62; color: white; border: none; padding: 7px 18px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;">💾 Save</button>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        // Dashboard
+        bodyContent = `
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <h4 style="margin: 0 0 10px; font-size: 13px; color: #002d62; border-bottom: 2px solid #002d62; padding-bottom: 4px;">System Information</h4>
+              <table style="width: 100%; font-size: 12px; line-height: 1.9;">
+                <tr><td style="color: #64748b;">Name:</td><td><strong>${device.hostname}.localdomain</strong></td></tr>
+                <tr><td style="color: #64748b;">System:</td><td>pfSense Plus 23.09-RELEASE (amd64)</td></tr>
+                <tr><td style="color: #64748b;">CPU Type:</td><td>Intel(R) Core(TM) i7 (4 Cores)</td></tr>
+                <tr><td style="color: #64748b;">Uptime:</td><td>3 Days 12 Hours 45 Mins</td></tr>
+                <tr><td style="color: #64748b;">State table size:</td><td>0% (14/400000)</td></tr>
+              </table>
+            </div>
+
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <h4 style="margin: 0 0 10px; font-size: 13px; color: #002d62; border-bottom: 2px solid #002d62; padding-bottom: 4px;">Interfaces</h4>
+              <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #e2e8f0; color: #64748b;"><th style="text-align: left; padding: 6px;">Name</th><th>Status</th><th>IP Address</th></tr>
+                <tr><td style="padding: 6px; font-weight: bold; color: #0284c7;">WAN (${wanKey})</td><td><span style="color: #16a34a;">● UP</span></td><td>${wanIp}</td></tr>
+                <tr><td style="padding: 6px; font-weight: bold; color: #0284c7;">LAN (${lanKey})</td><td><span style="color: #16a34a;">● UP</span></td><td>${lanIp}/${lanMask}</td></tr>
+              </table>
+              <div style="margin-top: 14px; background: #f1f5f9; padding: 8px; border-radius: 4px; font-size: 11px; color: #64748b;">
+                💡 <em>Bereikbaar via Web Browser op <code style="color:#002d62;">http://${lanIp}</code></em>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      return `
         <div style="background: #f1f5f9; color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100%; display: flex; flex-direction: column;">
           <!-- pfSense Top Bar -->
-          <div style="background: #002d62; color: white; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="background: #002d62; color: white; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
             <div style="display: flex; align-items: center; gap: 10px;">
               <span style="font-weight: 900; font-size: 16px;">Netgate pfSense+</span>
               <span style="font-size: 12px; opacity: 0.9;">${device.hostname}.localdomain</span>
@@ -1219,37 +1370,201 @@
             <div style="font-size: 12px;">👤 admin@${device.hostname}</div>
           </div>
 
-          <!-- Navigation Bar -->
-          <div style="background: #1e3a5f; color: white; padding: 6px 16px; display: flex; gap: 18px; font-size: 12px; font-weight: 600;">
-            <span style="background: #002d62; padding: 2px 8px; border-radius: 3px;">System</span>
-            <span>Interfaces</span>
-            <span>Firewall</span>
-            <span>Services</span>
-            <span>VPN</span>
-            <span>Status</span>
-            <span>Diagnostics</span>
+          <!-- Navigation Bar (Clickable) -->
+          <div style="background: #1e3a5f; color: white; padding: 6px 16px; display: flex; gap: 8px; font-size: 12px; font-weight: 600; flex-shrink: 0;">
+            <button onclick="window.FirewallGuiRenderers.switchSubTab('${device.id}', 'pfsense', 'dashboard')" style="${navBtnStyle('dashboard')}">📊 Dashboard</button>
+            <button onclick="window.FirewallGuiRenderers.switchSubTab('${device.id}', 'pfsense', 'interfaces')" style="${navBtnStyle('interfaces')}">🔌 Interfaces</button>
+            <button onclick="window.FirewallGuiRenderers.switchSubTab('${device.id}', 'pfsense', 'firewall')" style="${navBtnStyle('firewall')}">🛡️ Firewall Rules</button>
+            <button onclick="window.FirewallGuiRenderers.switchSubTab('${device.id}', 'pfsense', 'services')" style="${navBtnStyle('services')}">📋 DHCP Server</button>
           </div>
 
           <!-- Body -->
-          <div style="flex: 1; padding: 16px; overflow-y: auto;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-              <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                <h4 style="margin: 0 0 8px; font-size: 12px; color: #002d62; border-bottom: 2px solid #002d62; padding-bottom: 4px;">System Information</h4>
-                <table style="width: 100%; font-size: 11px; line-height: 1.8;">
-                  <tr><td style="color: #64748b;">Name:</td><td>${device.hostname}.localdomain</td></tr>
-                  <tr><td style="color: #64748b;">System:</td><td>pfSense Plus 23.09-RELEASE (amd64)</td></tr>
-                  <tr><td style="color: #64748b;">CPU Type:</td><td>Intel(R) Core(TM) i7-12700K (4 cores)</td></tr>
-                  <tr><td style="color: #64748b;">Uptime:</td><td>3 Days 12 Hours 45 Mins</td></tr>
+          <div style="flex: 1; padding: 18px; overflow-y: auto;">
+            ${bodyContent}
+          </div>
+        </div>
+      `;
+    },
+
+    // --- CISCO ASA ASDM WEB MANAGER ---
+    renderAsaWebTab(device, container, subTab) {
+      if (!device || !container) return;
+      subTab = subTab || this.activeSubTabs[device.id]?.['cisco_asa'] || 'dashboard';
+      container.innerHTML = this.renderAsaWebTabHtml(device, window.PXLApp?.sim, subTab);
+    },
+
+    renderAsaWebTabHtml(device, sim, subTab = 'dashboard') {
+      if (!device) return '<div style="padding:20px; color:#fff;">Geen ASA apparaat.</div>';
+      const outIp = device.interfaces['GigabitEthernet1/1']?.ip || '203.0.113.2';
+      const inIp = device.interfaces['GigabitEthernet1/2']?.ip || '192.168.1.1';
+      const inMask = device.interfaces['GigabitEthernet1/2']?.mask || '255.255.255.0';
+
+      return `
+        <div style="background: #1e293b; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100%; display: flex; flex-direction: column;">
+          <div style="background: #0f172a; border-bottom: 2px solid #0284c7; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="background: #0284c7; color: white; padding: 2px 7px; border-radius: 4px; font-weight: 900; font-size: 13px;">CISCO</span>
+              <strong style="font-size: 14px; color: #38bdf8;">Adaptive Security Device Manager (ASDM 7.19)</strong>
+              <span style="font-size: 11px; color: #94a3b8;">ASA 5506-X (${device.hostname})</span>
+            </div>
+            <span style="font-size: 12px; color: #22c55e;">● Connected (HTTPS)</span>
+          </div>
+          <div style="flex: 1; padding: 18px; overflow-y: auto;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <div style="background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 14px;">
+                <h4 style="margin: 0 0 10px; font-size: 13px; color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 4px;">Security Interfaces (Nameif &amp; Security Level)</h4>
+                <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                  <tr style="border-bottom: 1px solid #334155; color: #94a3b8;"><th style="padding: 4px;">Interface</th><th>Nameif</th><th>Sec Level</th><th>IP Address</th></tr>
+                  <tr><td style="padding: 6px 4px;">Gi1/1</td><td><strong style="color:#f87171;">outside</strong></td><td>0</td><td>${outIp}</td></tr>
+                  <tr><td style="padding: 6px 4px;">Gi1/2</td><td><strong style="color:#34d399;">inside</strong></td><td>100</td><td>${inIp}/${inMask}</td></tr>
+                  <tr><td style="padding: 6px 4px;">Gi1/3</td><td><strong style="color:#fbbf24;">dmz</strong></td><td>50</td><td>172.16.1.1</td></tr>
                 </table>
               </div>
+              <div style="background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 14px;">
+                <h4 style="margin: 0 0 10px; font-size: 13px; color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 4px;">Active NAT Policies</h4>
+                <div style="font-size: 12px; line-height: 1.8;">
+                  <div>• <code>nat (inside,outside) dynamic interface</code>: <span style="color:#22c55e;">Active (Dynamic PAT)</span></div>
+                  <div>• Inspection: <code>inspect icmp, inspect http, inspect dns</code></div>
+                  <div>• ASDM Management: <span style="color:#38bdf8;">https://${inIp}/admin</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    },
 
-              <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                <h4 style="margin: 0 0 8px; font-size: 12px; color: #002d62; border-bottom: 2px solid #002d62; padding-bottom: 4px;">Interfaces</h4>
-                <table style="width: 100%; font-size: 11px; border-collapse: collapse;">
-                  <tr style="border-bottom: 1px solid #e2e8f0;"><th style="text-align: left; padding: 4px;">Name</th><th>Status</th><th>IP Address</th></tr>
-                  <tr><td style="padding: 4px; font-weight: bold; color: #0284c7;">WAN</td><td><span style="color: #16a34a;">● UP</span></td><td>${wanIp}</td></tr>
-                  <tr><td style="padding: 4px; font-weight: bold; color: #0284c7;">LAN</td><td><span style="color: #16a34a;">● UP</span></td><td>${lanIp}</td></tr>
+    // --- FORTINET FORTIOS WEB GUI ---
+    renderFortiWebTab(device, container, subTab) {
+      if (!device || !container) return;
+      subTab = subTab || this.activeSubTabs[device.id]?.['fortigate'] || 'dashboard';
+      container.innerHTML = this.renderFortiWebTabHtml(device, window.PXLApp?.sim, subTab);
+    },
+
+    renderFortiWebTabHtml(device, sim, subTab = 'dashboard') {
+      if (!device) return '';
+      const wanIp = device.interfaces['wan1']?.ip || '198.51.100.2';
+      const lanIp = device.interfaces['port1']?.ip || '192.168.1.99';
+      const lanMask = device.interfaces['port1']?.mask || '255.255.255.0';
+
+      return `
+        <div style="background: #0f172a; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100%; display: flex; flex-direction: column;">
+          <div style="background: #1e293b; border-bottom: 2px solid #0d9488; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="background: #dc2626; color: white; padding: 3px 8px; border-radius: 4px; font-weight: 900; font-size: 13px;">FORTINET</span>
+              <strong style="font-size: 15px; color: #38bdf8;">FortiGate-60F (${device.hostname})</strong>
+              <span style="background: #064e3b; color: #34d399; padding: 2px 8px; border-radius: 10px; font-size: 11px;">FortiOS v7.4.2</span>
+            </div>
+            <div style="font-size: 12px; color: #94a3b8;">👤 admin | 🔒 VDOM: root</div>
+          </div>
+          <div style="flex: 1; padding: 18px; overflow-y: auto;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+              <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 14px;">
+                <h4 style="margin: 0 0 10px; font-size: 13px; color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 6px;">System Information</h4>
+                <table style="width: 100%; font-size: 12px; line-height: 1.8;">
+                  <tr><td style="color: #94a3b8;">Host Name:</td><td><strong>${device.hostname}</strong></td></tr>
+                  <tr><td style="color: #94a3b8;">Serial:</td><td><code>${device.fortiConfig?.serial || 'FGT60FTK23048921'}</code></td></tr>
+                  <tr><td style="color: #94a3b8;">Firmware:</td><td>FortiOS v7.4.2 build2573</td></tr>
+                  <tr><td style="color: #94a3b8;">LAN (port1):</td><td>${lanIp}/${lanMask}</td></tr>
+                  <tr><td style="color: #94a3b8;">WAN (wan1):</td><td>${wanIp}</td></tr>
                 </table>
+              </div>
+              <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 14px;">
+                <h4 style="margin: 0 0 10px; font-size: 13px; color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 6px;">Interface Configuration</h4>
+                <div>
+                  <label style="font-size:12px; color:#94a3b8;">LAN Port 1 IP:</label>
+                  <input type="text" id="fwLanIp_${device.id}" value="${lanIp}" style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px; border-radius:4px; margin-bottom:8px;">
+                  <button onclick="window.FirewallGuiRenderers.saveLanSettings('${device.id}', 'fortigate')" style="background: #0d9488; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer;">💾 Opslaan</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    },
+
+    // --- PALO ALTO PAN-OS WEB GUI ---
+    renderPanWebTab(device, container, subTab) {
+      if (!device || !container) return;
+      subTab = subTab || this.activeSubTabs[device.id]?.['paloalto'] || 'dashboard';
+      container.innerHTML = this.renderPanWebTabHtml(device, window.PXLApp?.sim, subTab);
+    },
+
+    renderPanWebTabHtml(device, sim, subTab = 'dashboard') {
+      if (!device) return '';
+      const mgtIp = device.interfaces['management']?.ip || '192.168.1.1';
+      const eth1Ip = device.interfaces['ethernet1/1']?.ip || '10.0.0.1';
+      const eth2Ip = device.interfaces['ethernet1/2']?.ip || '192.168.10.1';
+
+      return `
+        <div style="background: #1e293b; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100%; display: flex; flex-direction: column;">
+          <div style="background: #0f172a; border-bottom: 2px solid #f97316; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="color: #f97316; font-weight: 900; font-size: 15px;">paloalto</span>
+              <strong style="color: #f8fafc; font-size: 13px;">${device.hostname} (PA-440)</strong>
+              <span style="background: #7c2d12; color: #fdba74; font-size: 10px; padding: 1px 6px; border-radius: 4px;">PAN-OS 11.0.2</span>
+            </div>
+            <span style="font-size: 12px; color: #94a3b8;">admin@${device.hostname}</span>
+          </div>
+          <div style="flex: 1; padding: 16px; overflow-y: auto;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+              <div style="background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 12px;">
+                <h4 style="margin: 0 0 10px; font-size: 12px; color: #f97316;">General Information</h4>
+                <table style="width: 100%; font-size: 11px; line-height: 1.8;">
+                  <tr><td style="color: #94a3b8;">Model:</td><td>PA-440</td></tr>
+                  <tr><td style="color: #94a3b8;">Management IP:</td><td>${mgtIp}</td></tr>
+                  <tr><td style="color: #94a3b8;">ethernet1/1 (UNTRUST):</td><td>${eth1Ip}/24</td></tr>
+                  <tr><td style="color: #94a3b8;">ethernet1/2 (TRUST):</td><td>${eth2Ip}/24</td></tr>
+                </table>
+              </div>
+              <div style="background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 12px;">
+                <h4 style="margin: 0 0 10px; font-size: 12px; color: #f97316;">Security Policy Rules</h4>
+                <div style="font-size: 11px; line-height: 1.8;">
+                  <div>• Rule: <strong>Allow-Internal-Out</strong>: TRUST &rarr; UNTRUST (App-ID: any, Action: <span style="color:#22c55e;">allow</span>)</div>
+                  <div>• Rule: <strong>Default-Deny</strong>: any &rarr; any (Action: <span style="color:#ef4444;">deny</span>)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    },
+
+    // --- WATCHGUARD FIREBOX RENDERER ---
+    renderWatchGuardWebTab(device, container, subTab) {
+      if (!device || !container) return;
+      subTab = subTab || this.activeSubTabs[device.id]?.['watchguard'] || 'dashboard';
+      container.innerHTML = this.renderWatchGuardWebTabHtml(device, window.PXLApp?.sim, subTab);
+    },
+
+    renderWatchGuardWebTabHtml(device, sim, subTab = 'dashboard') {
+      if (!device) return '';
+      const eth0 = device.interfaces['eth0 (External)'] || {};
+      const eth1 = device.interfaces['eth1 (Trusted)'] || {};
+
+      return `
+        <div style="background: #111827; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100%; display: flex; flex-direction: column;">
+          <div style="background: #c8102e; color: white; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-weight: 900; font-size: 16px;">WatchGuard</span>
+              <span style="font-size: 14px; font-weight: 700;">Fireware Web UI</span>
+              <span style="font-size: 11px; background: rgba(0,0,0,0.25); padding: 2px 8px; border-radius: 10px;">${device.hostname || 'FireboxV'}</span>
+            </div>
+            <span style="font-size: 11.5px;">Fireware v12.10.2</span>
+          </div>
+          <div style="flex: 1; padding: 18px; overflow-y: auto;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+              <div style="background: #1f2937; border: 1px solid #374151; border-radius: 6px; padding: 14px;">
+                <h4 style="margin: 0 0 10px; font-size: 13px; color: #f87171;">System Information</h4>
+                <div style="font-size: 12px; line-height: 1.8;">
+                  <div>External (eth0): <strong>${eth0.ip || '203.0.113.100'}/24</strong></div>
+                  <div>Trusted LAN (eth1): <strong>${eth1.ip || '192.168.1.1'}/24</strong></div>
+                </div>
+              </div>
+              <div style="background: #1f2937; border: 1px solid #374151; border-radius: 6px; padding: 14px;">
+                <h4 style="margin: 0 0 10px; font-size: 13px; color: #f87171;">Trusted LAN Interface Settings</h4>
+                <input type="text" id="fwLanIp_${device.id}" value="${eth1.ip || '192.168.1.1'}" style="width:100%; background:#111827; border:1px solid #374151; color:#fff; padding:6px; border-radius:4px; margin-bottom:8px;">
+                <button onclick="window.FirewallGuiRenderers.saveLanSettings('${device.id}', 'watchguard')" style="background: #c8102e; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer;">💾 Opslaan</button>
               </div>
             </div>
           </div>
@@ -1257,6 +1572,7 @@
       `;
     }
   };
+
 
   // =========================================================================
   // 6. WATCHGUARD FIREBOXV (FIREWARE OS CLI PARSER & WEB UI)
@@ -1754,6 +2070,10 @@ Destination     Gateway         Genmask         Flags Metric Iface
       </div>
     `;
   };
+
+  FirewallGuiRenderers.renderOpnsenseWebGuiHtml = FirewallGuiRenderers.renderOpnWebTabHtml;
+  FirewallGuiRenderers.renderPfsenseWebGuiHtml = FirewallGuiRenderers.renderPfWebTabHtml;
+  FirewallGuiRenderers.renderFortiGateWebGuiHtml = FirewallGuiRenderers.renderFortiWebTabHtml;
 
   // Expose to window
   if (typeof window !== 'undefined') {

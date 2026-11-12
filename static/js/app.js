@@ -18,6 +18,8 @@ class PXLNetSimApp {
     this.simulationEngine = (typeof SimulationEngine !== 'undefined') ? new SimulationEngine(this.sim, this.canvasWorkspace) : null;
     this.teacherStudio = new TeacherStudio(this);
     this.currentUser = null;
+    this.currentProjectId = null;
+    this.currentProjectName = '';
     this.autoSaveInterval = null;
     this.activeServiceSubtab = 'http';
     this.isOpdrachtPinned = (localStorage.getItem('pxl_opdracht_pinned') === 'true');
@@ -493,6 +495,12 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     if (!examSelect) return;
     examSelect.innerHTML = '';
 
+    // 0. Blanco Workspace Option (Altijd bovenaan)
+    const optBlank = document.createElement('option');
+    optBlank.value = 'blank_canvas';
+    optBlank.innerText = '✨ Blanco Workspace (Van nul beginnen)';
+    examSelect.appendChild(optBlank);
+
     let assignedLabs = [];
     let assignedTests = [];
     this.assignedExamsMap = {};
@@ -567,8 +575,29 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
       examSelect.appendChild(ogCourse);
     }
 
+    // 5. Custom Projects (Eigen Netwerken - Helemaal onderaan apart)
+    try {
+      const customProjects = await this.fetchCustomProjectsList();
+      if (customProjects && customProjects.length > 0) {
+        const ogCustom = document.createElement('optgroup');
+        ogCustom.id = 'optgroupCustomProjects';
+        ogCustom.label = '🎨 Mijn Eigen Netwerken & Ontwerpen';
+        customProjects.forEach(proj => {
+          const opt = document.createElement('option');
+          opt.value = `custom_${proj.id}`;
+          opt.innerText = `🎨 ${proj.name} (${proj.device_count || 0} apparaten)`;
+          ogCustom.appendChild(opt);
+        });
+        examSelect.appendChild(ogCustom);
+      }
+    } catch (e) {
+      console.warn('Could not populate custom projects in selector:', e);
+    }
+
     if (selectedId) {
       examSelect.value = selectedId;
+    } else if (this.currentProjectId) {
+      examSelect.value = `custom_${this.currentProjectId}`;
     } else if (this.activeExam) {
       examSelect.value = this.activeExam.id;
     }
@@ -577,6 +606,17 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
   async selectExamFromDropdown(val) {
     if (!val) return;
     const examSelect = document.getElementById('examSelector');
+
+    if (val === 'blank_canvas') {
+      this.startBlankCanvas();
+      return;
+    }
+
+    if (val.startsWith('custom_')) {
+      const projId = parseInt(val.replace('custom_', ''), 10);
+      await this.loadCustomProject(projId);
+      return;
+    }
 
     const asg = this.assignedExamsMap ? this.assignedExamsMap[val] : null;
     if (asg && (asg.kind === 'test' || asg.assignment_type === 'test')) {
@@ -699,6 +739,7 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     const desktopTabBtn = document.getElementById('tabBtnDesktop');
     const servicesTabBtn = document.getElementById('tabBtnServices');
     const webfigTabBtn = document.getElementById('tabBtnWebFig');
+    const luciWebTabBtn = document.getElementById('tabBtnLuciWeb');
     const hpeWebTabBtn = document.getElementById('tabBtnHpeWeb');
     const wrtWebTabBtn = document.getElementById('tabBtnWrtWeb');
     const wlcWebTabBtn = document.getElementById('tabBtnWlcWeb');
@@ -708,6 +749,7 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     const opnWebTabBtn = document.getElementById('tabBtnOpnWeb');
     const pfWebTabBtn = document.getElementById('tabBtnPfWeb');
     const wgWebTabBtn = document.getElementById('tabBtnWgWeb');
+    const asaWebTabBtn = document.getElementById('tabBtnAsaWeb');
 
     if (cliTabBtn) {
       cliTabBtn.style.display = (isHost || isWrt) ? 'none' : 'inline-block';
@@ -740,6 +782,7 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     if (desktopTabBtn) desktopTabBtn.style.display = isHost ? 'inline-block' : 'none';
     if (servicesTabBtn) servicesTabBtn.style.display = isServer ? 'inline-block' : 'none';
     if (webfigTabBtn) webfigTabBtn.style.display = (device.type === 'mikrotik') ? 'inline-block' : 'none';
+    if (luciWebTabBtn) luciWebTabBtn.style.display = (device.type === 'openwrt') ? 'inline-block' : 'none';
     if (hpeWebTabBtn) hpeWebTabBtn.style.display = (device.type === 'hpe_switch') ? 'inline-block' : 'none';
     if (wrtWebTabBtn) wrtWebTabBtn.style.display = isWrt ? 'inline-block' : 'none';
     if (wlcWebTabBtn) wlcWebTabBtn.style.display = isWlc ? 'inline-block' : 'none';
@@ -749,6 +792,7 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     if (opnWebTabBtn) opnWebTabBtn.style.display = (device.type === 'opnsense') ? 'inline-block' : 'none';
     if (pfWebTabBtn) pfWebTabBtn.style.display = (device.type === 'pfsense') ? 'inline-block' : 'none';
     if (wgWebTabBtn) wgWebTabBtn.style.display = (device.type === 'watchguard') ? 'inline-block' : 'none';
+    if (asaWebTabBtn) asaWebTabBtn.style.display = (device.type === 'cisco_asa') ? 'inline-block' : 'none';
 
     // Switch to primary operational tab
     if (isServer) {
@@ -761,6 +805,12 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
       this.switchDeviceModalTab('wlcweb');
     } else if (isAp) {
       this.switchDeviceModalTab('apweb');
+    } else if (device.type === 'openwrt') {
+      this.switchDeviceModalTab('luciweb');
+    } else if (device.type === 'opnsense') {
+      this.switchDeviceModalTab('opnweb');
+    } else if (device.type === 'pfsense') {
+      this.switchDeviceModalTab('pfweb');
     } else {
       this.switchDeviceModalTab('cli');
     }
@@ -775,7 +825,7 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
   }
 
   switchDeviceModalTab(tabKey) {
-    const tabs = ['physical', 'config', 'cli', 'desktop', 'services', 'webfig', 'hpeweb', 'wrtweb', 'wlcweb', 'apweb', 'fortiweb', 'panweb', 'opnweb', 'pfweb', 'wgweb'];
+    const tabs = ['physical', 'config', 'cli', 'desktop', 'services', 'webfig', 'luciweb', 'hpeweb', 'wrtweb', 'wlcweb', 'apweb', 'fortiweb', 'panweb', 'opnweb', 'pfweb', 'wgweb', 'asaweb'];
     tabs.forEach(t => {
       const pane = document.getElementById(`modalPane${t.charAt(0).toUpperCase() + t.slice(1)}`);
       if (pane) pane.classList.remove('active');
@@ -795,6 +845,7 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     if (tabKey === 'desktop') this.renderDesktopTab();
     if (tabKey === 'services') this.renderServicesTab();
     if (tabKey === 'webfig') this.renderWebFigTab();
+    if (tabKey === 'luciweb') this.renderLuciWebTab();
     if (tabKey === 'hpeweb') this.renderHpeWebTab();
     if (tabKey === 'wrtweb') this.renderWrtWebTab();
     if (tabKey === 'wlcweb') this.renderWlcWebTab();
@@ -804,6 +855,18 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     if (tabKey === 'opnweb' && window.FirewallGuiRenderers) window.FirewallGuiRenderers.renderOpnWebTab(dev, document.getElementById('modalPaneOpnweb'));
     if (tabKey === 'pfweb' && window.FirewallGuiRenderers) window.FirewallGuiRenderers.renderPfWebTab(dev, document.getElementById('modalPanePfweb'));
     if (tabKey === 'wgweb' && window.FirewallGuiRenderers) window.FirewallGuiRenderers.renderWatchGuardWebTab(dev, document.getElementById('modalPaneWgweb'));
+    if (tabKey === 'asaweb' && window.FirewallGuiRenderers) window.FirewallGuiRenderers.renderAsaWebTab(dev, document.getElementById('modalPaneAsaweb'));
+  }
+
+  renderLuciWebTab() {
+    const dev = this.activeDevice;
+    const container = document.getElementById('modalPaneLuciweb');
+    if (!dev || !container) return;
+    if (window.OpenWrtLuciApp && typeof window.OpenWrtLuciApp.renderLuci === 'function') {
+      window.OpenWrtLuciApp.renderLuci(dev, container, 'overview');
+    } else {
+      container.innerHTML = '<div style="padding:20px; color:#fff;">LuCI Web GUI module niet geladen.</div>';
+    }
   }
 
   renderApWebTab() {
@@ -1005,6 +1068,118 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
                 Web Management Inschakelen (HTTP GUI)
               </label>
               <p style="font-size: 11px; color: #94a3b8; margin-top: 4px; margin-bottom: 0;">Hiermee kan je de switch via het tabblad 'Aruba Web GUI' of via de browser op het management IP configureren.</p>
+            </div>
+          ` : ''}
+          ${dev.type === 'openwrt' ? `
+            <div class="pt-form-group" style="margin-top: 15px; padding: 14px; background: #0f172a; border: 1px solid #0284c7; border-radius: 6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label style="color: #38bdf8; font-weight: bold; font-size: 13px;">OpenWrt LuCI Web Interface (Poort 80):</label>
+                <span style="font-size: 10px; background: #0369a1; color: white; padding: 2px 6px; border-radius: 4px;">OpenWrt 23.05</span>
+              </div>
+              <p style="font-size: 11.5px; color: #cbd5e1; margin-top: 6px; line-height: 1.5;">
+                Standaard actief op <strong>eth1 (br-lan)</strong> op <code>http://192.168.1.1</code>. Bereikbaar via de browser van een aangesloten PC of Laptop, of direct via de Web GUI knop.
+              </p>
+              <div style="margin-top: 10px; display:flex; gap: 8px;">
+                <button type="button" class="pt-btn" style="background: #0284c7; color: white; font-weight: 700; padding: 6px 14px; font-size: 12px;" onclick="window.PXLApp.switchDeviceModalTab('luciweb')">
+                  🌐 Open LuCI Web GUI
+                </button>
+              </div>
+            </div>
+          ` : ''}
+          ${dev.type === 'opnsense' ? `
+            <div class="pt-form-group" style="margin-top: 15px; padding: 14px; background: #0f172a; border: 1px solid #991b1b; border-radius: 6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label style="color: #f87171; font-weight: bold; font-size: 13px;">OPNsense Web GUI Management:</label>
+                <span style="font-size: 10px; background: #7f1d1d; color: white; padding: 2px 6px; border-radius: 4px;">OPNsense 24.1</span>
+              </div>
+              <p style="font-size: 11.5px; color: #cbd5e1; margin-top: 6px; line-height: 1.5;">
+                Standaard actief op LAN poort <code>vtnet0</code> (<code>http://192.168.1.1</code>). Volledig interactief te configureren met Dashboard, Interfaces, Firewall Rules en DHCP Server.
+              </p>
+              <div style="margin-top: 10px;">
+                <button type="button" class="pt-btn" style="background: #b91c1c; color: white; font-weight: 700; padding: 6px 14px; font-size: 12px;" onclick="window.PXLApp.switchDeviceModalTab('opnweb')">
+                  🌐 Open OPNsense Web GUI
+                </button>
+              </div>
+            </div>
+          ` : ''}
+          ${dev.type === 'pfsense' ? `
+            <div class="pt-form-group" style="margin-top: 15px; padding: 14px; background: #0f172a; border: 1px solid #002d62; border-radius: 6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label style="color: #38bdf8; font-weight: bold; font-size: 13px;">Netgate pfSense Web GUI Management:</label>
+                <span style="font-size: 10px; background: #002d62; color: white; padding: 2px 6px; border-radius: 4px;">pfSense+ 23.09</span>
+              </div>
+              <p style="font-size: 11.5px; color: #cbd5e1; margin-top: 6px; line-height: 1.5;">
+                Standaard actief op LAN poort <code>vtnet1</code> (<code>http://192.168.1.1</code>). Volledig interactief met Dashboard, Interfaces, Firewall Rules en DHCP Server.
+              </p>
+              <div style="margin-top: 10px;">
+                <button type="button" class="pt-btn" style="background: #0284c7; color: white; font-weight: 700; padding: 6px 14px; font-size: 12px;" onclick="window.PXLApp.switchDeviceModalTab('pfweb')">
+                  🌐 Open pfSense Web GUI
+                </button>
+              </div>
+            </div>
+          ` : ''}
+          ${dev.type === 'fortigate' ? `
+            <div class="pt-form-group" style="margin-top: 15px; padding: 14px; background: #0f172a; border: 1px solid #dc2626; border-radius: 6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label style="color: #f87171; font-weight: bold; font-size: 13px;">Fortinet FortiOS Web Management:</label>
+                <span style="font-size: 10px; background: #991b1b; color: white; padding: 2px 6px; border-radius: 4px;">FortiOS 7.4.2</span>
+              </div>
+              <p style="font-size: 11.5px; color: #cbd5e1; margin-top: 6px; line-height: 1.5;">
+                Standaard actief op LAN poort <code>port1</code> (<code>http://192.168.1.99</code>).
+              </p>
+              <div style="margin-top: 10px;">
+                <button type="button" class="pt-btn" style="background: #dc2626; color: white; font-weight: 700; padding: 6px 14px; font-size: 12px;" onclick="window.PXLApp.switchDeviceModalTab('fortiweb')">
+                  🌐 Open FortiGate Web GUI
+                </button>
+              </div>
+            </div>
+          ` : ''}
+          ${dev.type === 'paloalto' ? `
+            <div class="pt-form-group" style="margin-top: 15px; padding: 14px; background: #0f172a; border: 1px solid #ea580c; border-radius: 6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label style="color: #fb923c; font-weight: bold; font-size: 13px;">Palo Alto PAN-OS Web GUI:</label>
+                <span style="font-size: 10px; background: #7c2d12; color: white; padding: 2px 6px; border-radius: 4px;">PAN-OS 11.0.2</span>
+              </div>
+              <p style="font-size: 11.5px; color: #cbd5e1; margin-top: 6px; line-height: 1.5;">
+                Standaard actief op management interface (<code>http://192.168.1.1</code>).
+              </p>
+              <div style="margin-top: 10px;">
+                <button type="button" class="pt-btn" style="background: #ea580c; color: white; font-weight: 700; padding: 6px 14px; font-size: 12px;" onclick="window.PXLApp.switchDeviceModalTab('panweb')">
+                  🌐 Open PAN-OS Web GUI
+                </button>
+              </div>
+            </div>
+          ` : ''}
+          ${dev.type === 'watchguard' ? `
+            <div class="pt-form-group" style="margin-top: 15px; padding: 14px; background: #0f172a; border: 1px solid #c8102e; border-radius: 6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label style="color: #f87171; font-weight: bold; font-size: 13px;">WatchGuard Fireware Web UI:</label>
+                <span style="font-size: 10px; background: #7f1d1d; color: white; padding: 2px 6px; border-radius: 4px;">Fireware 12.10.2</span>
+              </div>
+              <p style="font-size: 11.5px; color: #cbd5e1; margin-top: 6px; line-height: 1.5;">
+                Standaard actief op eth1 Trusted (<code>http://192.168.1.1:8080</code>).
+              </p>
+              <div style="margin-top: 10px;">
+                <button type="button" class="pt-btn" style="background: #c8102e; color: white; font-weight: 700; padding: 6px 14px; font-size: 12px;" onclick="window.PXLApp.switchDeviceModalTab('wgweb')">
+                  🌐 Open Fireware Web UI
+                </button>
+              </div>
+            </div>
+          ` : ''}
+          ${dev.type === 'cisco_asa' ? `
+            <div class="pt-form-group" style="margin-top: 15px; padding: 14px; background: #0f172a; border: 1px solid #0284c7; border-radius: 6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label style="color: #38bdf8; font-weight: bold; font-size: 13px;">Cisco ASDM Web Manager:</label>
+                <span style="font-size: 10px; background: #0369a1; color: white; padding: 2px 6px; border-radius: 4px;">ASDM 7.19</span>
+              </div>
+              <p style="font-size: 11.5px; color: #cbd5e1; margin-top: 6px; line-height: 1.5;">
+                Standaard actief op Gi1/2 inside (<code>http://192.168.1.1</code>).
+              </p>
+              <div style="margin-top: 10px;">
+                <button type="button" class="pt-btn" style="background: #0284c7; color: white; font-weight: 700; padding: 6px 14px; font-size: 12px;" onclick="window.PXLApp.switchDeviceModalTab('asaweb')">
+                  🌐 Open Cisco ASDM GUI
+                </button>
+              </div>
             </div>
           ` : ''}
           <p class="pt-help-text">Klik op een interface aan de linkerkant om IP, subnetmasker en poortstatus in te stellen.</p>
@@ -3997,14 +4172,17 @@ Type 'help', 'ip a', or 'python3' to get started.
     const btnLabs = document.getElementById('tabBtnStudentLabs');
     const btnAcc = document.getElementById('tabBtnStudentAccount');
     const btnBugs = document.getElementById('tabBtnStudentBugs');
+    const btnProjects = document.getElementById('tabBtnStudentProjects');
     const paneLabs = document.getElementById('paneStudentLabs');
     const paneAcc = document.getElementById('paneStudentAccount');
     const paneBugs = document.getElementById('paneStudentBugs');
+    const paneProjects = document.getElementById('paneStudentProjects');
 
     const tabs = [
       { key: 'labs', btn: btnLabs, pane: paneLabs },
       { key: 'account', btn: btnAcc, pane: paneAcc },
-      { key: 'bugs', btn: btnBugs, pane: paneBugs }
+      { key: 'bugs', btn: btnBugs, pane: paneBugs },
+      { key: 'projects', btn: btnProjects, pane: paneProjects }
     ];
 
     tabs.forEach(t => {
@@ -4019,6 +4197,8 @@ Type 'help', 'ip a', or 'python3' to get started.
 
     if (tab === 'bugs') {
       this.loadStudentBugs();
+    } else if (tab === 'projects') {
+      this.renderStudentProjectsTab();
     }
   }
 
@@ -4424,6 +4604,445 @@ Type 'help', 'ip a', or 'python3' to get started.
         alertEl.style.display = 'block';
       }
     }
+  }
+
+  // --- CUSTOM NETWORKS & BLANCO WORKSPACE ---
+  startBlankCanvas() {
+    if (this.sim && Object.keys(this.sim.devices || {}).length > 0) {
+      if (!confirm('Wil je een nieuw blanco netwerk starten? Alle niet-opgeslagen wijzigingen in het huidige netwerk gaan verloren.')) {
+        return;
+      }
+    }
+    if (this.sim) {
+      this.sim.clear();
+    }
+    this.activeExam = null;
+    this.activeTest = null;
+    this.examRunning = false;
+    this.currentProjectId = null;
+    this.currentProjectName = '';
+
+    const badge = document.getElementById('currentProjectBadge');
+    if (badge) badge.style.display = 'none';
+
+    const examSelect = document.getElementById('examSelector');
+    if (examSelect) examSelect.value = 'blank_canvas';
+
+    const scoreText = document.getElementById('scoreText');
+    if (scoreText) scoreText.innerText = 'Vrij Netwerk';
+    const scoreBar = document.getElementById('scoreBar');
+    if (scoreBar) scoreBar.style.width = '100%';
+
+    const opdrachtBody = document.getElementById('opdrachtDropdownBody');
+    if (opdrachtBody) {
+      opdrachtBody.innerHTML = `
+        <div style="padding: 16px; color: #334155; font-size: 13px;">
+          <h4 style="margin: 0 0 8px; color: #0284c7; font-size: 15px;">✨ Blanco Netwerk Workspace</h4>
+          <p>Je bent gestart met een leeg canvas. Voeg apparaten toe via de werkbalk onderaan, verbind ze met kabels en configureer ze.</p>
+          <div style="background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; padding: 12px; margin-top: 12px;">
+            <strong>💡 Tip:</strong> Klik bovenaan op <strong>💾 Opslaan</strong> om je netwerk een naam te geven en te bewaren onder je eigen projecten!
+          </div>
+        </div>
+      `;
+    }
+
+    if (this.canvasWorkspace) {
+      this.canvasWorkspace.render();
+    }
+
+    this.showToast('✨ Blanco netwerk workspace gestart! Bouw je topologie en sla op.');
+  }
+
+  handleSaveProject() {
+    if (!this.currentProjectName) {
+      this.openSaveProjectModal();
+    } else {
+      this.persistCurrentProject(this.currentProjectName, this.currentProjectId);
+    }
+  }
+
+  openSaveProjectModal() {
+    const modal = document.getElementById('saveProjectModal');
+    if (!modal) return;
+    const input = document.getElementById('inputSaveProjectName');
+    if (input) {
+      input.value = this.currentProjectName || 'Mijn Netwerkontwerp';
+      setTimeout(() => input.select(), 100);
+    }
+    const alertBox = document.getElementById('saveProjectAlert');
+    if (alertBox) alertBox.style.display = 'none';
+    modal.style.display = 'flex';
+  }
+
+  closeSaveProjectModal() {
+    const modal = document.getElementById('saveProjectModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async submitSaveProject(event) {
+    if (event) event.preventDefault();
+    const input = document.getElementById('inputSaveProjectName');
+    const name = input ? input.value.trim() : '';
+    if (!name) {
+      const alertBox = document.getElementById('saveProjectAlert');
+      if (alertBox) {
+        alertBox.innerText = 'Vul een geldige projectnaam in.';
+        alertBox.style.display = 'block';
+      }
+      return;
+    }
+    this.closeSaveProjectModal();
+    await this.persistCurrentProject(name, this.currentProjectId);
+  }
+
+  async persistCurrentProject(name, existingId = null) {
+    const userId = this.currentUser?.username || 'gast';
+    const topology = this.sim ? this.sim.exportTopology() : { devices: [], links: [] };
+
+    try {
+      const res = await fetch('/api/projects/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          name: name,
+          project_id: existingId,
+          topology: topology
+        })
+      });
+      const data = await res.json();
+      if ((data.success || data.status === 'success') && data.project) {
+        this.currentProjectId = data.project.id;
+        this.currentProjectName = data.project.name;
+        this.updateCurrentProjectBadge();
+        await this.populateExamSelector(`custom_${this.currentProjectId}`);
+        this.showToast(`💾 Netwerk '${this.currentProjectName}' succesvol opgeslagen!`);
+        return data.project;
+      } else {
+        throw new Error(data.error || data.message || 'Kon project niet opslaan op server');
+      }
+    } catch (err) {
+      console.warn('API save project failed, saving to localStorage:', err);
+      // Fallback to localStorage
+      const localProjects = this.getLocalProjects(userId);
+      const projId = existingId || Date.now();
+      const proj = {
+        id: projId,
+        user_id: userId,
+        name: name,
+        topology_json: JSON.stringify(topology),
+        device_count: topology.devices ? topology.devices.length : 0,
+        link_count: topology.links ? topology.links.length : 0,
+        updated_at: new Date().toLocaleString('nl-BE')
+      };
+      const idx = localProjects.findIndex(p => p.id === projId);
+      if (idx !== -1) localProjects[idx] = proj;
+      else localProjects.unshift(proj);
+      this.saveLocalProjects(userId, localProjects);
+
+      this.currentProjectId = projId;
+      this.currentProjectName = name;
+      this.updateCurrentProjectBadge();
+      await this.populateExamSelector(`custom_${this.currentProjectId}`);
+      this.showToast(`💾 Netwerk '${this.currentProjectName}' lokaal opgeslagen!`);
+      return proj;
+    }
+  }
+
+  updateCurrentProjectBadge() {
+    const badge = document.getElementById('currentProjectBadge');
+    const nameSpan = document.getElementById('currentProjectNameDisplay');
+    if (badge && nameSpan) {
+      if (this.currentProjectName) {
+        nameSpan.innerText = this.currentProjectName;
+        badge.style.display = 'inline-flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  }
+
+  async fetchCustomProjectsList() {
+    const userId = this.currentUser?.username || 'gast';
+    try {
+      const res = await fetch(`/api/projects?user_id=${encodeURIComponent(userId)}`);
+      const data = await res.json();
+      if ((data.success || data.status === 'success') && Array.isArray(data.projects)) {
+        return data.projects;
+      }
+    } catch (err) {
+      console.warn('Could not fetch custom projects from server:', err);
+    }
+    return this.getLocalProjects(userId);
+  }
+
+  getLocalProjects(userId) {
+    try {
+      const raw = localStorage.getItem(`pxl_custom_projects_${userId}`);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  saveLocalProjects(userId, projects) {
+    try {
+      localStorage.setItem(`pxl_custom_projects_${userId}`, JSON.stringify(projects));
+    } catch (e) {
+      console.warn('LocalStorage save failed:', e);
+    }
+  }
+
+  async loadCustomProject(projectId) {
+    const userId = this.currentUser?.username || 'gast';
+    let project = null;
+    try {
+      const res = await fetch(`/api/projects/${projectId}?user_id=${encodeURIComponent(userId)}`);
+      const data = await res.json();
+      if ((data.success || data.status === 'success') && data.project) {
+        project = data.project;
+      }
+    } catch (err) {
+      console.warn('Server fetch project failed, trying localStorage:', err);
+    }
+
+    if (!project) {
+      const local = this.getLocalProjects(userId);
+      project = local.find(p => p.id === projectId);
+    }
+
+    if (!project) {
+      alert('Project niet gevonden.');
+      return;
+    }
+
+    const topo = typeof project.topology_json === 'string' ? JSON.parse(project.topology_json) : (project.topology || project.topology_json);
+
+    if (this.sim) {
+      this.sim.clear();
+      this.sim.importTopology(topo);
+    }
+
+    this.activeExam = null;
+    this.activeTest = null;
+    this.examRunning = false;
+    this.currentProjectId = project.id;
+    this.currentProjectName = project.name;
+    this.updateCurrentProjectBadge();
+
+    const examSelect = document.getElementById('examSelector');
+    if (examSelect) examSelect.value = `custom_${project.id}`;
+
+    const scoreText = document.getElementById('scoreText');
+    if (scoreText) scoreText.innerText = 'Eigen Netwerk';
+    const scoreBar = document.getElementById('scoreBar');
+    if (scoreBar) scoreBar.style.width = '100%';
+
+    const opdrachtBody = document.getElementById('opdrachtDropdownBody');
+    if (opdrachtBody) {
+      opdrachtBody.innerHTML = `
+        <div style="padding: 16px; color: #334155; font-size: 13px;">
+          <h4 style="margin: 0 0 8px; color: #0284c7; font-size: 15px;">🎨 ${project.name}</h4>
+          <p>Dit is je eigen opgeslagen netwerkontwerp. Bewerk het naar wens en gebruik <strong>💾 Opslaan</strong> om wijzigingen direct te bewaren.</p>
+          <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-top: 10px; font-size: 12px;">
+            <div>• Apparaten: <strong>${(topo.devices || []).length}</strong></div>
+            <div>• Verbindingen: <strong>${(topo.links || []).length}</strong></div>
+            <div>• Laatst gewijzigd: <strong>${project.updated_at || 'Recent'}</strong></div>
+          </div>
+        </div>
+      `;
+    }
+
+    if (this.canvasWorkspace) {
+      this.canvasWorkspace.render();
+    }
+
+    this.showToast(`📂 Netwerk '${project.name}' succesvol geladen!`);
+  }
+
+  openRenameProjectModal(projectId, currentName) {
+    const modal = document.getElementById('renameProjectModal');
+    if (!modal) return;
+    document.getElementById('inputRenameProjectId').value = projectId;
+    const input = document.getElementById('inputRenameProjectName');
+    if (input) {
+      input.value = currentName || '';
+      setTimeout(() => input.select(), 100);
+    }
+    const alertBox = document.getElementById('renameProjectAlert');
+    if (alertBox) alertBox.style.display = 'none';
+    modal.style.display = 'flex';
+  }
+
+  closeRenameProjectModal() {
+    const modal = document.getElementById('renameProjectModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async submitRenameProject(event) {
+    if (event) event.preventDefault();
+    const id = document.getElementById('inputRenameProjectId').value;
+    const newName = document.getElementById('inputRenameProjectName').value.trim();
+    if (!newName) {
+      const alertBox = document.getElementById('renameProjectAlert');
+      if (alertBox) {
+        alertBox.innerText = 'Vul een geldige projectnaam in.';
+        alertBox.style.display = 'block';
+      }
+      return;
+    }
+    this.closeRenameProjectModal();
+    await this.renameCustomProject(id, newName);
+  }
+
+  async renameCustomProject(projectId, newName) {
+    const userId = this.currentUser?.username || 'gast';
+    try {
+      const res = await fetch(`/api/projects/${projectId}/rename`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, name: newName })
+      });
+      const data = await res.json();
+      if (!data.success && data.status !== 'success') throw new Error(data.error || data.message);
+    } catch (err) {
+      console.warn('Server rename failed, updating localStorage:', err);
+    }
+
+    // Local fallback update
+    const local = this.getLocalProjects(userId);
+    const p = local.find(item => String(item.id) === String(projectId));
+    if (p) {
+      p.name = newName;
+      p.updated_at = new Date().toLocaleString('nl-BE');
+      this.saveLocalProjects(userId, local);
+    }
+
+    if (String(this.currentProjectId) === String(projectId)) {
+      this.currentProjectName = newName;
+      this.updateCurrentProjectBadge();
+    }
+
+    await this.populateExamSelector(this.currentProjectId ? `custom_${this.currentProjectId}` : null);
+    this.renderStudentProjectsTab();
+    this.showToast(`✏️ Project hernoemd naar '${newName}'`);
+  }
+
+  async deleteCustomProject(projectId, projectName) {
+    if (!confirm(`Weet je zeker dat je het netwerk '${projectName}' definitief wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`)) {
+      return;
+    }
+
+    const userId = this.currentUser?.username || 'gast';
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      });
+      const data = await res.json();
+      if (!data.success && data.status !== 'success') throw new Error(data.error || data.message);
+    } catch (err) {
+      console.warn('Server delete failed, updating localStorage:', err);
+    }
+
+    // Local update
+    let local = this.getLocalProjects(userId);
+    local = local.filter(item => String(item.id) !== String(projectId));
+    this.saveLocalProjects(userId, local);
+
+    if (String(this.currentProjectId) === String(projectId)) {
+      this.currentProjectId = null;
+      this.currentProjectName = '';
+      this.updateCurrentProjectBadge();
+    }
+
+    await this.populateExamSelector();
+    this.renderStudentProjectsTab();
+    this.showToast(`🗑️ Project '${projectName}' verwijderd.`);
+  }
+
+  async renderStudentProjectsTab() {
+    const container = document.getElementById('studentProjectsListContainer');
+    if (!container) return;
+    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">⏳ Je opgeslagen netwerken ophalen...</div>';
+
+    const projects = await this.fetchCustomProjectsList();
+    if (!projects || projects.length === 0) {
+      container.innerHTML = `
+        <div style="background: #ffffff; border: 1.5px dashed #cbd5e1; border-radius: 8px; padding: 40px 20px; text-align: center;">
+          <div style="font-size: 36px; margin-bottom: 12px;">🎨</div>
+          <h4 style="margin: 0 0 6px 0; color: #0f172a; font-size: 15px;">Nog geen eigen netwerken</h4>
+          <p style="margin: 0 0 16px 0; font-size: 12.5px; color: #64748b; max-width: 480px; margin-inline: auto;">
+            Je hebt nog geen eigen netwerkontwerpen opgeslagen. Klik op '✨ Nieuw Blanco Netwerk' om met een leeg canvas te beginnen en sla het daarna op!
+          </p>
+          <button class="pt-btn" style="background: #0f766e; color: #fff; padding: 8px 16px; font-size: 13px; font-weight: 600;" onclick="window.PXLApp.closeStudentStudioModal(); window.PXLApp.startBlankCanvas();">
+            ✨ Start Blanco Netwerk
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    let html = `
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <table style="width: 100%; border-collapse: collapse; font-size: 12.5px; text-align: left;">
+          <thead style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; color: #475569; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">
+            <tr>
+              <th style="padding: 10px 14px;">Projectnaam</th>
+              <th style="padding: 10px 14px; text-align: center;">Toestellen</th>
+              <th style="padding: 10px 14px; text-align: center;">Verbindingen</th>
+              <th style="padding: 10px 14px;">Laatst Gewijzigd</th>
+              <th style="padding: 10px 14px; text-align: right;">Acties</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    projects.forEach(p => {
+      const isCurrent = String(this.currentProjectId) === String(p.id);
+      html += `
+        <tr style="border-bottom: 1px solid #f1f5f9; ${isCurrent ? 'background: #f0fdf4;' : ''}">
+          <td style="padding: 12px 14px; font-weight: 600; color: #0f172a;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>🎨</span>
+              <span>${p.name}</span>
+              ${isCurrent ? '<span style="font-size: 10px; background: #22c55e; color: #fff; padding: 2px 6px; border-radius: 10px;">Actief</span>' : ''}
+            </div>
+          </td>
+          <td style="padding: 12px 14px; text-align: center; color: #64748b;">
+            <span style="background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-weight: 600; font-size: 11px;">${p.device_count || 0}</span>
+          </td>
+          <td style="padding: 12px 14px; text-align: center; color: #64748b;">
+            <span style="background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-weight: 600; font-size: 11px;">${p.link_count || 0}</span>
+          </td>
+          <td style="padding: 12px 14px; color: #64748b; font-size: 11.5px;">
+            ${p.updated_at || p.created_at || '-'}
+          </td>
+          <td style="padding: 12px 14px; text-align: right;">
+            <div style="display: inline-flex; gap: 6px;">
+              <button class="pt-btn" style="background: #0284c7; color: white; padding: 4px 10px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" onclick="window.PXLApp.closeStudentStudioModal(); window.PXLApp.loadCustomProject(${p.id});" title="Open dit netwerk in de simulator">
+                📂 Openen
+              </button>
+              <button class="pt-btn pt-btn-secondary" style="padding: 4px 8px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" onclick="window.PXLApp.openRenameProjectModal(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="Project hernoemen">
+                ✏️
+              </button>
+              <button class="pt-btn" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 4px 8px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" onclick="window.PXLApp.deleteCustomProject(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="Verwijderen">
+                🗑️
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    container.innerHTML = html;
   }
 }
 

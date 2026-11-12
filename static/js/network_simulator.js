@@ -883,7 +883,80 @@ class NetworkSimulator {
         return { success: false, reason: `Connection Refused: Web Management is uitgeschakeld op ${dstDev.hostname}` };
       }
       if (typeof renderApWebInterfaceHtml === 'function') {
-        return { success: true, targetIp, html: renderApWebInterfaceHtml(dstDev, this) };
+        const html = renderApWebInterfaceHtml(dstDev, this);
+        this.recordHttpExchange(this.devices[srcDevId], dstDev, (this.devices[srcDevId]?.ip || '192.168.1.10'), targetIp, 'GET', pathPart, 200, html);
+        return { success: true, targetIp, html };
+      }
+    }
+
+    // 6. OpenWrt LuCI Web Interface (HTTP Port 80)
+    if (dstDev.type === 'openwrt') {
+      const isWebOn = dstDev.openwrtConfig?.luciEnabled !== false;
+      if (!isWebOn) {
+        return { success: false, reason: `Connection Refused: LuCI Web GUI is uitgeschakeld op ${dstDev.hostname}` };
+      }
+      const renderFn = (typeof window !== 'undefined' && (window.OpenWrtLuciApp?.renderLuciHtml || window.renderOpenWrtLuciHtml)) || (typeof renderOpenWrtLuciHtml === 'function' ? renderOpenWrtLuciHtml : null);
+      if (renderFn) {
+        const html = renderFn(dstDev, this, 'overview');
+        this.recordHttpExchange(this.devices[srcDevId], dstDev, (this.devices[srcDevId]?.ip || '192.168.1.10'), targetIp, 'GET', pathPart, 200, html);
+        return { success: true, targetIp, html };
+      }
+    }
+
+    // 7. OPNsense Web GUI (HTTPS / HTTP)
+    if (dstDev.type === 'opnsense') {
+      const renderFn = window.FirewallGuiRenderers?.renderOpnWebTabHtml || window.FirewallGuiRenderers?.renderOpnsenseWebGuiHtml;
+      if (typeof window !== 'undefined' && renderFn) {
+        const html = renderFn.call(window.FirewallGuiRenderers, dstDev, this, 'dashboard');
+        this.recordHttpExchange(this.devices[srcDevId], dstDev, (this.devices[srcDevId]?.ip || '192.168.1.10'), targetIp, 'GET', pathPart, 200, html);
+        return { success: true, targetIp, html };
+      }
+    }
+
+    // 8. pfSense Web GUI (HTTPS / HTTP)
+    if (dstDev.type === 'pfsense') {
+      const renderFn = window.FirewallGuiRenderers?.renderPfWebTabHtml || window.FirewallGuiRenderers?.renderPfsenseWebGuiHtml;
+      if (typeof window !== 'undefined' && renderFn) {
+        const html = renderFn.call(window.FirewallGuiRenderers, dstDev, this, 'dashboard');
+        this.recordHttpExchange(this.devices[srcDevId], dstDev, (this.devices[srcDevId]?.ip || '192.168.1.10'), targetIp, 'GET', pathPart, 200, html);
+        return { success: true, targetIp, html };
+      }
+    }
+
+    // 9. FortiGate FortiOS Web Management
+    if (dstDev.type === 'fortigate') {
+      const renderFn = window.FirewallGuiRenderers?.renderFortiWebTabHtml || window.FirewallGuiRenderers?.renderFortiGateWebGuiHtml;
+      if (typeof window !== 'undefined' && renderFn) {
+        const html = renderFn.call(window.FirewallGuiRenderers, dstDev, this, 'dashboard');
+        this.recordHttpExchange(this.devices[srcDevId], dstDev, (this.devices[srcDevId]?.ip || '192.168.1.10'), targetIp, 'GET', pathPart, 200, html);
+        return { success: true, targetIp, html };
+      }
+    }
+
+    // 10. Palo Alto PAN-OS Web Management
+    if (dstDev.type === 'paloalto') {
+      if (typeof window !== 'undefined' && window.FirewallGuiRenderers && typeof window.FirewallGuiRenderers.renderPanWebTabHtml === 'function') {
+        const html = window.FirewallGuiRenderers.renderPanWebTabHtml(dstDev, this, 'dashboard');
+        this.recordHttpExchange(this.devices[srcDevId], dstDev, (this.devices[srcDevId]?.ip || '192.168.1.10'), targetIp, 'GET', pathPart, 200, html);
+        return { success: true, targetIp, html };
+      }
+    }
+
+    // 11. WatchGuard Fireware Web UI
+    if (dstDev.type === 'watchguard') {
+      if (typeof window !== 'undefined' && window.FirewallGuiRenderers && typeof window.FirewallGuiRenderers.renderWatchGuardWebTabHtml === 'function') {
+        const html = window.FirewallGuiRenderers.renderWatchGuardWebTabHtml(dstDev, this, 'dashboard');
+        this.recordHttpExchange(this.devices[srcDevId], dstDev, (this.devices[srcDevId]?.ip || '192.168.1.10'), targetIp, 'GET', pathPart, 200, html);
+        return { success: true, targetIp, html };
+      }
+    }
+
+    // 12. Cisco ASA ASDM Web Manager
+    if (dstDev.type === 'cisco_asa') {
+      if (typeof window !== 'undefined' && window.FirewallGuiRenderers && typeof window.FirewallGuiRenderers.renderAsaWebTabHtml === 'function') {
+        const html = window.FirewallGuiRenderers.renderAsaWebTabHtml(dstDev, this, 'dashboard');
+        this.recordHttpExchange(this.devices[srcDevId], dstDev, (this.devices[srcDevId]?.ip || '192.168.1.10'), targetIp, 'GET', pathPart, 200, html);
+        return { success: true, targetIp, html };
       }
     }
 
@@ -1217,7 +1290,7 @@ class NetworkSimulator {
         x: d.x,
         y: d.y,
         powerOn: d.powerOn,
-        config: d.snapshotConfig(),
+        config: (typeof d.snapshotConfig === 'function') ? d.snapshotConfig() : (d.config || {}),
         savedStartupConfig: d.savedStartupConfig,
         terminalBuffer: d.terminalBuffer
       })),

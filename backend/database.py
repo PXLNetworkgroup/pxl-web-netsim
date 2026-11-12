@@ -10,6 +10,8 @@ import hashlib
 import json
 import csv
 import re
+import time
+import uuid
 from datetime import datetime
 
 DB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
@@ -245,6 +247,19 @@ def init_db():
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+    # User custom networks / projects table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS custom_projects (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        topology_json TEXT NOT NULL DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
     """)
 
@@ -1494,4 +1509,206 @@ def delete_bug_report(bug_code: str) -> dict:
     conn.commit()
     conn.close()
     return {'ok': cnt > 0, 'bug_code': bug_code}
+
+
+# =========================================================================
+# CUSTOM NETWORKS / PROJECTS PERSISTENCE
+# =========================================================================
+def resolve_user_id(user_id_or_username) -> int:
+    """Resolves an integer user_id or a username/r-number string to the user ID integer."""
+    if not user_id_or_username:
+        return None
+    val = str(user_id_or_username).strip()
+    conn = get_db()
+    cursor = conn.cursor()
+    if val.isdigit():
+        cursor.execute("SELECT id FROM users WHERE id = ?", (int(val),))
+        row = cursor.fetchone()
+        if row:
+            conn.close()
+            return row['id']
+
+    cursor.execute("SELECT id FROM users WHERE username = ?", (val,))
+    row = cursor.fetchone()
+    if row:
+        conn.close()
+        return row['id']
+
+    # On-demand creation for 'gast' or anonymous student
+    if val.lower() == 'gast':
+        cursor.execute(
+            """INSERT INTO users (username, password_hash, full_name, first_name, last_name, role, class_group)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            ('gast', hash_password('PXL2026!'), 'Gast Gebruiker', 'Gast', 'Gebruiker', 'student', 'Algemeen')
+        )
+        conn.commit()
+        uid = cursor.lastrowid
+        conn.close()
+        return uid
+
+    conn.close()
+    return None
+
+
+def save_custom_project(user_id_or_username, project_id: str, name: str, topology_dict: dict) -> dict:
+    """Creates or updates a custom project for a user."""
+    user_id = resolve_user_id(user_id_or_username)
+    if not user_id:
+        return {'ok': False, 'error': f'Gebruiker {user_id_or_username} niet gevonden'}
+
+    conn = get_db()
+    cursor = conn.cursor()
+    name = (name or '').strip() or 'Naamloos Netwerk'
+    topo_str = json.dumps(topology_dict) if isinstance(topology_dict, dict) else str(topology_dict or '{}')
+
+    if not project_id:
+        import uuid
+        project_id = f"proj_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+
+    cursor.execute("SELECT id FROM custom_projects WHERE id = ? AND user_id = ?", (project_id, user_id))
+    exists = cursor.fetchone()
+
+    if exists:
+        cursor.execute("""
+            UPDATE custom_projects
+            SET name = ?, topology_json = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND user_id = ?
+        """, (name, topo_str, project_id, user_id))
+    else:
+        cursor.execute("""
+            INSERT INTO custom_projects (id, user_id, name, topology_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """, (project_id, user_id, name, topo_str))
+
+    cursor.execute("SELECT id, name, created_at, updated_at FROM custom_projects WHERE id = ?", (project_id,))
+    row = cursor.fetchone()
+    conn.commit()
+    conn.close()
+
+    return {
+        'ok': True,
+        'project': {
+            'id': row['id'],
+            'name': row['name'],
+            'created_at': row['created_at'],
+            'updated_at': row['updated_at']
+        }
+    }
+
+
+def list_custom_projects(user_id_or_username) -> list:
+    """Returns all custom projects created by a user."""
+    user_id = resolve_user_id(user_id_or_username)
+    if not user_id:
+        return []
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, name, topology_json, created_at, updated_at
+        FROM custom_projects
+        WHERE user_id = ?
+        ORDER BY updated_at DESC
+    """, (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    result = []
+    for r in rows:
+        dev_count = 0
+        cable_count = 0
+        try:
+            topo = json.loads(r['topology_json'] or '{}')
+            dev_count = len(topo.get('devices', []))
+            cable_count = len(topo.get('cables', []))
+        except Exception:
+            pass
+
+        result.append({
+            'id': r['id'],
+            'name': r['name'],
+            'device_count': dev_count,
+            'cable_count': cable_count,
+            'created_at': r['created_at'],
+            'updated_at': r['updated_at']
+        })
+    return result
+
+
+def get_custom_project(user_id_or_username, project_id: str) -> dict:
+    """Returns a single custom project including topology."""
+    user_id = resolve_user_id(user_id_or_username)
+    if not user_id:
+        return {'ok': False, 'error': 'Gebruiker niet gevonden'}
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, name, topology_json, created_at, updated_at
+        FROM custom_projects
+        WHERE id = ? AND user_id = ?
+    """, (project_id, user_id))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return {'ok': False, 'error': 'Project niet gevonden'}
+
+    try:
+        topo = json.loads(row['topology_json'] or '{}')
+    except Exception:
+        topo = {}
+
+    return {
+        'ok': True,
+        'project': {
+            'id': row['id'],
+            'name': row['name'],
+            'topology': topo,
+            'created_at': row['created_at'],
+            'updated_at': row['updated_at']
+        }
+    }
+
+
+def rename_custom_project(user_id_or_username, project_id: str, new_name: str) -> dict:
+    """Renames an existing custom project."""
+    user_id = resolve_user_id(user_id_or_username)
+    if not user_id:
+        return {'ok': False, 'error': 'Gebruiker niet gevonden'}
+
+    conn = get_db()
+    cursor = conn.cursor()
+    new_name = (new_name or '').strip()
+    if not new_name:
+        conn.close()
+        return {'ok': False, 'error': 'Projectnaam mag niet leeg zijn.'}
+
+    cursor.execute("""
+        UPDATE custom_projects
+        SET name = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND user_id = ?
+    """, (new_name, project_id, user_id))
+    affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+
+    return {'ok': affected > 0, 'id': project_id, 'name': new_name}
+
+
+def delete_custom_project(user_id_or_username, project_id: str) -> dict:
+    """Deletes a custom project."""
+    user_id = resolve_user_id(user_id_or_username)
+    if not user_id:
+        return {'ok': False, 'error': 'Gebruiker niet gevonden'}
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM custom_projects WHERE id = ? AND user_id = ?", (project_id, user_id))
+    affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+
+    return {'ok': affected > 0, 'id': project_id}
+
 
