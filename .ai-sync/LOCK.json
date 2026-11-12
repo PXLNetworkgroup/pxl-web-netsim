@@ -1,7 +1,7 @@
 {
-  "status": "FREE",
-  "locked_by": null,
-  "started_at": null,
-  "working_on": null,
-  "message": "Vrij om aan te werken. Voer eerst git pull uit."
+  "status": "LOCKED",
+  "locked_by": "David Parren & Antigravity",
+  "started_at": "2026-11-12T12:22:00Z",
+  "working_on": "WatchGuard FireboxV, nul-score fix voor alle toetsen, verwijderen Tab 5 en toevoegen van AI Opdracht Generator (JSON template, import, bewerken, test knop)",
+  "message": "Project is momenteel vergrendeld. Wacht tot deze taak is afgerond."
 }
