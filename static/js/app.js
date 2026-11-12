@@ -3032,7 +3032,12 @@ Type 'help', 'ip a', or 'python3' to get started.
         <span class="pt-auth-badge ${isTeacher ? 'teacher' : ''}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 8px; border-radius: 4px; background: ${isTeacher ? '#fef3c7; color: #92400e; border: 1px solid #fde68a;' : '#e0f2fe; color: #0369a1; border: 1px solid #bae6fd;'} white-space: nowrap;">
           ${isTeacher ? '🎓 Docent' : '👨‍🎓 Student'}: ${this.currentUser.full_name || this.currentUser.username}
         </span>
-        ${!isTeacher ? `<span class="pt-autosave-indicator" id="autoSaveLabel" style="font-size: 10px; color: #16a34a; white-space: nowrap;">💾 Auto-save</span>` : ''}
+        ${!isTeacher ? `
+          <button class="pt-btn pt-btn-secondary" id="btnStudentScores" onclick="window.PXLApp.openStudentScoresModal()" style="padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;" title="Bekijk mijn behaalde resultaten en scores per test">
+            📊 Mijn Scores
+          </button>
+          <span class="pt-autosave-indicator" id="autoSaveLabel" style="font-size: 10px; color: #16a34a; white-space: nowrap;">💾 Auto-save</span>
+        ` : ''}
         <button class="pt-btn pt-btn-secondary" id="btnLogoutBtn" style="padding: 4px 9px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;" onclick="window.PXLApp.logout()" title="Sessie beëindigen en uitloggen">
           Uitloggen
         </button>
@@ -3241,6 +3246,166 @@ Type 'help', 'ip a', or 'python3' to get started.
       }
     } catch (err) {
       console.warn('Could not load saved topology:', err);
+    }
+  }
+
+  // --- STUDENT SCORES & RESULTS OVERVIEW MODAL ---
+  openStudentScoresModal() {
+    const modal = document.getElementById('studentScoresModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    this.loadStudentScores();
+  }
+
+  closeStudentScoresModal() {
+    const modal = document.getElementById('studentScoresModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async loadStudentScores() {
+    const body = document.getElementById('studentScoresModalBody');
+    if (!body) return;
+
+    if (!this.currentUser) {
+      body.innerHTML = `<div style="padding: 30px; text-align: center; color: #ef4444;">Je bent niet ingelogd als student. Log eerst in om je scores te bekijken.</div>`;
+      return;
+    }
+
+    body.innerHTML = `<div style="padding: 30px; text-align: center; color: #64748b;">⏳ Je behaalde resultaten ophalen uit database...</div>`;
+
+    try {
+      const res = await fetch('/api/student/scores');
+      const data = await res.json();
+      const scores = data.scores || [];
+
+      const categoryBadges = {
+        pka_import: { label: '📦 PKA Import', bg: '#eff6ff', color: '#1d4ed8' },
+        custom: { label: '✏️ Examen', bg: '#ecfdf5', color: '#047857' },
+        course_lab: { label: '📚 Cursuslabo', bg: '#faf5ff', color: '#6b21a8' },
+        preset: { label: '⚡ Preset', bg: '#fefce8', color: '#a16207' }
+      };
+
+      let html = `
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <div style="font-size: 14px; font-weight: 700; color: #0f172a;">👨‍🎓 ${this.currentUser.full_name || this.currentUser.username}</div>
+            <div style="font-size: 11.5px; color: #64748b;">Studentennr: <strong>${this.currentUser.username}</strong> | Klas: <strong>${this.currentUser.class_group || 'Algemeen'}</strong></div>
+          </div>
+          <div style="text-align: right;">
+            <span style="font-size: 12px; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 12px;">
+              ${scores.length} test(en) geregistreerd
+            </span>
+          </div>
+        </div>
+      `;
+
+      if (scores.length === 0) {
+        html += `
+          <div style="padding: 40px 20px; text-align: center; background: #fff; border: 1.5px dashed #cbd5e1; border-radius: 8px;">
+            <div style="font-size: 36px; margin-bottom: 8px;">📝</div>
+            <h4 style="margin: 0 0 6px 0; color: #1e293b; font-size: 14px;">Nog Geen Scores Geregistreerd</h4>
+            <p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.5;">
+              Je hebt momenteel nog geen voltooide of opgeslagen scores in het systeem.<br>
+              Zodra je start met een toegekend examen of cursuslabo, wordt je score hier realtime bijgewerkt!
+            </p>
+          </div>
+        `;
+      } else {
+        html += `
+          <div style="border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #fff;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+              <thead>
+                <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
+                  <th style="padding: 8px 12px;">Examen / Labo Opdracht</th>
+                  <th style="padding: 8px 12px; width: 100px;">Categorie</th>
+                  <th style="padding: 8px 12px; width: 140px;">Datum & Tijd</th>
+                  <th style="padding: 8px 12px; width: 90px;">Behaald</th>
+                  <th style="padding: 8px 12px; width: 130px;">Resultaat</th>
+                  <th style="padding: 8px 12px; width: 90px; text-align: center;">Actie</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${scores.map(s => {
+                  const cat = categoryBadges[s.category] || { label: s.category || 'Opdracht', bg: '#f1f5f9', color: '#475569' };
+                  const pct = Math.round(s.percentage || 0);
+                  const isPassed = pct >= 50;
+                  const color = isPassed ? '#16a34a' : (pct > 0 ? '#d97706' : '#dc2626');
+
+                  return `
+                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                      <td style="padding: 8px 12px;">
+                        <div style="font-weight: 700; color: #0f172a;">${s.title || s.exam_id}</div>
+                        <div style="font-size: 10px; color: #94a3b8; font-family: monospace;">${s.exam_id}</div>
+                      </td>
+                      <td style="padding: 8px 12px;">
+                        <span style="background: ${cat.bg}; color: ${cat.color}; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; white-space: nowrap;">
+                          ${cat.label}
+                        </span>
+                      </td>
+                      <td style="padding: 8px 12px; font-size: 11px; color: #64748b; white-space: nowrap;">
+                        🕒 ${s.updated_at || '-'}
+                      </td>
+                      <td style="padding: 8px 12px; font-weight: 700; color: ${color};">
+                        ${s.score} / ${s.max_score} pt
+                      </td>
+                      <td style="padding: 8px 12px;">
+                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
+                          <strong style="color: ${color}; font-size: 12px;">${pct}%</strong>
+                          <span style="font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 600; background: ${isPassed ? '#dcfce7; color: #15803d;' : '#fee2e2; color: #b91c1c;'}">
+                            ${isPassed ? '✅ Geslaagd' : '⚠️ Onvoldoende'}
+                          </span>
+                        </div>
+                        <div style="width: 100%; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                          <div style="width: ${Math.min(100, Math.max(0, pct))}%; height: 100%; background: ${color};"></div>
+                        </div>
+                      </td>
+                      <td style="padding: 8px 12px; text-align: center;">
+                        <button class="pt-btn pt-btn-secondary" style="padding: 4px 8px; font-size: 11px; font-weight: 600;" onclick="window.PXLApp.openExamFromScores('${s.exam_id}', '${s.category || ''}')" title="Heropen dit examen direct in de simulator">
+                          🚀 Openen
+                        </button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      body.innerHTML = html;
+    } catch (err) {
+      body.innerHTML = `<div style="padding: 30px; text-align: center; color: #ef4444;">Fout bij ophalen van resultaten: ${err.message}</div>`;
+    }
+  }
+
+  async openExamFromScores(examId, category) {
+    this.closeStudentScoresModal();
+
+    // Check if it's a course lab
+    const lab = window.PXL_COURSE_LABS ? window.PXL_COURSE_LABS.find(l => l.id === examId || l.code === examId) : null;
+    if (lab) {
+      this.loadCourseLab(lab.id);
+      return;
+    }
+
+    if (this.presetExams && this.presetExams[examId]) {
+      this.loadExam(this.presetExams[examId]);
+      return;
+    }
+
+    // Try fetching from database
+    try {
+      const res = await fetch(`/api/exam/${encodeURIComponent(examId)}`);
+      const data = await res.json();
+      if (data.status === 'success' && data.exam) {
+        this.loadExam(data.exam);
+      } else {
+        this.showToast(`Examen '${examId}' geopend.`);
+      }
+    } catch (e) {
+      console.warn('Could not load exam from DB:', e);
+      this.showToast(`Opdracht '${examId}' geactiveerd.`);
     }
   }
 }

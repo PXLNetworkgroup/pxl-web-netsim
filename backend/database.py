@@ -790,10 +790,15 @@ def list_exams():
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT id, title, instructions, time_limit_minutes, is_active, category, created_by, created_at,
-               LENGTH(rubric_json) as rubric_len
-        FROM exams
-        ORDER BY CASE category WHEN 'pka_import' THEN 1 WHEN 'custom' THEN 2 WHEN 'course_lab' THEN 3 ELSE 4 END, title ASC
+        SELECT e.id, e.title, e.instructions, e.time_limit_minutes, e.is_active, e.category, e.created_by, e.created_at,
+               LENGTH(e.rubric_json) as rubric_len,
+               COUNT(s.id) as total_saves,
+               COUNT(CASE WHEN s.score > 0 THEN 1 END) as scored_count,
+               MAX(s.score) as max_student_score
+        FROM exams e
+        LEFT JOIN student_saves s ON e.id = s.exam_id
+        GROUP BY e.id
+        ORDER BY CASE e.category WHEN 'pka_import' THEN 1 WHEN 'custom' THEN 2 WHEN 'course_lab' THEN 3 ELSE 4 END, e.title ASC
     """)
     rows = cursor.fetchall()
     conn.close()
@@ -833,11 +838,75 @@ def get_exam_by_id(exam_id):
 def delete_exam(exam_id):
     conn = get_db()
     cursor = conn.cursor()
+    cursor.execute("DELETE FROM student_saves WHERE exam_id = ?", (exam_id.strip(),))
+    cursor.execute("DELETE FROM exam_assignments WHERE exam_id = ?", (exam_id.strip(),))
     cursor.execute("DELETE FROM exams WHERE id = ?", (exam_id.strip(),))
     cnt = cursor.rowcount
     conn.commit()
     conn.close()
     return cnt > 0
+
+def delete_exams_bulk(exam_ids):
+    if not exam_ids:
+        return 0
+    clean_ids = [str(e).strip() for e in exam_ids if str(e).strip()]
+    if not clean_ids:
+        return 0
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholders = ','.join('?' for _ in clean_ids)
+    cursor.execute(f"DELETE FROM student_saves WHERE exam_id IN ({placeholders})", clean_ids)
+    cursor.execute(f"DELETE FROM exam_assignments WHERE exam_id IN ({placeholders})", clean_ids)
+    cursor.execute(f"DELETE FROM exams WHERE id IN ({placeholders})", clean_ids)
+    deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return deleted
+
+def list_all_student_scores(class_groups=None, search=None):
+    """Retrieves all scores across all exams and tests taken by students."""
+    conn = get_db()
+    cursor = conn.cursor()
+    query = """
+        SELECT u.id as user_id, u.username, u.full_name, u.first_name, u.last_name,
+               u.academic_year, u.program, u.class_group, u.raw_display_name,
+               s.exam_id, COALESCE(e.title, s.exam_id) as exam_title, e.category as exam_category,
+               s.score, s.max_score, s.percentage, s.updated_at as last_saved
+        FROM users u
+        INNER JOIN student_saves s ON u.id = s.user_id
+        LEFT JOIN exams e ON s.exam_id = e.id
+        WHERE u.role = 'student'
+    """
+    params = []
+    if class_groups:
+        placeholders = ','.join('?' for _ in class_groups)
+        query += f" AND u.class_group IN ({placeholders})"
+        params.extend(class_groups)
+    if search:
+        s = f"%{search.strip()}%"
+        query += " AND (u.username LIKE ? OR u.full_name LIKE ? OR e.title LIKE ? OR s.exam_id LIKE ?)"
+        params.extend([s, s, s, s])
+    query += " ORDER BY u.class_group ASC, u.last_name ASC, u.first_name ASC, s.updated_at DESC"
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_scores_for_student(user_id):
+    """Retrieves all test scores for a single student."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT s.exam_id, COALESCE(e.title, s.exam_id) as title, e.category,
+               s.score, s.max_score, s.percentage, s.updated_at
+        FROM student_saves s
+        LEFT JOIN exams e ON s.exam_id = e.id
+        WHERE s.user_id = ?
+        ORDER BY s.updated_at DESC
+    """, (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 # --- TOEVOEG WACHTRIJ (AUDIT QUEUE) ---
 def add_to_import_queue(username, full_name, class_group, program='', academic_year='2026-27', source='manual'):

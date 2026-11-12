@@ -44,6 +44,9 @@ from backend.database import (
     list_exams,
     get_exam_by_id,
     delete_exam,
+    delete_exams_bulk,
+    list_all_student_scores,
+    get_scores_for_student,
     assign_exam_batch,
     get_import_queue,
     clear_import_queue,
@@ -217,6 +220,26 @@ def student_assigned_exam():
     return jsonify({"assigned": True, "assignment": assignment})
 
 
+@app.route("/api/student/scores", methods=["GET"])
+def student_scores_endpoint():
+    """Returns all test and exam scores for the currently logged-in student."""
+    user_id = session.get("user_id")
+    if not user_id and "username" in request.args:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM users WHERE username = ?", (request.args["username"].strip(),))
+        row = cur.fetchone()
+        conn.close()
+        if row:
+            user_id = row["id"]
+
+    if not user_id:
+        return jsonify({"scores": [], "message": "Niet ingelogd als student"}), 401
+
+    scores = get_scores_for_student(user_id)
+    return jsonify({"scores": scores, "total": len(scores)})
+
+
 # --- TEACHER APIS: USERS, CLASSES, DROPDOWN MOVES & MANAGEMENT ---
 @app.route("/api/teacher/classes", methods=["GET"])
 def teacher_classes():
@@ -327,7 +350,10 @@ def teacher_scores():
     search = request.args.get("search", "")
 
     class_list = [c.strip() for c in classes_param.split(",") if c.strip()] if classes_param else None
-    students = list_students_with_progress(exam_id=exam_id, class_groups=class_list, search=search)
+    if exam_id == "all":
+        students = list_all_student_scores(class_groups=class_list, search=search)
+    else:
+        students = list_students_with_progress(exam_id=exam_id, class_groups=class_list, search=search)
     return jsonify({"exam_id": exam_id, "scores": students})
 
 
@@ -337,21 +363,30 @@ def teacher_scores_export():
     classes_param = request.args.get("classes", "")
     class_list = [c.strip() for c in classes_param.split(",") if c.strip()] if classes_param else None
 
-    students = list_students_with_progress(exam_id=exam_id, class_groups=class_list)
+    if exam_id == "all":
+        students = list_all_student_scores(class_groups=class_list)
+        csv_lines = ["\ufeffAchternaam;Voornaam;Gebruikersnaam;Richting;Klas;ExamenId;ExamenTitel;Categorie;Score;MaxScore;Percentage;LaatsteOpslag"]
+        for s in students:
+            title_clean = str(s.get('exam_title') or s.get('exam_id') or '').replace(';', ',').replace('"', "'")
+            csv_lines.append(
+                f"{s.get('last_name','')};{s.get('first_name','')};{s.get('username','')};{s.get('program','')};{s.get('class_group','')};"
+                f"{s.get('exam_id','')};{title_clean};{s.get('exam_category','')};{s.get('score',0)};{s.get('max_score',100)};{s.get('percentage',0)};{s.get('last_saved','')}"
+            )
+        filename = f"PXL_NetSim_Alle_Scores_{time.strftime('%Y%m%d_%H%M%S')}.csv"
+    else:
+        students = list_students_with_progress(exam_id=exam_id, class_groups=class_list)
+        csv_lines = ["\ufeffAchternaam;Voornaam;Gebruikersnaam;Richting;Klas;Examen;Score;MaxScore;Percentage;LaatsteOpslag"]
+        for s in students:
+            csv_lines.append(
+                f"{s.get('last_name','')};{s.get('first_name','')};{s.get('username','')};{s.get('program','')};{s.get('class_group','')};"
+                f"{exam_id};{s.get('score',0)};{s.get('max_score',100)};{s.get('percentage',0)};{s.get('last_saved','')}"
+            )
+        filename = f"PXL_NetSim_Scores_{exam_id}_{time.strftime('%Y%m%d_%H%M%S')}.csv"
 
-    # Output CSV for Blackboard / Excel
-    csv_lines = ["Achternaam;Voornaam;Gebruikersnaam;Richting;Klas;Examen;Score;MaxScore;Percentage;LaatsteOpslag"]
-    for s in students:
-        csv_lines.append(
-            f"{s['last_name']};{s['first_name']};{s['username']};{s['program']};{s['class_group']};"
-            f"{exam_id};{s['score']};{s['max_score']};{s['percentage']};{s['last_saved']}"
-        )
     csv_data = "\r\n".join(csv_lines)
-
-    filename = f"PXL_NetSim_Scores_{exam_id}_{time.strftime('%Y%m%d_%H%M%S')}.csv"
     return Response(
-        csv_data,
-        mimetype="text/csv",
+        csv_data.encode("utf-8-sig"),
+        mimetype="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment;filename={filename}"}
     )
 
@@ -418,6 +453,16 @@ def teacher_delete_exam():
         return jsonify({"error": "Examen ID ontbreekt"}), 400
     success = delete_exam(exam_id)
     return jsonify({"success": success})
+
+
+@app.route("/api/teacher/exam/delete-bulk", methods=["POST"])
+def teacher_delete_exams_bulk():
+    data = request.get_json(force=True) or {}
+    ids = data.get("ids", [])
+    if not ids:
+        return jsonify({"error": "Geen examen ID's opgegeven"}), 400
+    deleted = delete_exams_bulk(ids)
+    return jsonify({"success": True, "count": deleted, "message": f"{deleted} examen(s) succesvol verwijderd."})
 
 
 @app.route("/api/teacher/students-by-class", methods=["GET"])

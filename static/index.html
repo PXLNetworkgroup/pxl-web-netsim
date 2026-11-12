@@ -260,6 +260,26 @@
     </div>
   </div>
 
+  <!-- STUDENT SCORES MODAL (STUDENT OVERZICHT RESULTATEN PER TEST) -->
+  <div class="pt-modal-overlay" id="studentScoresModal" style="display: none;">
+    <div class="pt-device-dialog" style="width: 760px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="pt-device-header" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; padding: 12px 18px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">📊</span>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Mijn Resultaten &amp; Scores per Examen</h3>
+        </div>
+        <button class="pt-btn-close" onclick="window.PXLApp.closeStudentScoresModal()" style="color: #fff; font-size: 18px;">✕</button>
+      </div>
+      <div id="studentScoresModalBody" style="padding: 18px; overflow-y: auto; flex: 1;">
+        <div style="padding: 30px; text-align: center; color: #64748b;">⏳ Scores ophalen...</div>
+      </div>
+      <div style="padding: 10px 18px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 11px; color: #64748b;">💡 Tip: Klik op 'Openen' om een eerder labo of examen direct te heropenen in de simulator.</span>
+        <button class="pt-btn pt-btn-secondary" onclick="window.PXLApp.closeStudentScoresModal()">Sluiten</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST NOTIFICATION -->
   <div class="pt-toast" id="toastNotification">Actie uitgevoerd</div>
 

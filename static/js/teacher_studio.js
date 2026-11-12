@@ -160,15 +160,18 @@ class TeacherStudio {
             <!-- Header Controls -->
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
               <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <label style="font-size: 12px; font-weight: 700; color: #334155;">Examen:</label>
-                <select id="scoresExamSelect" class="pt-input" style="padding: 6px 10px; font-size: 12px; min-width: 220px;" onchange="window.PXLApp.teacherStudio.loadScoresTable()"></select>
+                <label style="font-size: 12px; font-weight: 700; color: #334155;">Examen / Weergave:</label>
+                <select id="scoresExamSelect" class="pt-input" style="padding: 6px 10px; font-size: 12px; min-width: 250px;" onchange="window.PXLApp.teacherStudio.loadScoresTable()"></select>
                 <button class="pt-btn pt-btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="window.PXLApp.teacherStudio.loadScoresTable()">
                   🔄 Vernieuwen
                 </button>
               </div>
-              <div>
-                <button class="pt-btn pt-btn-primary" style="padding: 6px 14px; font-size: 12px; background: #059669;" onclick="window.PXLApp.teacherStudio.exportScoresCsv()">
-                  📥 Exporteer Scores (CSV / Blackboard / Excel)
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="pt-btn pt-btn-secondary" style="padding: 6px 12px; font-size: 12px; border: 1px solid #059669; color: #047857;" onclick="window.PXLApp.teacherStudio.exportScoresCsv(false)" title="Exporteer scores van het momenteel geselecteerde examen naar CSV">
+                  📥 Exporteer Selectie (CSV)
+                </button>
+                <button class="pt-btn pt-btn-primary" style="padding: 6px 14px; font-size: 12px; background: #059669;" onclick="window.PXLApp.teacherStudio.exportScoresCsv(true)" title="Exporteer alle scores van alle studenten over alle testen en examens">
+                  📥 Exporteer ALLES (Compleet CSV)
                 </button>
               </div>
             </div>
@@ -255,6 +258,39 @@ class TeacherStudio {
               <!-- Class & Student Tree Container -->
               <div id="mgmtClassTreeContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; background: #f8fafc;">
                 <div style="padding: 15px; text-align: center; color: #64748b; font-size: 11px;">Klassen en studenten ophalen uit database...</div>
+              </div>
+            </div>
+
+            <!-- Database Exams & Tests Management: Overview, Score Warnings, Delete & Bulk Delete -->
+            <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                <div>
+                  <h4 style="margin: 0; font-size: 13px; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+                    <span>🗄️</span> <span>Overzicht van Alle Examens &amp; Testen in Database</span>
+                  </h4>
+                  <div style="font-size: 11px; color: #64748b;">
+                    Beheer alle opdrachten/examens en wis ze individueel of in bulk. Bij examens met reeds behaalde studentenscores wordt vooraf gewaarschuwd.
+                  </div>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <span id="mgmtExamSelectionBadge" style="font-size: 11px; font-weight: bold; background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 12px; display: none;">0 geselecteerd</span>
+                  <button class="pt-btn pt-btn-danger" id="btnBulkDeleteExams" style="padding: 4px 10px; font-size: 11px; background: #dc2626; color: #fff; font-weight: 700;" onclick="window.PXLApp.teacherStudio.deleteSelectedExamsBulk()">
+                    🗑️ Geselecteerde Wissen (Bulk)
+                  </button>
+                  <button class="pt-btn pt-btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="window.PXLApp.teacherStudio.loadDbExamsList()">
+                    🔄 Verversen
+                  </button>
+                </div>
+              </div>
+
+              <!-- Filter Search Input -->
+              <div style="margin-bottom: 8px;">
+                <input type="text" id="mgmtExamSearchInput" placeholder="🔍 Filter op examennaam, categorie of examen-ID..." class="pt-input" style="width: 100%; box-sizing: border-box; padding: 4px 8px; font-size: 11px;" oninput="window.PXLApp.teacherStudio.renderDbExamsTable()">
+              </div>
+
+              <!-- Exams Table Container -->
+              <div id="studioExamsListContainer" style="max-height: 220px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <div style="padding: 20px; text-align: center; color: #64748b; font-size: 11px;">Examens laden uit database...</div>
               </div>
             </div>
 
@@ -865,14 +901,14 @@ class TeacherStudio {
           this.allDbExams = data.exams || [];
         } catch (e) {}
       }
-      const currentExam = this.app.activeExam ? this.app.activeExam.id : '01_pxl_standard';
-      let opts = '';
+      const currentExam = this.app.activeExam ? this.app.activeExam.id : 'all';
+      let opts = '<option value="all">🌟 Alle Testen & Examens (Compleet Overzicht)</option>';
       if (this.allDbExams && this.allDbExams.length > 0) {
         this.allDbExams.forEach(e => {
           opts += `<option value="${e.id}" ${e.id === currentExam ? 'selected' : ''}>${e.title}</option>`;
         });
       } else {
-        opts = `<option value="01_pxl_standard">01_pxl_standard (Standaard Examen)</option>`;
+        opts += `<option value="01_pxl_standard">01_pxl_standard (Standaard Examen)</option>`;
       }
       examSelect.innerHTML = opts;
     }
@@ -917,7 +953,7 @@ class TeacherStudio {
     const container = document.getElementById('studioScoresTableContainer');
     if (!container) return;
 
-    const examId = document.getElementById('scoresExamSelect')?.value || '01_pxl_standard';
+    const examId = document.getElementById('scoresExamSelect')?.value || 'all';
     const classes = Array.from(this.scoresClassFilter).join(',');
 
     try {
@@ -930,7 +966,57 @@ class TeacherStudio {
       const students = data.scores || [];
 
       if (students.length === 0) {
-        container.innerHTML = `<div style="padding: 30px; text-align: center; color: #94a3b8;">Geen scores gevonden voor deze klassenselectie.</div>`;
+        container.innerHTML = `<div style="padding: 30px; text-align: center; color: #94a3b8;">Geen scores gevonden voor deze selectie.</div>`;
+        return;
+      }
+
+      if (examId === 'all') {
+        const catLabels = { pka_import: '📦 PKA', custom: '✏️ Examen', course_lab: '📚 Cursus', preset: '⚡ Preset' };
+        container.innerHTML = `
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left; position: sticky; top: 0; z-index: 1;">
+                <th style="padding: 8px 10px;">Studentnr</th>
+                <th style="padding: 8px 10px;">Naam</th>
+                <th style="padding: 8px 10px;">Klas</th>
+                <th style="padding: 8px 10px;">Examen / Test</th>
+                <th style="padding: 8px 10px;">Categorie</th>
+                <th style="padding: 8px 10px;">Score (pt)</th>
+                <th style="padding: 8px 10px;">Percentage</th>
+                <th style="padding: 8px 10px;">Laatste Opslag</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${students.map(s => {
+                const pct = Math.round(s.percentage || 0);
+                const color = pct >= 50 ? '#16a34a' : (pct > 0 ? '#d97706' : '#dc2626');
+                const catBadge = catLabels[s.exam_category] || s.exam_category || '-';
+                return `
+                  <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 6px 10px; font-weight: 700; font-family: monospace;">${s.username}</td>
+                    <td style="padding: 6px 10px; font-weight: 600;">${s.full_name}</td>
+                    <td style="padding: 6px 10px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold;">${s.class_group}</span></td>
+                    <td style="padding: 6px 10px;">
+                      <div style="font-weight: 600; color: #0f172a;">${s.exam_title || s.exam_id}</div>
+                      <div style="font-size: 10px; color: #94a3b8; font-family: monospace;">${s.exam_id}</div>
+                    </td>
+                    <td style="padding: 6px 10px;"><span style="background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10.5px; font-weight: 600;">${catBadge}</span></td>
+                    <td style="padding: 6px 10px; font-weight: 700; color: ${color};">${s.score} / ${s.max_score}</td>
+                    <td style="padding: 6px 10px; font-weight: 700; color: ${color};">
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span>${pct}%</span>
+                        <div style="flex: 1; max-width: 60px; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                          <div style="width: ${Math.min(100, Math.max(0, pct))}%; height: 100%; background: ${color};"></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style="padding: 6px 10px; color: #64748b; font-size: 11px;">${s.last_saved}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        `;
         return;
       }
 
@@ -983,8 +1069,9 @@ class TeacherStudio {
     }
   }
 
-  exportScoresCsv() {
-    const examId = document.getElementById('scoresExamSelect')?.value || '01_pxl_standard';
+  exportScoresCsv(exportAll = false) {
+    const selectedExamId = document.getElementById('scoresExamSelect')?.value || 'all';
+    const examId = exportAll ? 'all' : selectedExamId;
     const classes = Array.from(this.scoresClassFilter).join(',');
     const url = `/api/teacher/scores/export?exam_id=${encodeURIComponent(examId)}&classes=${encodeURIComponent(classes)}`;
     window.open(url, '_blank');
@@ -998,6 +1085,7 @@ class TeacherStudio {
       const data = await res.json();
       this.allDbExams = data.exams || [];
       this.populateExamSelect(this.allDbExams);
+      this.renderDbExamsTable();
     } catch (e) {
       console.warn('Error fetching exams from database:', e);
     }
@@ -1025,6 +1113,228 @@ class TeacherStudio {
     }
 
     await this.loadAssignmentsTable();
+  }
+
+  async loadDbExamsList() {
+    try {
+      const res = await fetch('/api/teacher/exams');
+      const data = await res.json();
+      this.allDbExams = data.exams || [];
+      this.populateExamSelect(this.allDbExams);
+      this.renderDbExamsTable();
+      this.app.showToast('Examens ververst');
+    } catch (e) {
+      console.warn('Error refreshing exams list:', e);
+    }
+  }
+
+  renderDbExamsTable() {
+    const container = document.getElementById('studioExamsListContainer');
+    if (!container) return;
+
+    if (!this.allDbExams || this.allDbExams.length === 0) {
+      container.innerHTML = `<div style="padding: 25px; text-align: center; color: #94a3b8; font-size: 11.5px;">Geen examens of testen gevonden in de database.</div>`;
+      return;
+    }
+
+    const searchQuery = (document.getElementById('mgmtExamSearchInput')?.value || '').toLowerCase().trim();
+    const filtered = this.allDbExams.filter(e => {
+      if (!searchQuery) return true;
+      const title = (e.title || '').toLowerCase();
+      const cat = (e.category || '').toLowerCase();
+      const id = (e.id || '').toLowerCase();
+      return title.includes(searchQuery) || cat.includes(searchQuery) || id.includes(searchQuery);
+    });
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 11.5px;">Geen examens gevonden die voldoen aan '${searchQuery}'.</div>`;
+      return;
+    }
+
+    const categoryBadges = {
+      pka_import: { label: '📦 PKA Import', bg: '#eff6ff', color: '#1d4ed8' },
+      custom: { label: '✏️ Eigen Examen', bg: '#ecfdf5', color: '#047857' },
+      course_lab: { label: '📚 Cursuslabo', bg: '#faf5ff', color: '#6b21a8' },
+      preset: { label: '⚡ Preset', bg: '#fefce8', color: '#a16207' }
+    };
+
+    container.innerHTML = `
+      <table style="width: 100%; border-collapse: collapse; font-size: 11.5px;">
+        <thead>
+          <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left; position: sticky; top: 0; z-index: 2;">
+            <th style="padding: 6px 10px; width: 35px; text-align: center;">
+              <input type="checkbox" id="mgmtSelectAllExamsCb" onchange="window.PXLApp.teacherStudio.toggleSelectAllExams(this.checked)" title="Alles selecteren">
+            </th>
+            <th style="padding: 6px 10px;">Examen / Test Titel</th>
+            <th style="padding: 6px 10px; width: 110px;">Categorie</th>
+            <th style="padding: 6px 10px; width: 80px;">Tijd</th>
+            <th style="padding: 6px 10px; width: 200px;">Studentenscores &amp; Punten</th>
+            <th style="padding: 6px 10px; width: 90px; text-align: center;">Actie</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filtered.map(e => {
+            const cat = categoryBadges[e.category] || { label: e.category || 'Opdracht', bg: '#f1f5f9', color: '#475569' };
+            const scored = e.scored_count || 0;
+            const saves = e.total_saves || 0;
+            const maxScore = e.max_student_score != null ? e.max_student_score : '-';
+
+            let pointsBadge = '';
+            if (scored > 0) {
+              pointsBadge = `<span style="background: #fef3c7; color: #92400e; font-weight: 700; padding: 2px 7px; border-radius: 10px; border: 1px solid #fde68a; font-size: 10.5px; display: inline-flex; align-items: center; gap: 4px;" title="Dit examen bevat al behaalde studentenscores!">
+                <span>⚠️</span> <span>${scored} student(en) (Max: ${maxScore} pt)</span>
+              </span>`;
+            } else if (saves > 0) {
+              pointsBadge = `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 10px; font-size: 10.5px; display: inline-flex; align-items: center; gap: 4px;">
+                <span>📝</span> <span>${saves} poging(en) (0 pt)</span>
+              </span>`;
+            } else {
+              pointsBadge = `<span style="color: #94a3b8; font-size: 11px;">⚪ Geen scores</span>`;
+            }
+
+            return `
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 6px 10px; text-align: center;">
+                  <input type="checkbox" class="mgmt-exam-row-cb" value="${e.id}" data-title="${(e.title || e.id).replace(/"/g, '&quot;')}" data-scored="${scored}" data-saves="${saves}" onchange="window.PXLApp.teacherStudio.updateExamSelectionBadge()">
+                </td>
+                <td style="padding: 6px 10px;">
+                  <div style="font-weight: 700; color: #0f172a;">${e.title || e.id}</div>
+                  <div style="font-size: 10px; color: #94a3b8; font-family: monospace;">ID: ${e.id}</div>
+                </td>
+                <td style="padding: 6px 10px;">
+                  <span style="background: ${cat.bg}; color: ${cat.color}; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; white-space: nowrap;">
+                    ${cat.label}
+                  </span>
+                </td>
+                <td style="padding: 6px 10px; font-size: 11px; color: #475569; white-space: nowrap;">
+                  ⏱️ ${e.time_limit_minutes || 80}m
+                </td>
+                <td style="padding: 6px 10px;">
+                  ${pointsBadge}
+                </td>
+                <td style="padding: 6px 10px; text-align: center;">
+                  <button class="pt-btn pt-btn-danger" style="padding: 3px 8px; font-size: 10.5px; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; cursor: pointer; border-radius: 4px;" onclick="window.PXLApp.teacherStudio.deleteSingleExam('${e.id}', '${(e.title || e.id).replace(/'/g, "\\'")}', ${scored}, ${saves})" title="Dit examen definitief wissen">
+                    🗑️ Wissen
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+
+    this.updateExamSelectionBadge();
+  }
+
+  toggleSelectAllExams(checked) {
+    const checkboxes = document.querySelectorAll('.mgmt-exam-row-cb');
+    checkboxes.forEach(cb => { cb.checked = checked; });
+    this.updateExamSelectionBadge();
+  }
+
+  updateExamSelectionBadge() {
+    const count = document.querySelectorAll('.mgmt-exam-row-cb:checked').length;
+    const badge = document.getElementById('mgmtExamSelectionBadge');
+    if (badge) {
+      badge.innerText = `${count} geselecteerd`;
+      badge.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+    const selectAllCb = document.getElementById('mgmtSelectAllExamsCb');
+    const allCbs = document.querySelectorAll('.mgmt-exam-row-cb');
+    if (selectAllCb && allCbs.length > 0) {
+      selectAllCb.checked = count === allCbs.length;
+    }
+  }
+
+  async deleteSingleExam(examId, examTitle, scoredCount, totalSaves) {
+    if (scoredCount > 0 || totalSaves > 0) {
+      const confirmed = confirm(
+        `⚠️ WAARSCHUWING: DIT EXAMEN BEVAT PUNTEN!\n\n` +
+        `Het examen '${examTitle}' bevat al opgeslagen werk en/of punten van ${totalSaves} student(en) (waarvan ${scoredCount} met een behaalde score)!\n\n` +
+        `Als je dit examen verwijdert:\n` +
+        `- Worden alle actieve toewijzingen gewist\n` +
+        `- Worden de behaalde scores en tussenstanden van deze studenten DEFINITIEF verwijderd uit de database\n\n` +
+        `Weet je heel zeker dat je wilt doorgaan met wissen?`
+      );
+      if (!confirmed) return;
+    } else {
+      const confirmed = confirm(`Weet je zeker dat je het examen '${examTitle}' wilt verwijderen uit de database?`);
+      if (!confirmed) return;
+    }
+
+    try {
+      const res = await fetch('/api/teacher/exam/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: examId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.PXLApp.showToast(`🗑️ Examen '${examTitle}' succesvol verwijderd.`);
+        await this.loadExamMgmtTab();
+        const examSelect = document.getElementById('scoresExamSelect');
+        if (examSelect) {
+          this.allDbExams = [];
+          await this.loadScoresTab();
+        }
+      } else {
+        alert(data.error || 'Kon examen niet verwijderen');
+      }
+    } catch (err) {
+      alert('Fout bij verwijderen examen: ' + err.message);
+    }
+  }
+
+  async deleteSelectedExamsBulk() {
+    const checkboxes = document.querySelectorAll('.mgmt-exam-row-cb:checked');
+    if (checkboxes.length === 0) {
+      alert('Selecteer eerst één of meerdere examens via de selectievakjes om te wissen.');
+      return;
+    }
+
+    const selected = Array.from(checkboxes).map(cb => ({
+      id: cb.value,
+      title: cb.dataset.title || cb.value,
+      scored: parseInt(cb.dataset.scored || '0', 10),
+      saves: parseInt(cb.dataset.saves || '0', 10)
+    }));
+
+    const withScores = selected.filter(s => s.scored > 0 || s.saves > 0);
+    let msg = '';
+    if (withScores.length > 0) {
+      msg = `⚠️ WAARSCHUWING: EXAMENS BEVATTEN PUNTEN!\n\n` +
+        `Onder de ${selected.length} geselecteerde examen(s) zijn er ${withScores.length} die al punten of opgeslagen werk van studenten bevatten:\n\n` +
+        withScores.map(s => `• ${s.title} (${s.saves} deelnames, ${s.scored} met punten)`).join('\n') +
+        `\n\nAls je deze verwijdert, worden ALLE toewijzingen én studentenscores voor deze examens PERMANENT VERWIJDERD!\n\n` +
+        `Weet je zeker dat je alle ${selected.length} geselecteerde examen(s) definitief wilt wissen?`;
+    } else {
+      msg = `Weet je zeker dat je de ${selected.length} geselecteerde examen(s) wilt verwijderen uit de database?`;
+    }
+
+    if (!confirm(msg)) return;
+
+    try {
+      const res = await fetch('/api/teacher/exam/delete-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selected.map(s => s.id) })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.PXLApp.showToast(`🗑️ ${data.count} examen(s) succesvol verwijderd.`);
+        await this.loadExamMgmtTab();
+        const examSelect = document.getElementById('scoresExamSelect');
+        if (examSelect) {
+          this.allDbExams = [];
+          await this.loadScoresTab();
+        }
+      } else {
+        alert(data.error || 'Kon examens niet verwijderen');
+      }
+    } catch (err) {
+      alert('Fout bij bulk wissen van examens: ' + err.message);
+    }
   }
 
   populateExamSelect(exams) {
