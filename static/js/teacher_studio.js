@@ -211,6 +211,19 @@ class TeacherStudio {
                 </div>
               </div>
 
+              <!-- Lab vs Test Subdivision -->
+              <div style="display: flex; gap: 15px; margin-bottom: 10px; align-items: center; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                <span style="font-size: 11.5px; font-weight: 700; color: #1e293b;">Type Opdracht:</span>
+                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; cursor: pointer; color: #0369a1;">
+                  <input type="radio" name="mgmtAssignType" id="mgmtAssignTypeLab" value="lab" checked onchange="window.PXLApp.teacherStudio.onAssignTypeChanged()">
+                  <span>🔬 Lab (Oefenlab - Zelfstandig starten & resetten door student)</span>
+                </label>
+                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; cursor: pointer; color: #b45309;">
+                  <input type="radio" name="mgmtAssignType" id="mgmtAssignTypeTest" value="test" onchange="window.PXLApp.teacherStudio.onAssignTypeChanged()">
+                  <span>📝 Test (Officieel examen - Wachtwoord beveiligd & startsein door docent)</span>
+                </label>
+              </div>
+
               <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: flex-end;">
                 <div>
                   <label style="font-size: 11px; font-weight: 700; color: #334155;">Kies Opdracht / Examen uit Database:</label>
@@ -230,6 +243,20 @@ class TeacherStudio {
                   <button class="pt-btn pt-btn-primary" style="padding: 6px 16px; font-size: 12px; font-weight: 700; background: #0284c7;" onclick="window.PXLApp.teacherStudio.submitTargetAssignments()">
                     🚀 Opdracht Openzetten
                   </button>
+                </div>
+              </div>
+
+              <!-- Extra row for Test Security Settings (Password and Start Test) -->
+              <div id="mgmtAssignTestConfigRow" style="display: none; grid-template-columns: 1.5fr 1.5fr; gap: 10px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
+                <div>
+                  <label style="font-size: 11px; font-weight: 700; color: #b45309;">🔑 Test Wachtwoord (Optioneel / Beveiliging):</label>
+                  <input type="text" id="mgmtAssignPassword" placeholder="Bijv. PXL-TEST-2026 (leeg laten = geen wachtwoord)" class="pt-input" style="width: 100%; font-size: 12px; padding: 5px 8px; margin-top: 2px; border: 1px solid #f59e0b;">
+                </div>
+                <div style="display: flex; align-items: flex-end; padding-bottom: 6px;">
+                  <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #15803d; cursor: pointer; background: #f0fdf4; padding: 5px 10px; border-radius: 4px; border: 1px solid #bbf7d0;">
+                    <input type="checkbox" id="mgmtAssignStartTestToggle">
+                    <span>▶️ Start Test Nu Direct (Laat studenten direct starten)</span>
+                  </label>
                 </div>
               </div>
             </div>
@@ -1565,12 +1592,24 @@ class TeacherStudio {
     this.renderAssignmentTree();
   }
 
+  onAssignTypeChanged() {
+    const isTest = document.getElementById('mgmtAssignTypeTest')?.checked;
+    const row = document.getElementById('mgmtAssignTestConfigRow');
+    if (row) {
+      row.style.display = isTest ? 'grid' : 'none';
+    }
+  }
+
   async submitTargetAssignments() {
     const examSelect = document.getElementById('mgmtAssignExamSelect');
     const examId = examSelect?.value;
     const examTitle = examSelect?.selectedOptions[0]?.text || examId;
     const timeLimit = parseInt(document.getElementById('mgmtAssignTimeLimit')?.value, 10) || 80;
     const isActive = document.getElementById('mgmtAssignActiveToggle')?.checked !== false;
+
+    const assignType = document.getElementById('mgmtAssignTypeTest')?.checked ? 'test' : 'lab';
+    const testPassword = document.getElementById('mgmtAssignPassword')?.value || '';
+    const isStarted = (assignType === 'test') ? (document.getElementById('mgmtAssignStartTestToggle')?.checked ? 1 : 0) : 1;
 
     if (!examId) {
       alert('Selecteer een examen of opdracht uit de lijst.');
@@ -1613,7 +1652,10 @@ class TeacherStudio {
           title: cleanTitle,
           targets: targets,
           time_limit_minutes: timeLimit,
-          is_active: isActive
+          is_active: isActive,
+          assignment_type: assignType,
+          test_password: testPassword,
+          is_started: isStarted
         })
       });
       const data = await res.json();
@@ -1646,39 +1688,84 @@ class TeacherStudio {
         <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
           <thead>
             <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
-              <th style="padding: 6px 10px;">Examen ID</th>
+              <th style="padding: 6px 10px;">Opdracht / Examen</th>
+              <th style="padding: 6px 10px; width: 65px;">Type</th>
               <th style="padding: 6px 10px;">Doelgroep</th>
-              <th style="padding: 6px 10px;">Waarde</th>
-              <th style="padding: 6px 10px;">Tijdslimiet</th>
-              <th style="padding: 6px 10px;">Status</th>
+              <th style="padding: 6px 10px;">Tijd</th>
+              <th style="padding: 6px 10px;">Startsein (Test)</th>
+              <th style="padding: 6px 10px;">Wachtwoord</th>
               <th style="padding: 6px 10px; text-align: right;">Acties</th>
             </tr>
           </thead>
           <tbody>
-            ${asgs.map(a => `
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 6px 10px; font-weight: 700;">${a.exam_id}</td>
-                <td style="padding: 6px 10px;">${a.target_type}</td>
-                <td style="padding: 6px 10px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${a.target_value}</span></td>
-                <td style="padding: 6px 10px;">${a.time_limit_minutes} min</td>
-                <td style="padding: 6px 10px;">
-                  <span style="background: ${a.is_active ? '#dcfce7' : '#fee2e2'}; color: ${a.is_active ? '#15803d' : '#991b1b'}; padding: 2px 6px; border-radius: 4px; font-weight: bold;">
-                    ${a.is_active ? '✅ Open' : '❌ Gesloten'}
-                  </span>
-                </td>
-                <td style="padding: 6px 10px; text-align: right;">
-                  <button class="pt-btn pt-btn-sm" style="font-size: 10px; padding: 2px 6px; margin-right: 4px;" onclick="window.PXLApp.teacherStudio.toggleAssignment(${a.id}, ${a.is_active ? 0 : 1})">
-                    ${a.is_active ? 'Sluiten' : 'Openen'}
-                  </button>
-                  <button class="pt-btn pt-btn-sm" style="color: #ef4444; border: none; background: transparent; cursor: pointer;" onclick="window.PXLApp.teacherStudio.deleteAssignment(${a.id})">🗑️</button>
-                </td>
-              </tr>
-            `).join('')}
+            ${asgs.map(a => {
+              const isTest = (a.assignment_type === 'test');
+              const typeBadge = isTest
+                ? `<span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 1px 5px; border-radius: 3px; font-weight: bold;">📝 Test</span>`
+                : `<span style="background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; padding: 1px 5px; border-radius: 3px; font-weight: bold;">🔬 Lab</span>`;
+
+              let startControl = '';
+              if (isTest) {
+                if (a.is_started) {
+                  startControl = `
+                    <button class="pt-btn pt-btn-sm" style="font-size: 10px; padding: 2px 6px; background: #16a34a; color: #fff; border: 1px solid #15803d; font-weight: bold;" onclick="window.PXLApp.teacherStudio.toggleAssignmentStart(${a.id}, 0)" title="Klik om de test voor deze groep te pauzeren/vergrendelen">
+                      ⏹️ Test Gestart
+                    </button>
+                  `;
+                } else {
+                  startControl = `
+                    <button class="pt-btn pt-btn-sm" style="font-size: 10px; padding: 2px 6px; background: #ea580c; color: #fff; border: 1px solid #c2410c; font-weight: bold;" onclick="window.PXLApp.teacherStudio.toggleAssignmentStart(${a.id}, 1)" title="Klik om de test nu vrij te geven voor deze studentengroep">
+                      ▶️ Start Test
+                    </button>
+                  `;
+                }
+              } else {
+                startControl = `<span style="color: #16a34a; font-weight: 600;">🟢 Direct Actief</span>`;
+              }
+
+              const pwDisplay = isTest && a.test_password
+                ? `<code style="background: #fef3c7; padding: 1px 4px; border-radius: 3px; font-weight: bold; color: #b45309;">${a.test_password}</code>`
+                : `<span style="color: #94a3b8;">-</span>`;
+
+              return `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 6px 10px;">
+                    <strong style="color: #0f172a;">${a.title || a.exam_id}</strong>
+                    <div style="font-size: 9.5px; color: #94a3b8; font-family: monospace;">${a.exam_id}</div>
+                  </td>
+                  <td style="padding: 6px 10px;">${typeBadge}</td>
+                  <td style="padding: 6px 10px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${a.target_value}</span></td>
+                  <td style="padding: 6px 10px;">${a.time_limit_minutes}m</td>
+                  <td style="padding: 6px 10px;">${startControl}</td>
+                  <td style="padding: 6px 10px;">${pwDisplay}</td>
+                  <td style="padding: 6px 10px; text-align: right;">
+                    <button class="pt-btn pt-btn-sm" style="font-size: 10px; padding: 2px 6px; margin-right: 4px;" onclick="window.PXLApp.teacherStudio.toggleAssignment(${a.id}, ${a.is_active ? 0 : 1})">
+                      ${a.is_active ? 'Sluiten' : 'Openen'}
+                    </button>
+                    <button class="pt-btn pt-btn-sm" style="color: #ef4444; border: none; background: transparent; cursor: pointer;" onclick="window.PXLApp.teacherStudio.deleteAssignment(${a.id})" title="Toewijzing verwijderen">🗑️</button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
       `;
     } catch (e) {
       container.innerHTML = `<div style="padding: 10px; color: #ef4444;">Fout: ${e.message}</div>`;
+    }
+  }
+
+  async toggleAssignmentStart(id, isStarted) {
+    try {
+      await fetch('/api/teacher/exam/assignment/toggle-start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id, is_started: isStarted })
+      });
+      this.app.showToast(isStarted ? '▶️ Test gestart voor groep!' : '⏹️ Test gepauzeerd!');
+      await this.loadAssignmentsTable();
+    } catch (e) {
+      alert('Fout bij wijzigen test startstatus: ' + e.message);
     }
   }
 

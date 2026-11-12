@@ -143,8 +143,9 @@ def init_db():
     );
     """)
 
-    # Ensure running_config_json column exists
+    # Ensure running_config_json & rubric_evaluation_json column exist
     _add_column_if_not_exists(cursor, 'student_saves', 'running_config_json', "TEXT DEFAULT '{}'")
+    _add_column_if_not_exists(cursor, 'student_saves', 'rubric_evaluation_json', "TEXT DEFAULT '[]'")
 
     # Custom teacher exams table
     cursor.execute("""
@@ -158,6 +159,8 @@ def init_db():
         is_active INTEGER DEFAULT 1,
         category TEXT DEFAULT 'custom', -- 'course_lab', 'pka_import', 'preset', 'custom'
         created_by TEXT DEFAULT 'teacher',
+        kind TEXT DEFAULT 'lab', -- 'lab' or 'test'
+        test_password TEXT DEFAULT '',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
@@ -165,6 +168,8 @@ def init_db():
     _add_column_if_not_exists(cursor, 'exams', 'is_active', "INTEGER DEFAULT 1")
     _add_column_if_not_exists(cursor, 'exams', 'category', "TEXT DEFAULT 'custom'")
     _add_column_if_not_exists(cursor, 'exams', 'created_by', "TEXT DEFAULT 'teacher'")
+    _add_column_if_not_exists(cursor, 'exams', 'kind', "TEXT DEFAULT 'lab'")
+    _add_column_if_not_exists(cursor, 'exams', 'test_password', "TEXT DEFAULT ''")
 
     # Exam assignments table: open exams for classes or students with time limit
     cursor.execute("""
@@ -177,12 +182,18 @@ def init_db():
         target_class TEXT DEFAULT '', -- e.g. '1SNEb' when target_type='student'
         time_limit_minutes INTEGER DEFAULT 80,
         is_active INTEGER DEFAULT 1,
+        assignment_type TEXT DEFAULT 'lab', -- 'lab' or 'test'
+        test_password TEXT DEFAULT '',
+        is_started INTEGER DEFAULT 1, -- For tests: teacher toggles Start Test live!
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE (exam_id, target_type, target_value)
     );
     """)
 
     _add_column_if_not_exists(cursor, 'exam_assignments', 'target_class', "TEXT DEFAULT ''")
+    _add_column_if_not_exists(cursor, 'exam_assignments', 'assignment_type', "TEXT DEFAULT 'lab'")
+    _add_column_if_not_exists(cursor, 'exam_assignments', 'test_password', "TEXT DEFAULT ''")
+    _add_column_if_not_exists(cursor, 'exam_assignments', 'is_started', "INTEGER DEFAULT 1")
 
     # Toevoeg-wachtrij table: audit queue of all added student accounts with their class name
     cursor.execute("""
@@ -574,23 +585,25 @@ def list_students(class_groups=None, search=None):
 
     return [dict(r) for r in rows]
 
-def save_student_progress(user_id, exam_id, topology_dict, score=0, max_score=100, percentage=0.0, running_config=None):
+def save_student_progress(user_id, exam_id, topology_dict, score=0, max_score=100, percentage=0.0, running_config=None, rubric_eval=None):
     conn = get_db()
     cursor = conn.cursor()
     topology_str = json.dumps(topology_dict)
     run_cfg_str = json.dumps(running_config or {})
+    rubric_str = json.dumps(rubric_eval or [])
 
     cursor.execute("""
-        INSERT INTO student_saves (user_id, exam_id, topology_json, running_config_json, score, max_score, percentage, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO student_saves (user_id, exam_id, topology_json, running_config_json, rubric_evaluation_json, score, max_score, percentage, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(user_id, exam_id) DO UPDATE SET
             topology_json = excluded.topology_json,
             running_config_json = excluded.running_config_json,
+            rubric_evaluation_json = excluded.rubric_evaluation_json,
             score = excluded.score,
             max_score = excluded.max_score,
             percentage = excluded.percentage,
             updated_at = CURRENT_TIMESTAMP;
-    """, (user_id, exam_id, topology_str, run_cfg_str, score, max_score, percentage))
+    """, (user_id, exam_id, topology_str, run_cfg_str, rubric_str, score, max_score, percentage))
 
     conn.commit()
     conn.close()
@@ -600,7 +613,7 @@ def get_student_progress(user_id, exam_id):
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT topology_json, running_config_json, score, max_score, percentage, updated_at
+        SELECT topology_json, running_config_json, rubric_evaluation_json, score, max_score, percentage, updated_at
         FROM student_saves
         WHERE user_id = ? AND exam_id = ?
     """, (user_id, exam_id))
@@ -608,9 +621,15 @@ def get_student_progress(user_id, exam_id):
     conn.close()
 
     if row:
+        rubric_eval = []
+        try:
+            rubric_eval = json.loads(row['rubric_evaluation_json'] or '[]')
+        except Exception:
+            rubric_eval = []
         return {
             'topology': json.loads(row['topology_json']),
             'running_config': json.loads(row['running_config_json'] or '{}'),
+            'rubric_evaluation': rubric_eval,
             'score': row['score'],
             'max_score': row['max_score'],
             'percentage': row['percentage'],
@@ -690,29 +709,37 @@ def list_students_with_progress(exam_id='01_pxl_standard', class_groups=None, se
     return students
 
 # --- EXAM ASSIGNMENT MANAGEMENT ---
-def assign_exam(exam_id, title, target_type, target_value, target_class='', time_limit_minutes=80, is_active=1):
+def assign_exam(exam_id, title, target_type, target_value, target_class='', time_limit_minutes=80, is_active=1, assignment_type='lab', test_password='', is_started=None):
+    if is_started is None:
+        is_started = 1 if assignment_type == 'lab' else 0
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO exam_assignments (exam_id, title, target_type, target_value, target_class, time_limit_minutes, is_active, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO exam_assignments (exam_id, title, target_type, target_value, target_class, time_limit_minutes, is_active, assignment_type, test_password, is_started, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(exam_id, target_type, target_value) DO UPDATE SET
             title = excluded.title,
             target_class = excluded.target_class,
             time_limit_minutes = excluded.time_limit_minutes,
-            is_active = excluded.is_active;
-    """, (exam_id, title, target_type, target_value, target_class, time_limit_minutes, is_active))
+            is_active = excluded.is_active,
+            assignment_type = excluded.assignment_type,
+            test_password = excluded.test_password,
+            is_started = excluded.is_started;
+    """, (exam_id, title, target_type, target_value, target_class, time_limit_minutes, is_active, assignment_type, test_password, 1 if is_started else 0))
     conn.commit()
     conn.close()
     return True
 
-def assign_exam_batch(exam_id, title, targets, time_limit_minutes=80, is_active=1):
+def assign_exam_batch(exam_id, title, targets, time_limit_minutes=80, is_active=1, assignment_type='lab', test_password='', is_started=None):
     """
     Assigns exam to multiple targets at once.
     targets is a list of dicts: [{'type': 'class', 'value': '1SNEb', 'class': '1SNEb'}, ...]
     """
     if not targets:
         return 0
+    if is_started is None:
+        is_started = 1 if assignment_type == 'lab' else 0
+
     conn = get_db()
     cursor = conn.cursor()
     count = 0
@@ -743,21 +770,24 @@ def assign_exam_batch(exam_id, title, targets, time_limit_minutes=80, is_active=
         if not tval:
             continue
         cursor.execute("""
-            INSERT INTO exam_assignments (exam_id, title, target_type, target_value, target_class, time_limit_minutes, is_active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT INTO exam_assignments (exam_id, title, target_type, target_value, target_class, time_limit_minutes, is_active, assignment_type, test_password, is_started, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(exam_id, target_type, target_value) DO UPDATE SET
                 title = excluded.title,
                 target_class = excluded.target_class,
                 time_limit_minutes = excluded.time_limit_minutes,
-                is_active = excluded.is_active;
-        """, (exam_id, title, ttype, tval, tcls, time_limit_minutes, is_active))
+                is_active = excluded.is_active,
+                assignment_type = excluded.assignment_type,
+                test_password = excluded.test_password,
+                is_started = excluded.is_started;
+        """, (exam_id, title, ttype, tval, tcls, time_limit_minutes, is_active, assignment_type, test_password, 1 if is_started else 0))
         count += 1
     conn.commit()
     conn.close()
     return count
 
 # --- EXAMS MANAGEMENT & PERSISTENCE ---
-def save_exam(exam_id, title, instructions='', topology=None, rubric=None, time_limit_minutes=80, is_active=1, category='custom', created_by='teacher'):
+def save_exam(exam_id, title, instructions='', topology=None, rubric=None, time_limit_minutes=80, is_active=1, category='custom', created_by='teacher', kind='lab', test_password=''):
     if not title or not title.strip():
         raise ValueError("Examen/opdracht naam is verplicht")
     if not exam_id or not exam_id.strip():
@@ -770,8 +800,8 @@ def save_exam(exam_id, title, instructions='', topology=None, rubric=None, time_
     rubric_str = json.dumps(rubric) if isinstance(rubric, list) else (rubric or '[]')
 
     cursor.execute("""
-        INSERT INTO exams (id, title, instructions, topology_json, rubric_json, time_limit_minutes, is_active, category, created_by, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO exams (id, title, instructions, topology_json, rubric_json, time_limit_minutes, is_active, category, created_by, kind, test_password, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(id) DO UPDATE SET
             title = excluded.title,
             instructions = excluded.instructions,
@@ -780,8 +810,10 @@ def save_exam(exam_id, title, instructions='', topology=None, rubric=None, time_
             time_limit_minutes = excluded.time_limit_minutes,
             is_active = excluded.is_active,
             category = excluded.category,
-            created_by = excluded.created_by;
-    """, (exam_id.strip(), title.strip(), instructions or '', topo_str, rubric_str, time_limit_minutes, is_active, category, created_by))
+            created_by = excluded.created_by,
+            kind = excluded.kind,
+            test_password = excluded.test_password;
+    """, (exam_id.strip(), title.strip(), instructions or '', topo_str, rubric_str, time_limit_minutes, is_active, category, created_by, kind, test_password))
     conn.commit()
     conn.close()
     return exam_id.strip()
@@ -1034,6 +1066,232 @@ def get_assigned_exam_for_student(user_id_or_username):
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
+
+def toggle_assignment_test_started(assignment_id, is_started):
+    """Teacher toggles the started status of an assigned test (start/pause test)."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE exam_assignments SET is_started = ? WHERE id = ?", (1 if is_started else 0, assignment_id))
+    cnt = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return cnt > 0
+
+def get_all_assigned_exams_for_student(user_id_or_username):
+    """Finds all active assigned labs and tests for this student, including scores and rubric evaluations."""
+    conn = get_db()
+    cursor = conn.cursor()
+    if isinstance(user_id_or_username, int) or str(user_id_or_username).isdigit():
+        cursor.execute("SELECT * FROM users WHERE id = ? OR username = ?", (user_id_or_username, str(user_id_or_username)))
+    else:
+        cursor.execute("SELECT * FROM users WHERE username = ?", (str(user_id_or_username).strip(),))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        return []
+
+    user_id = user['id']
+    username = user['username']
+    class_group = user['class_group'] or ''
+
+    cursor.execute("""
+        SELECT a.id as assignment_id, a.exam_id, a.title as assignment_title, a.assignment_type,
+               a.test_password as assignment_password, a.is_started, a.time_limit_minutes as assignment_time_limit,
+               e.title as exam_title, e.category as exam_category, e.kind as exam_kind,
+               e.test_password as exam_password, e.time_limit_minutes as exam_time_limit
+        FROM exam_assignments a
+        LEFT JOIN exams e ON a.exam_id = e.id
+        WHERE a.is_active = 1 AND (
+            (a.target_type = 'student' AND a.target_value = ?) OR
+            (a.target_type = 'class' AND a.target_value = ?) OR
+            (a.target_type = 'all' OR a.target_value = '*')
+        )
+        ORDER BY CASE a.target_type WHEN 'student' THEN 1 WHEN 'class' THEN 2 ELSE 3 END, a.id DESC
+    """, (username, class_group))
+    assignment_rows = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT exam_id, score, max_score, percentage, rubric_evaluation_json, updated_at
+        FROM student_saves
+        WHERE user_id = ?
+    """, (user_id,))
+    saves = {r['exam_id']: dict(r) for r in cursor.fetchall()}
+    conn.close()
+
+    results = []
+    seen_exam_ids = set()
+    for row in assignment_rows:
+        eid = row['exam_id']
+        if eid in seen_exam_ids:
+            continue
+        seen_exam_ids.add(eid)
+
+        kind = (row['assignment_type'] or row['exam_kind'] or 'lab').lower()
+        title = row['assignment_title'] or row['exam_title'] or eid
+        time_limit = row['assignment_time_limit'] or row['exam_time_limit'] or 80
+        test_pw = (row['assignment_password'] or row['exam_password'] or '').strip()
+        is_started = bool(row['is_started']) if kind == 'test' else True
+        save = saves.get(eid)
+
+        rubric_eval = []
+        if save and save.get('rubric_evaluation_json'):
+            try:
+                rubric_eval = json.loads(save['rubric_evaluation_json'])
+            except Exception:
+                rubric_eval = []
+
+        results.append({
+            'assignment_id': row['assignment_id'],
+            'exam_id': eid,
+            'title': title,
+            'category': row['exam_category'] or 'custom',
+            'kind': kind,
+            'assignment_type': kind,
+            'time_limit_minutes': time_limit,
+            'is_started': is_started,
+            'has_password': bool(test_pw),
+            'score': save['score'] if save else None,
+            'max_score': save['max_score'] if save else None,
+            'percentage': save['percentage'] if save else None,
+            'last_saved': save['updated_at'] if save else None,
+            'rubric_evaluation': rubric_eval
+        })
+    return results
+
+def verify_test_access(user_id_or_username, exam_id, password=''):
+    """Verifies whether a student can open and start a specific test."""
+    conn = get_db()
+    cursor = conn.cursor()
+    if isinstance(user_id_or_username, int) or str(user_id_or_username).isdigit():
+        cursor.execute("SELECT * FROM users WHERE id = ? OR username = ?", (user_id_or_username, str(user_id_or_username)))
+    else:
+        cursor.execute("SELECT * FROM users WHERE username = ?", (str(user_id_or_username).strip(),))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        return {'ok': False, 'error': 'Gebruiker niet gevonden.'}
+
+    if user['role'] in ('teacher', 'admin'):
+        conn.close()
+        return {'ok': True, 'role': user['role']}
+
+    username = user['username']
+    class_group = user['class_group'] or ''
+
+    cursor.execute("""
+        SELECT a.*, e.kind as exam_kind, e.test_password as exam_password
+        FROM exam_assignments a
+        LEFT JOIN exams e ON a.exam_id = e.id
+        WHERE a.exam_id = ? AND a.is_active = 1 AND (
+            (a.target_type = 'student' AND a.target_value = ?) OR
+            (a.target_type = 'class' AND a.target_value = ?) OR
+            (a.target_type = 'all' OR a.target_value = '*')
+        )
+        ORDER BY CASE a.target_type WHEN 'student' THEN 1 WHEN 'class' THEN 2 ELSE 3 END
+        LIMIT 1
+    """, (exam_id, username, class_group))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        conn = get_db()
+        c2 = conn.cursor()
+        c2.execute("SELECT kind, test_password FROM exams WHERE id = ?", (exam_id,))
+        erow = c2.fetchone()
+        conn.close()
+        if erow and erow['kind'] == 'test':
+            return {'ok': False, 'error': 'Deze test is niet aan jou of jouw klas toegewezen.'}
+        return {'ok': True}
+
+    kind = (row['assignment_type'] or row['exam_kind'] or 'lab').lower()
+    if kind != 'test':
+        return {'ok': True}
+
+    if not bool(row['is_started']):
+        return {'ok': False, 'error': 'De test is nog niet gestart door de docent voor jouw groep.'}
+
+    expected_pw = (row['test_password'] or row['exam_password'] or '').strip()
+    if expected_pw:
+        if not password or password.strip() != expected_pw:
+            return {'ok': False, 'error': 'Onjuist test wachtwoord.'}
+
+    return {'ok': True}
+
+def reset_student_lab(user_id_or_username, exam_id):
+    """Students can reset practice labs themselves, but are blocked from resetting official tests."""
+    conn = get_db()
+    cursor = conn.cursor()
+    if isinstance(user_id_or_username, int) or str(user_id_or_username).isdigit():
+        cursor.execute("SELECT * FROM users WHERE id = ? OR username = ?", (user_id_or_username, str(user_id_or_username)))
+    else:
+        cursor.execute("SELECT * FROM users WHERE username = ?", (str(user_id_or_username).strip(),))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        return {'ok': False, 'error': 'Gebruiker niet gevonden.'}
+
+    user_id = user['id']
+
+    # Check assignment/exam kind
+    cursor.execute("""
+        SELECT a.assignment_type, e.kind
+        FROM exams e
+        LEFT JOIN exam_assignments a ON e.id = a.exam_id
+        WHERE e.id = ?
+    """, (exam_id,))
+    row = cursor.fetchone()
+
+    is_test = False
+    if row:
+        if (row['assignment_type'] and row['assignment_type'].lower() == 'test') or (row['kind'] and row['kind'].lower() == 'test'):
+            is_test = True
+
+    if is_test:
+        conn.close()
+        return {'ok': False, 'error': 'Een officiële test kan enkel door een docent gereset worden.'}
+
+    cursor.execute("DELETE FROM student_saves WHERE user_id = ? AND exam_id = ?", (user_id, exam_id))
+    cnt = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return {'ok': True, 'message': f"Lab '{exam_id}' is gereset."}
+
+def reset_student_exam_by_teacher(user_id, exam_id):
+    """Allows teacher to reset any test or lab for a specific student."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM student_saves WHERE user_id = ? AND exam_id = ?", (user_id, exam_id))
+    cnt = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return {'ok': True, 'message': f"Voortgang voor examen '{exam_id}' is gewist voor student #{user_id}."}
+
+def change_user_password(user_id_or_username, old_password, new_password):
+    """Allows student or teacher to change their own password."""
+    if not new_password or len(str(new_password).strip()) < 4:
+        return {'ok': False, 'error': 'Het nieuwe wachtwoord moet minimaal 4 tekens bevatten.'}
+
+    conn = get_db()
+    cursor = conn.cursor()
+    if isinstance(user_id_or_username, int) or str(user_id_or_username).isdigit():
+        cursor.execute("SELECT * FROM users WHERE id = ? OR username = ?", (user_id_or_username, str(user_id_or_username)))
+    else:
+        cursor.execute("SELECT * FROM users WHERE username = ?", (str(user_id_or_username).strip(),))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        return {'ok': False, 'error': 'Gebruiker niet gevonden.'}
+
+    if not verify_password(old_password, user['password_hash']):
+        conn.close()
+        return {'ok': False, 'error': 'Huidig wachtwoord is onjuist.'}
+
+    new_hash = hash_password(str(new_password).strip())
+    cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user['id']))
+    conn.commit()
+    conn.close()
+    return {'ok': True, 'message': 'Wachtwoord succesvol gewijzigd.'}
+
 
 # --- SYSTEM SETTINGS ---
 def get_system_setting(key: str, default: str = None) -> str:

@@ -316,9 +316,7 @@ class PXLNetSimApp {
     if (examSelect) {
       examSelect.onchange = (e) => {
         const val = e.target.value;
-        if (this.presetExams[val]) {
-          this.loadExam(this.presetExams[val]);
-        }
+        this.selectExamFromDropdown(val);
       };
     }
 
@@ -341,6 +339,8 @@ class PXLNetSimApp {
         this.closeDeviceModal();
         this.closeLoginModal();
         this.closeSubmissionModal();
+        this.closeStudentStudioModal();
+        this.closeTestPasswordModal();
         if (!this.isOpdrachtPinned) {
           this.closeOpdrachtDropdown();
         }
@@ -350,11 +350,63 @@ class PXLNetSimApp {
     });
   }
 
-  populateExamSelector(selectedId) {
+  async populateExamSelector(selectedId) {
     const examSelect = document.getElementById('examSelector');
     if (!examSelect) return;
     examSelect.innerHTML = '';
 
+    let assignedLabs = [];
+    let assignedTests = [];
+    this.assignedExamsMap = {};
+
+    if (this.currentUser && this.currentUser.role === 'student') {
+      try {
+        const res = await fetch('/api/student/assigned-exams');
+        const data = await res.json();
+        if (data.status === 'success' && Array.isArray(data.exams)) {
+          data.exams.forEach(ex => {
+            this.assignedExamsMap[ex.exam_id] = ex;
+            if (ex.kind === 'test' || ex.assignment_type === 'test') {
+              assignedTests.push(ex);
+            } else {
+              assignedLabs.push(ex);
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Could not fetch assigned exams for student:', err);
+      }
+    }
+
+    // 1. Assigned Tests (Official tests)
+    if (assignedTests.length > 0) {
+      const ogTests = document.createElement('optgroup');
+      ogTests.label = '📝 Toegewezen Testen (Examens)';
+      assignedTests.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.exam_id;
+        const lockIcon = t.has_password ? '🔒 ' : '';
+        const startIcon = t.is_started ? '▶️ ' : '⏳ ';
+        opt.innerText = `${startIcon}${lockIcon}${t.title} (${t.time_limit_minutes} min)`;
+        ogTests.appendChild(opt);
+      });
+      examSelect.appendChild(ogTests);
+    }
+
+    // 2. Assigned Labs (Practice labs)
+    if (assignedLabs.length > 0) {
+      const ogLabs = document.createElement('optgroup');
+      ogLabs.label = '🔬 Toegewezen Oefenlabs';
+      assignedLabs.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.exam_id;
+        opt.innerText = `🔬 ${l.title} (${l.time_limit_minutes} min)`;
+        ogLabs.appendChild(opt);
+      });
+      examSelect.appendChild(ogLabs);
+    }
+
+    // 3. Standaard PXL Examens
     const ogDefault = document.createElement('optgroup');
     ogDefault.label = 'Standaard PXL Examens';
     ogDefault.innerHTML = `
@@ -364,6 +416,7 @@ class PXLNetSimApp {
     `;
     examSelect.appendChild(ogDefault);
 
+    // 4. Course Labs
     if (window.PXL_COURSE_LABS && Array.isArray(window.PXL_COURSE_LABS)) {
       const ogCourse = document.createElement('optgroup');
       ogCourse.label = 'Cursus Labs (vwgert.github.io/networksess)';
@@ -376,7 +429,60 @@ class PXLNetSimApp {
       examSelect.appendChild(ogCourse);
     }
 
-    if (selectedId) examSelect.value = selectedId;
+    if (selectedId) {
+      examSelect.value = selectedId;
+    } else if (this.activeExam) {
+      examSelect.value = this.activeExam.id;
+    }
+  }
+
+  async selectExamFromDropdown(val) {
+    if (!val) return;
+    const examSelect = document.getElementById('examSelector');
+
+    const asg = this.assignedExamsMap ? this.assignedExamsMap[val] : null;
+    if (asg && (asg.kind === 'test' || asg.assignment_type === 'test')) {
+      if (!asg.is_started) {
+        alert(`⏳ De test '${asg.title}' is nog niet gestart door de docent voor jouw groep.\n\nWacht tot je docent het startsein geeft.`);
+        if (examSelect && this.activeExam) examSelect.value = this.activeExam.id;
+        return;
+      }
+      if (asg.has_password) {
+        this.openTestPasswordModal(asg);
+        return;
+      }
+    }
+
+    await this.loadExamById(val);
+  }
+
+  async loadExamById(examId) {
+    const examSelect = document.getElementById('examSelector');
+    if (examSelect) examSelect.value = examId;
+
+    if (this.presetExams && this.presetExams[examId]) {
+      this.loadExam(this.presetExams[examId]);
+      return;
+    }
+
+    const clab = window.PXL_COURSE_LABS ? window.PXL_COURSE_LABS.find(l => l.id === examId || l.code === examId) : null;
+    if (clab) {
+      this.loadCourseLab(clab.id);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/exam/${encodeURIComponent(examId)}`);
+      const data = await res.json();
+      if (data.status === 'success' && data.exam) {
+        this.loadExam(data.exam);
+      } else {
+        this.showToast(`Opdracht '${examId}' geopend.`);
+      }
+    } catch (e) {
+      console.warn('Could not load exam from DB:', e);
+      this.showToast(`Opdracht '${examId}' geactiveerd.`);
+    }
   }
 
   exportCurrentLabJson() {
@@ -3024,31 +3130,44 @@ Type 'help', 'ip a', or 'python3' to get started.
 
   updateAuthUi() {
     const container = document.getElementById('userAuthContainer');
-    if (!container) return;
+    const teacherStudioBtn = document.getElementById('btnToggleStudio');
+    const studentStudioBtn = document.getElementById('btnToggleStudentStudio');
 
     if (this.currentUser) {
-      const isTeacher = (this.currentUser.role === 'teacher');
-      container.innerHTML = `
-        <span class="pt-auth-badge ${isTeacher ? 'teacher' : ''}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 8px; border-radius: 4px; background: ${isTeacher ? '#fef3c7; color: #92400e; border: 1px solid #fde68a;' : '#e0f2fe; color: #0369a1; border: 1px solid #bae6fd;'} white-space: nowrap;">
-          ${isTeacher ? '🎓 Docent' : '👨‍🎓 Student'}: ${this.currentUser.full_name || this.currentUser.username}
-        </span>
-        ${!isTeacher ? `
-          <button class="pt-btn pt-btn-secondary" id="btnStudentScores" onclick="window.PXLApp.openStudentScoresModal()" style="padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;" title="Bekijk mijn behaalde resultaten en scores per test">
-            📊 Mijn Scores
+      const isTeacher = (this.currentUser.role === 'teacher' || this.currentUser.role === 'admin');
+
+      // Only show Teacher Studio if teacher, and Student Studio if student
+      if (teacherStudioBtn) teacherStudioBtn.style.display = isTeacher ? 'inline-flex' : 'none';
+      if (studentStudioBtn) studentStudioBtn.style.display = !isTeacher ? 'inline-flex' : 'none';
+
+      if (container) {
+        container.innerHTML = `
+          <span class="pt-auth-badge ${isTeacher ? 'teacher' : ''}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 8px; border-radius: 4px; background: ${isTeacher ? '#fef3c7; color: #92400e; border: 1px solid #fde68a;' : '#e0f2fe; color: #0369a1; border: 1px solid #bae6fd;'} white-space: nowrap;">
+            ${isTeacher ? '🎓 Docent' : '👨‍🎓 Student'}: ${this.currentUser.full_name || this.currentUser.username}
+          </span>
+          ${!isTeacher ? `
+            <span class="pt-autosave-indicator" id="autoSaveLabel" style="font-size: 10px; color: #16a34a; white-space: nowrap;">💾 Auto-save</span>
+          ` : ''}
+          <button class="pt-btn pt-btn-secondary" id="btnLogoutBtn" style="padding: 4px 9px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;" onclick="window.PXLApp.logout()" title="Sessie beëindigen en uitloggen">
+            Uitloggen
           </button>
-          <span class="pt-autosave-indicator" id="autoSaveLabel" style="font-size: 10px; color: #16a34a; white-space: nowrap;">💾 Auto-save</span>
-        ` : ''}
-        <button class="pt-btn pt-btn-secondary" id="btnLogoutBtn" style="padding: 4px 9px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;" onclick="window.PXLApp.logout()" title="Sessie beëindigen en uitloggen">
-          Uitloggen
-        </button>
-      `;
+        `;
+      }
     } else {
-      container.innerHTML = `
-        <button class="pt-btn pt-btn-secondary" id="btnLoginModal" onclick="window.PXLApp.openLoginModal()" style="padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;">
-          🔑 Inloggen
-        </button>
-      `;
+      if (teacherStudioBtn) teacherStudioBtn.style.display = 'none';
+      if (studentStudioBtn) studentStudioBtn.style.display = 'none';
+
+      if (container) {
+        container.innerHTML = `
+          <button class="pt-btn pt-btn-secondary" id="btnLoginModal" onclick="window.PXLApp.openLoginModal()" style="padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+            🔑 Inloggen
+          </button>
+        `;
+      }
     }
+
+    // Refresh exam selector dropdown
+    this.populateExamSelector();
   }
 
   openLoginModal(defaultRole = 'student') {
@@ -3212,6 +3331,7 @@ Type 'help', 'ip a', or 'python3' to get started.
           exam_id: examId,
           topology: topology,
           running_config: runningConfigs,
+          rubric_evaluation: evalResult.objectives || [],
           score: score,
           max_score: maxScore,
           percentage: percentage
@@ -3249,163 +3369,369 @@ Type 'help', 'ip a', or 'python3' to get started.
     }
   }
 
-  // --- STUDENT SCORES & RESULTS OVERVIEW MODAL ---
-  openStudentScoresModal() {
-    const modal = document.getElementById('studentScoresModal');
+  // --- STUDENT STUDIO & PASSWORD MANAGEMENT ---
+  openStudentStudioModal() {
+    const modal = document.getElementById('studentStudioModal');
     if (!modal) return;
+    if (!this.currentUser) {
+      this.openLoginModal('student');
+      return;
+    }
+
+    // Populate user info card
+    const uSpan = document.getElementById('studentInfoUsername');
+    const nSpan = document.getElementById('studentInfoFullName');
+    const cSpan = document.getElementById('studentInfoClass');
+    const pSpan = document.getElementById('studentInfoProgram');
+    const ySpan = document.getElementById('studentInfoYear');
+    const bSpan = document.getElementById('studentStudioUserBadge');
+
+    if (uSpan) uSpan.innerText = this.currentUser.username || '-';
+    if (nSpan) nSpan.innerText = this.currentUser.full_name || '-';
+    if (cSpan) cSpan.innerText = this.currentUser.class_group || '1SNEb';
+    if (pSpan) pSpan.innerText = this.currentUser.program || 'PXL TI / SNE';
+    if (ySpan) ySpan.innerText = this.currentUser.academic_year || '2026-27';
+    if (bSpan) bSpan.innerText = `${this.currentUser.full_name} (${this.currentUser.class_group || 'Student'})`;
+
     modal.style.display = 'flex';
-    this.loadStudentScores();
+    this.switchStudentStudioTab('labs');
+    this.loadStudentStudioData();
   }
 
-  closeStudentScoresModal() {
-    const modal = document.getElementById('studentScoresModal');
+  closeStudentStudioModal() {
+    const modal = document.getElementById('studentStudioModal');
     if (modal) modal.style.display = 'none';
   }
 
-  async loadStudentScores() {
-    const body = document.getElementById('studentScoresModalBody');
-    if (!body) return;
+  openStudentScoresModal() {
+    this.openStudentStudioModal();
+  }
 
-    if (!this.currentUser) {
-      body.innerHTML = `<div style="padding: 30px; text-align: center; color: #ef4444;">Je bent niet ingelogd als student. Log eerst in om je scores te bekijken.</div>`;
-      return;
-    }
+  closeStudentScoresModal() {
+    this.closeStudentStudioModal();
+  }
 
-    body.innerHTML = `<div style="padding: 30px; text-align: center; color: #64748b;">⏳ Je behaalde resultaten ophalen uit database...</div>`;
+  switchStudentStudioTab(tab) {
+    const btnLabs = document.getElementById('tabBtnStudentLabs');
+    const btnAcc = document.getElementById('tabBtnStudentAccount');
+    const paneLabs = document.getElementById('paneStudentLabs');
+    const paneAcc = document.getElementById('paneStudentAccount');
 
-    try {
-      const res = await fetch('/api/student/scores');
-      const data = await res.json();
-      const scores = data.scores || [];
-
-      const categoryBadges = {
-        pka_import: { label: '📦 PKA Import', bg: '#eff6ff', color: '#1d4ed8' },
-        custom: { label: '✏️ Examen', bg: '#ecfdf5', color: '#047857' },
-        course_lab: { label: '📚 Cursuslabo', bg: '#faf5ff', color: '#6b21a8' },
-        preset: { label: '⚡ Preset', bg: '#fefce8', color: '#a16207' }
-      };
-
-      let html = `
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-          <div>
-            <div style="font-size: 14px; font-weight: 700; color: #0f172a;">👨‍🎓 ${this.currentUser.full_name || this.currentUser.username}</div>
-            <div style="font-size: 11.5px; color: #64748b;">Studentennr: <strong>${this.currentUser.username}</strong> | Klas: <strong>${this.currentUser.class_group || 'Algemeen'}</strong></div>
-          </div>
-          <div style="text-align: right;">
-            <span style="font-size: 12px; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 12px;">
-              ${scores.length} test(en) geregistreerd
-            </span>
-          </div>
-        </div>
-      `;
-
-      if (scores.length === 0) {
-        html += `
-          <div style="padding: 40px 20px; text-align: center; background: #fff; border: 1.5px dashed #cbd5e1; border-radius: 8px;">
-            <div style="font-size: 36px; margin-bottom: 8px;">📝</div>
-            <h4 style="margin: 0 0 6px 0; color: #1e293b; font-size: 14px;">Nog Geen Scores Geregistreerd</h4>
-            <p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.5;">
-              Je hebt momenteel nog geen voltooide of opgeslagen scores in het systeem.<br>
-              Zodra je start met een toegekend examen of cursuslabo, wordt je score hier realtime bijgewerkt!
-            </p>
-          </div>
-        `;
-      } else {
-        html += `
-          <div style="border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #fff;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-              <thead>
-                <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
-                  <th style="padding: 8px 12px;">Examen / Labo Opdracht</th>
-                  <th style="padding: 8px 12px; width: 100px;">Categorie</th>
-                  <th style="padding: 8px 12px; width: 140px;">Datum & Tijd</th>
-                  <th style="padding: 8px 12px; width: 90px;">Behaald</th>
-                  <th style="padding: 8px 12px; width: 130px;">Resultaat</th>
-                  <th style="padding: 8px 12px; width: 90px; text-align: center;">Actie</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${scores.map(s => {
-                  const cat = categoryBadges[s.category] || { label: s.category || 'Opdracht', bg: '#f1f5f9', color: '#475569' };
-                  const pct = Math.round(s.percentage || 0);
-                  const isPassed = pct >= 50;
-                  const color = isPassed ? '#16a34a' : (pct > 0 ? '#d97706' : '#dc2626');
-
-                  return `
-                    <tr style="border-bottom: 1px solid #e2e8f0;">
-                      <td style="padding: 8px 12px;">
-                        <div style="font-weight: 700; color: #0f172a;">${s.title || s.exam_id}</div>
-                        <div style="font-size: 10px; color: #94a3b8; font-family: monospace;">${s.exam_id}</div>
-                      </td>
-                      <td style="padding: 8px 12px;">
-                        <span style="background: ${cat.bg}; color: ${cat.color}; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; white-space: nowrap;">
-                          ${cat.label}
-                        </span>
-                      </td>
-                      <td style="padding: 8px 12px; font-size: 11px; color: #64748b; white-space: nowrap;">
-                        🕒 ${s.updated_at || '-'}
-                      </td>
-                      <td style="padding: 8px 12px; font-weight: 700; color: ${color};">
-                        ${s.score} / ${s.max_score} pt
-                      </td>
-                      <td style="padding: 8px 12px;">
-                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
-                          <strong style="color: ${color}; font-size: 12px;">${pct}%</strong>
-                          <span style="font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 600; background: ${isPassed ? '#dcfce7; color: #15803d;' : '#fee2e2; color: #b91c1c;'}">
-                            ${isPassed ? '✅ Geslaagd' : '⚠️ Onvoldoende'}
-                          </span>
-                        </div>
-                        <div style="width: 100%; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
-                          <div style="width: ${Math.min(100, Math.max(0, pct))}%; height: 100%; background: ${color};"></div>
-                        </div>
-                      </td>
-                      <td style="padding: 8px 12px; text-align: center;">
-                        <button class="pt-btn pt-btn-secondary" style="padding: 4px 8px; font-size: 11px; font-weight: 600;" onclick="window.PXLApp.openExamFromScores('${s.exam_id}', '${s.category || ''}')" title="Heropen dit examen direct in de simulator">
-                          🚀 Openen
-                        </button>
-                      </td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
-        `;
+    if (tab === 'labs') {
+      if (btnLabs) {
+        btnLabs.classList.add('active');
+        btnLabs.style.borderBottom = '3px solid #0284c7';
+        btnLabs.style.color = '#0f172a';
       }
-
-      body.innerHTML = html;
-    } catch (err) {
-      body.innerHTML = `<div style="padding: 30px; text-align: center; color: #ef4444;">Fout bij ophalen van resultaten: ${err.message}</div>`;
+      if (btnAcc) {
+        btnAcc.classList.remove('active');
+        btnAcc.style.borderBottom = '3px solid transparent';
+        btnAcc.style.color = '#64748b';
+      }
+      if (paneLabs) paneLabs.style.display = 'block';
+      if (paneAcc) paneAcc.style.display = 'none';
+    } else {
+      if (btnAcc) {
+        btnAcc.classList.add('active');
+        btnAcc.style.borderBottom = '3px solid #0284c7';
+        btnAcc.style.color = '#0f172a';
+      }
+      if (btnLabs) {
+        btnLabs.classList.remove('active');
+        btnLabs.style.borderBottom = '3px solid transparent';
+        btnLabs.style.color = '#64748b';
+      }
+      if (paneAcc) paneAcc.style.display = 'block';
+      if (paneLabs) paneLabs.style.display = 'none';
     }
   }
 
-  async openExamFromScores(examId, category) {
-    this.closeStudentScoresModal();
+  async loadStudentStudioData() {
+    const container = document.getElementById('studentAssignedListContainer');
+    if (!container) return;
 
-    // Check if it's a course lab
-    const lab = window.PXL_COURSE_LABS ? window.PXL_COURSE_LABS.find(l => l.id === examId || l.code === examId) : null;
-    if (lab) {
-      this.loadCourseLab(lab.id);
-      return;
-    }
-
-    if (this.presetExams && this.presetExams[examId]) {
-      this.loadExam(this.presetExams[examId]);
-      return;
-    }
-
-    // Try fetching from database
     try {
-      const res = await fetch(`/api/exam/${encodeURIComponent(examId)}`);
+      container.innerHTML = `<div style="padding: 30px; text-align: center; color: #64748b;">⏳ Toegewezen labs en testen ophalen...</div>`;
+      const res = await fetch('/api/student/assigned-exams');
       const data = await res.json();
-      if (data.status === 'success' && data.exam) {
-        this.loadExam(data.exam);
-      } else {
-        this.showToast(`Examen '${examId}' geopend.`);
+      const exams = (data && data.exams) || [];
+
+      if (exams.length === 0) {
+        container.innerHTML = `
+          <div style="padding: 40px 20px; text-align: center; background: #fff; border: 1.5px dashed #cbd5e1; border-radius: 8px;">
+            <div style="font-size: 36px; margin-bottom: 8px;">🔬</div>
+            <h4 style="margin: 0 0 6px 0; color: #1e293b; font-size: 14px;">Geen Toegewezen Labs of Testen</h4>
+            <p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.5;">
+              Je docent heeft momenteel nog geen specifieke labs of testen aan jouw klas (${this.currentUser?.class_group || '1SNEb'}) gekoppeld.<br>
+              Je kan altijd vrij oefenen met de standaard labs en cursusopdrachten in de menubalk!
+            </p>
+          </div>
+        `;
+        return;
       }
-    } catch (e) {
-      console.warn('Could not load exam from DB:', e);
-      this.showToast(`Opdracht '${examId}' geactiveerd.`);
+
+      let html = `
+        <div style="border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #fff;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
+                <th style="padding: 8px 12px;">Opdracht / Examen</th>
+                <th style="padding: 8px 12px; width: 110px;">Type</th>
+                <th style="padding: 8px 12px; width: 120px;">Score</th>
+                <th style="padding: 8px 12px; width: 130px;">Feedback</th>
+                <th style="padding: 8px 12px; width: 140px; text-align: right;">Actie & Reset</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      exams.forEach((ex, idx) => {
+        const isTest = (ex.kind === 'test' || ex.assignment_type === 'test');
+        const typeBadge = isTest
+          ? `<span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 700;">📝 Test</span>`
+          : `<span style="background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 700;">🔬 Lab</span>`;
+
+        const hasScore = (ex.score !== null && ex.score !== undefined);
+        const pct = hasScore ? Math.round(ex.percentage || 0) : 0;
+        const isPassed = pct >= 50;
+        const scoreColor = isPassed ? '#16a34a' : (pct > 0 ? '#d97706' : '#dc2626');
+        const scoreDisplay = hasScore
+          ? `<div><strong style="color: ${scoreColor}; font-size: 12.5px;">${pct}%</strong> <span style="font-size: 11px; color: #64748b;">(${ex.score}/${ex.max_score} pt)</span></div>
+             <div style="font-size: 10px; color: #94a3b8;">${ex.last_saved ? ex.last_saved.split(' ')[1] : ''}</div>`
+          : `<span style="color: #94a3b8; font-style: italic; font-size: 11px;">Nog niet ingediend</span>`;
+
+        const rubricEval = ex.rubric_evaluation || [];
+        const hasRubricEval = rubricEval.length > 0;
+        const failedCount = rubricEval.filter(r => !r.passed).length;
+        const passedCount = rubricEval.filter(r => r.passed).length;
+
+        const feedbackBtn = hasRubricEval
+          ? `<button class="pt-btn pt-btn-sm" style="font-size: 11px; padding: 3px 8px; background: ${failedCount > 0 ? '#fef2f2' : '#f0fdf4'}; border: 1px solid ${failedCount > 0 ? '#fecaca' : '#bbf7d0'}; color: ${failedCount > 0 ? '#b91c1c' : '#15803d'}; font-weight: 600;" onclick="window.PXLApp.toggleRubricFeedbackDetails(${idx})">
+               🔍 ${failedCount > 0 ? `Fouten (${failedCount})` : 'Alle Rubrics ✅'}
+             </button>`
+          : `<span style="color: #94a3b8; font-size: 11px;">-</span>`;
+
+        const resetBtn = isTest
+          ? `<span style="font-size: 10px; color: #94a3b8; display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;" title="Officiële testen kunnen uitsluitend door een docent gereset worden.">🔒 Enkel docent reset</span>`
+          : `<button class="pt-btn pt-btn-sm" style="font-size: 10.5px; padding: 2px 7px; background: #fff; border: 1px solid #cbd5e1; color: #475569;" onclick="window.PXLApp.resetLabByStudent('${ex.exam_id}')" title="Reset dit oefenlabo om opnieuw vanaf blanco te beginnen">🔄 Reset</button>`;
+
+        html += `
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 12px;">
+              <div style="font-weight: 700; color: #0f172a;">${ex.title}</div>
+              <div style="font-size: 10.5px; color: #64748b; display: flex; gap: 8px; margin-top: 2px;">
+                <span>⏱️ ${ex.time_limit_minutes} min</span>
+                ${isTest ? (ex.is_started ? '<span style="color: #16a34a; font-weight: 600;">▶️ Gestart</span>' : '<span style="color: #d97706; font-weight: 600;">⏳ Wacht op startsein docent</span>') : '<span style="color: #0284c7; font-weight: 600;">🟢 Direct beschikbaar</span>'}
+              </div>
+            </td>
+            <td style="padding: 10px 12px;">${typeBadge}</td>
+            <td style="padding: 10px 12px;">${scoreDisplay}</td>
+            <td style="padding: 10px 12px;">${feedbackBtn}</td>
+            <td style="padding: 10px 12px; text-align: right;">
+              <div style="display: inline-flex; gap: 6px; align-items: center;">
+                <button class="pt-btn pt-btn-primary" style="padding: 3px 8px; font-size: 11px;" onclick="window.PXLApp.openExamFromStudentStudio('${ex.exam_id}')">
+                  🚀 Openen
+                </button>
+                ${resetBtn}
+              </div>
+            </td>
+          </tr>
+        `;
+
+        if (hasRubricEval) {
+          html += `
+            <tr id="rubricFeedbackRow_${idx}" style="display: none; background: #fafafa; border-bottom: 1px solid #e2e8f0;">
+              <td colspan="5" style="padding: 12px 16px;">
+                <div style="margin-bottom: 8px; font-size: 12px; font-weight: 700; color: #1e293b; display: flex; justify-content: space-between;">
+                  <span>📋 Gedetailleerde Rubric Evaluatie &amp; Foutenoverzicht:</span>
+                  <span style="font-size: 11px; font-weight: 600; color: ${failedCount > 0 ? '#b91c1c' : '#15803d'};">
+                    ${passedCount} behaald / ${failedCount} te verbeteren
+                  </span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  ${rubricEval.map(crit => {
+                    if (crit.passed) {
+                      return `
+                        <div style="color: #15803d; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; padding: 6px 10px; font-size: 11.5px; display: flex; justify-content: space-between; align-items: center;">
+                          <div>
+                            <strong>✅ ${crit.title || crit.name || 'Criterium'}</strong>
+                            <div style="font-size: 10.5px; color: #166534; margin-top: 1px;">${crit.detail || 'Correct geconfigureerd.'}</div>
+                          </div>
+                          <strong style="color: #15803d; font-size: 11.5px;">+${crit.points} pt</strong>
+                        </div>
+                      `;
+                    } else {
+                      return `
+                        <div style="color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; border-radius: 4px; padding: 6px 10px; font-size: 11.5px; display: flex; justify-content: space-between; align-items: center;">
+                          <div>
+                            <strong>❌ ${crit.title || crit.name || 'Criterium'}</strong>
+                            <div style="font-size: 10.5px; color: #b91c1c; margin-top: 1px;">
+                              <em>Wat er niet goed was:</em> ${crit.detail || crit.reason || 'Niet of onvolledig geconfigureerd'}
+                            </div>
+                          </div>
+                          <strong style="color: #dc2626; font-size: 11.5px;">0 / ${crit.points} pt</strong>
+                        </div>
+                      `;
+                    }
+                  }).join('')}
+                </div>
+              </td>
+            </tr>
+          `;
+        }
+      });
+
+      html += `</tbody></table></div>`;
+      container.innerHTML = html;
+    } catch (err) {
+      container.innerHTML = `<div style="padding: 20px; color: #ef4444; text-align: center;">Fout bij laden van Student Studio: ${err.message}</div>`;
+    }
+  }
+
+  toggleRubricFeedbackDetails(idx) {
+    const row = document.getElementById(`rubricFeedbackRow_${idx}`);
+    if (row) {
+      row.style.display = (row.style.display === 'none') ? 'table-row' : 'none';
+    }
+  }
+
+  async handleStudentChangePassword(e) {
+    e.preventDefault();
+    const oldPw = document.getElementById('studentOldPw')?.value;
+    const newPw = document.getElementById('studentNewPw')?.value;
+    const confPw = document.getElementById('studentConfirmPw')?.value;
+    const alertBox = document.getElementById('studentPwAlert');
+
+    if (!alertBox) return;
+
+    if (newPw !== confPw) {
+      alertBox.style.display = 'block';
+      alertBox.style.background = '#fef2f2';
+      alertBox.style.color = '#b91c1c';
+      alertBox.style.border = '1px solid #fecaca';
+      alertBox.innerText = 'Het nieuwe wachtwoord en de bevestiging komen niet overeen.';
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/student/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ old_password: oldPw, new_password: newPw })
+      });
+      const data = await res.json();
+      alertBox.style.display = 'block';
+
+      if (data.ok) {
+        alertBox.style.background = '#f0fdf4';
+        alertBox.style.color = '#15803d';
+        alertBox.style.border = '1px solid #bbf7d0';
+        alertBox.innerText = '✅ Wachtwoord succesvol gewijzigd!';
+        document.getElementById('studentOldPw').value = '';
+        document.getElementById('studentNewPw').value = '';
+        document.getElementById('studentConfirmPw').value = '';
+        this.showToast('🔐 Wachtwoord succesvol bijgewerkt!');
+      } else {
+        alertBox.style.background = '#fef2f2';
+        alertBox.style.color = '#b91c1c';
+        alertBox.style.border = '1px solid #fecaca';
+        alertBox.innerText = '❌ ' + (data.error || 'Kon wachtwoord niet wijzigen');
+      }
+    } catch (err) {
+      alertBox.style.display = 'block';
+      alertBox.style.background = '#fef2f2';
+      alertBox.style.color = '#b91c1c';
+      alertBox.innerText = 'Netwerkfout: ' + err.message;
+    }
+  }
+
+  async resetLabByStudent(examId) {
+    if (!confirm(`Weet je zeker dat je het labo '${examId}' wil resetten?\n\nAl je opgeslagen configuraties en behaalde score worden gewist zodat je blanco opnieuw kunt oefenen.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/student/reset-lab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exam_id: examId })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        this.showToast(`🔄 Lab '${examId}' succesvol gereset!`);
+        await this.loadStudentStudioData();
+        if (this.activeExam && this.activeExam.id === examId) {
+          this.loadExam(this.activeExam);
+        }
+      } else {
+        alert('Fout: ' + (data.error || 'Kon lab niet resetten'));
+      }
+    } catch (err) {
+      alert('Netwerkfout: ' + err.message);
+    }
+  }
+
+  async openExamFromStudentStudio(examId) {
+    this.closeStudentStudioModal();
+    await this.selectExamFromDropdown(examId);
+  }
+
+  // --- TEST PASSWORD MODAL CONTROLS ---
+  openTestPasswordModal(assignedExam) {
+    this.pendingTestExam = assignedExam;
+    const modal = document.getElementById('testPasswordModal');
+    if (!modal) return;
+    const titleEl = document.getElementById('testPasswordModalTitle');
+    const descEl = document.getElementById('testPasswordModalDesc');
+    const inputEl = document.getElementById('inputTestPassword');
+    const alertEl = document.getElementById('testPasswordAlert');
+
+    if (titleEl) titleEl.innerText = `🔒 Test Wachtwoord: ${assignedExam.title}`;
+    if (descEl) descEl.innerText = `Deze opdracht is een beveiligde test (${assignedExam.time_limit_minutes} min). Voer het test-wachtwoord in dat door je docent is vrijgegeven om de test te starten.`;
+    if (alertEl) alertEl.style.display = 'none';
+    if (inputEl) {
+      inputEl.value = '';
+      setTimeout(() => inputEl.focus(), 100);
+    }
+    modal.style.display = 'flex';
+  }
+
+  closeTestPasswordModal() {
+    const modal = document.getElementById('testPasswordModal');
+    if (modal) modal.style.display = 'none';
+    this.pendingTestExam = null;
+  }
+
+  async submitTestPassword(e) {
+    e.preventDefault();
+    if (!this.pendingTestExam) return;
+    const password = document.getElementById('inputTestPassword')?.value || '';
+    const alertEl = document.getElementById('testPasswordAlert');
+
+    try {
+      const res = await fetch('/api/student/verify-test-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exam_id: this.pendingTestExam.exam_id, password: password })
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        const examIdToLoad = this.pendingTestExam.exam_id;
+        this.closeTestPasswordModal();
+        await this.loadExamById(examIdToLoad);
+        this.showToast(`🚀 Test '${this.pendingTestExam.title}' gestart! Veel succes!`);
+      } else {
+        if (alertEl) {
+          alertEl.innerText = data.error || 'Onjuist wachtwoord';
+          alertEl.style.display = 'block';
+        }
+      }
+    } catch (err) {
+      if (alertEl) {
+        alertEl.innerText = 'Netwerkfout: ' + err.message;
+        alertEl.style.display = 'block';
+      }
     }
   }
 }

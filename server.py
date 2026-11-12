@@ -50,7 +50,13 @@ from backend.database import (
     assign_exam_batch,
     get_import_queue,
     clear_import_queue,
-    get_students_grouped_by_class
+    get_students_grouped_by_class,
+    toggle_assignment_test_started,
+    get_all_assigned_exams_for_student,
+    verify_test_access,
+    reset_student_lab,
+    reset_student_exam_by_teacher,
+    change_user_password
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -147,6 +153,7 @@ def student_save():
     exam_id = data.get("exam_id", "01_pxl_standard")
     topology = data.get("topology", {})
     running_config = data.get("running_config", {})
+    rubric_evaluation = data.get("rubric_evaluation", [])
     score = data.get("score", 0)
     max_score = data.get("max_score", 100)
     percentage = data.get("percentage", 0.0)
@@ -165,7 +172,7 @@ def student_save():
     if not user_id:
         return jsonify({"error": "Niet ingelogd. Log in om je voortgang op te slaan."}), 401
 
-    save_student_progress(user_id, exam_id, topology, score, max_score, percentage, running_config)
+    save_student_progress(user_id, exam_id, topology, score, max_score, percentage, running_config, rubric_eval=rubric_evaluation)
     return jsonify({
         "success": True,
         "saved_at": time.strftime("%H:%M:%S"),
@@ -220,6 +227,99 @@ def student_assigned_exam():
     return jsonify({"assigned": True, "assignment": assignment})
 
 
+@app.route("/api/student/assigned-exams", methods=["GET"])
+def student_assigned_exams():
+    """Returns all active assigned labs and tests for the student's dropdown and Student Studio."""
+    user_id = session.get("user_id")
+    if not user_id and "username" in request.args:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM users WHERE username = ?", (request.args["username"].strip(),))
+        row = cur.fetchone()
+        conn.close()
+        if row:
+            user_id = row["id"]
+
+    if not user_id:
+        return jsonify({"status": "unauthenticated", "exams": [], "total": 0})
+
+    assigned = get_all_assigned_exams_for_student(user_id)
+    return jsonify({"status": "success", "exams": assigned, "total": len(assigned)})
+
+
+@app.route("/api/student/verify-test-password", methods=["POST"])
+def student_verify_test_pw():
+    """Checks whether the student can enter a test (checks if started and validates password)."""
+    data = request.get_json(force=True) or {}
+    exam_id = data.get("exam_id", "").strip()
+    password = data.get("password", "")
+
+    user_id = session.get("user_id")
+    if not user_id and "username" in data:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM users WHERE username = ?", (data["username"].strip(),))
+        row = cur.fetchone()
+        conn.close()
+        if row:
+            user_id = row["id"]
+
+    if not user_id:
+        return jsonify({"ok": False, "error": "Niet ingelogd."}), 401
+
+    res = verify_test_access(user_id, exam_id, password)
+    return jsonify(res)
+
+
+@app.route("/api/student/reset-lab", methods=["POST"])
+def student_reset_lab():
+    """Student can reset practice labs only (tests are protected)."""
+    data = request.get_json(force=True) or {}
+    exam_id = data.get("exam_id", "").strip()
+
+    user_id = session.get("user_id")
+    if not user_id and "username" in data:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM users WHERE username = ?", (data["username"].strip(),))
+        row = cur.fetchone()
+        conn.close()
+        if row:
+            user_id = row["id"]
+
+    if not user_id:
+        return jsonify({"ok": False, "error": "Niet ingelogd."}), 401
+
+    res = reset_student_lab(user_id, exam_id)
+    status_code = 200 if res.get("ok") else 400
+    return jsonify(res), status_code
+
+
+@app.route("/api/student/change-password", methods=["POST"])
+def student_change_pw():
+    """Student or user changes their own password."""
+    data = request.get_json(force=True) or {}
+    old_pw = data.get("old_password", "")
+    new_pw = data.get("new_password", "")
+
+    user_id = session.get("user_id")
+    if not user_id and "username" in data:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM users WHERE username = ?", (data["username"].strip(),))
+        row = cur.fetchone()
+        conn.close()
+        if row:
+            user_id = row["id"]
+
+    if not user_id:
+        return jsonify({"ok": False, "error": "Niet ingelogd."}), 401
+
+    res = change_user_password(user_id, old_pw, new_pw)
+    status_code = 200 if res.get("ok") else 400
+    return jsonify(res), status_code
+
+
 @app.route("/api/student/scores", methods=["GET"])
 def student_scores_endpoint():
     """Returns all test and exam scores for the currently logged-in student."""
@@ -238,6 +338,7 @@ def student_scores_endpoint():
 
     scores = get_scores_for_student(user_id)
     return jsonify({"scores": scores, "total": len(scores)})
+
 
 
 # --- TEACHER APIS: USERS, CLASSES, DROPDOWN MOVES & MANAGEMENT ---
@@ -423,6 +524,8 @@ def teacher_save_exam():
     time_limit = int(data.get("time_limit_minutes") or data.get("timeLimitMinutes") or 80)
     category = data.get("category", "custom")
     created_by = session.get("username", "teacher")
+    kind = (data.get("kind") or "lab").lower()
+    test_password = (data.get("test_password") or "").strip()
 
     try:
         saved_id = save_exam(
@@ -433,12 +536,15 @@ def teacher_save_exam():
             rubric=rubric,
             time_limit_minutes=time_limit,
             category=category,
-            created_by=created_by
+            created_by=created_by,
+            kind=kind,
+            test_password=test_password
         )
         return jsonify({
             "success": True,
             "exam_id": saved_id,
             "title": title,
+            "kind": kind,
             "message": f"Examen '{title}' succesvol opgeslagen in database."
         })
     except Exception as e:
@@ -481,17 +587,30 @@ def teacher_assign_targets():
     targets = data.get("targets", [])
     time_limit = int(data.get("time_limit_minutes", 80))
     is_active = 1 if data.get("is_active", True) else 0
+    assignment_type = (data.get("assignment_type") or "lab").lower()
+    test_password = (data.get("test_password") or "").strip()
+    is_started = data.get("is_started")
 
     if not exam_id:
         return jsonify({"error": "Examen ID is verplicht"}), 400
     if not targets:
         return jsonify({"error": "Selecteer minstens één klas of student"}), 400
 
-    cnt = assign_exam_batch(exam_id, title, targets, time_limit_minutes=time_limit, is_active=is_active)
+    cnt = assign_exam_batch(
+        exam_id,
+        title,
+        targets,
+        time_limit_minutes=time_limit,
+        is_active=is_active,
+        assignment_type=assignment_type,
+        test_password=test_password,
+        is_started=is_started
+    )
+    type_label = "Test" if assignment_type == "test" else "Lab"
     return jsonify({
         "success": True,
         "count": cnt,
-        "message": f"Opdracht '{title}' succesvol opengezet voor {cnt} doelgroep(en)/student(en) met {time_limit} min tijdslimiet."
+        "message": f"{type_label} '{title}' succesvol opengezet voor {cnt} doelgroep(en)/student(en) met {time_limit} min tijdslimiet."
     })
 
 
@@ -506,18 +625,22 @@ def teacher_exam_assignments():
         target_class = data.get("target_class", "")
         time_limit = int(data.get("time_limit_minutes", 80))
         is_active = 1 if data.get("is_active", True) else 0
+        assignment_type = (data.get("assignment_type") or "lab").lower()
+        test_password = (data.get("test_password") or "").strip()
+        is_started = data.get("is_started")
 
         if not exam_id:
             return jsonify({"error": "Examen ID is verplicht"}), 400
 
         if target_type == 'all' or not target_values:
-            assign_exam(exam_id, title, 'all', '*', '', time_limit, is_active)
+            assign_exam(exam_id, title, 'all', '*', '', time_limit, is_active, assignment_type=assignment_type, test_password=test_password, is_started=is_started)
         else:
             for val in target_values:
                 if str(val).strip():
-                    assign_exam(exam_id, title, target_type, str(val).strip(), target_class, time_limit, is_active)
+                    assign_exam(exam_id, title, target_type, str(val).strip(), target_class, time_limit, is_active, assignment_type=assignment_type, test_password=test_password, is_started=is_started)
 
-        return jsonify({"success": True, "message": f"Examen '{title}' succesvol toegewezen met tijdslimiet van {time_limit} min."})
+        type_label = "Test" if assignment_type == "test" else "Lab"
+        return jsonify({"success": True, "message": f"{type_label} '{title}' succesvol toegewezen met tijdslimiet van {time_limit} min."})
     else:
         assignments = get_exam_assignments()
         return jsonify({"assignments": assignments})
@@ -534,6 +657,17 @@ def teacher_toggle_assignment():
     return jsonify({"success": True})
 
 
+@app.route("/api/teacher/exam/assignment/toggle-start", methods=["POST"])
+def teacher_toggle_assignment_start():
+    data = request.get_json(force=True) or {}
+    assignment_id = data.get("id")
+    is_started = bool(data.get("is_started", True))
+    if not assignment_id:
+        return jsonify({"error": "Toewijzing ID ontbreekt"}), 400
+    toggle_assignment_test_started(assignment_id, is_started)
+    return jsonify({"success": True, "is_started": is_started})
+
+
 @app.route("/api/teacher/exam/assignment/delete", methods=["POST"])
 def teacher_delete_assignment():
     data = request.get_json(force=True) or {}
@@ -542,6 +676,18 @@ def teacher_delete_assignment():
         return jsonify({"error": "Toewijzing ID ontbreekt"}), 400
     delete_exam_assignment(assignment_id)
     return jsonify({"success": True})
+
+
+@app.route("/api/teacher/student/reset-exam", methods=["POST"])
+def teacher_reset_student_exam_endpoint():
+    """Allows teacher to reset a specific exam or test for a student."""
+    data = request.get_json(force=True) or {}
+    user_id = data.get("user_id")
+    exam_id = data.get("exam_id", "").strip()
+    if not user_id or not exam_id:
+        return jsonify({"error": "Student en Examen ID zijn verplicht"}), 400
+    res = reset_student_exam_by_teacher(user_id, exam_id)
+    return jsonify(res)
 
 
 @app.route("/api/teacher/exam/reset", methods=["POST"])
@@ -643,7 +789,8 @@ def submit_exam_endpoint():
             max_score = data.get("score", {}).get("maxScore", 100)
             percentage = data.get("score", {}).get("percentage", 0.0)
             topology = data.get("topology", {})
-            save_student_progress(session["user_id"], exam_id, topology, score, max_score, percentage)
+            rubric_eval = data.get("score", {}).get("rubricBreakdown", []) or data.get("rubricBreakdown", [])
+            save_student_progress(session["user_id"], exam_id, topology, score, max_score, percentage, rubric_eval=rubric_eval)
 
         return jsonify({
             "status": "success",

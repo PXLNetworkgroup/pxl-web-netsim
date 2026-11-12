@@ -60,8 +60,11 @@
       <button class="pt-btn pt-btn-secondary" id="btnOpenGlobalWireshark" onclick="window.PXLApp.openGlobalWireshark()" title="Open Wireshark Protocol Analyzer & OSI / PDU Inspector">
         🦈 Wireshark
       </button>
-      <button class="pt-btn pt-btn-accent" id="btnToggleStudio" title="Open Docentenportaal & Examenbeheer">
+      <button class="pt-btn pt-btn-accent" id="btnToggleStudio" title="Open Docentenportaal & Examenbeheer" style="display: none;">
         🛠️ Teacher Studio
+      </button>
+      <button class="pt-btn pt-btn-accent" id="btnToggleStudentStudio" onclick="window.PXLApp.openStudentStudioModal()" title="Open Mijn Student Studio (Account & Voortgang)" style="display: none; background: #0284c7; border-color: #0369a1;">
+        🧑‍🎓 Student Studio
       </button>
 
       <!-- UITLOGGEN HELEMAAL RECHTS -->
@@ -248,7 +251,7 @@
             <input type="password" id="loginPassword" class="pt-input" placeholder="Wachtwoord invoeren..." required autocomplete="current-password">
           </div>
           <div id="loginErrorMsg" style="color: #ef4444; font-size: 12px; margin-bottom: 12px; display: none;"></div>
-          <button type="submit" class="pt-btn pt-btn-primary" style="width: 100%; justify-content: center; padding: 10px; font-weight: 700;">
+          <button type="submit" id="loginSubmitBtn" class="pt-btn pt-btn-primary" style="width: 100%; justify-content: center; padding: 10px; font-weight: 700;">
             Inloggen & Voortgang Synchroniseren
           </button>
         </form>
@@ -260,22 +263,120 @@
     </div>
   </div>
 
-  <!-- STUDENT SCORES MODAL (STUDENT OVERZICHT RESULTATEN PER TEST) -->
-  <div class="pt-modal-overlay" id="studentScoresModal" style="display: none;">
-    <div class="pt-device-dialog" style="width: 760px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column;">
-      <div class="pt-device-header" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; padding: 12px 18px;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 20px;">📊</span>
-          <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Mijn Resultaten &amp; Scores per Examen</h3>
+  <!-- STUDENT STUDIO MODAL (ACCOUNT SETTINGS, WACHTWOORD, LABS & TESTEN, RUBRIC FEEDBACK) -->
+  <div class="pt-modal-overlay" id="studentStudioModal" style="display: none;">
+    <div class="pt-device-dialog" style="width: 860px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column;">
+      <div class="pt-device-header" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">🧑‍🎓</span>
+          <div>
+            <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Student Studio</h3>
+            <span style="font-size: 11px; color: #bae6fd;" id="studentStudioUserBadge">Mijn Account &amp; Opdrachten</span>
+          </div>
         </div>
-        <button class="pt-btn-close" onclick="window.PXLApp.closeStudentScoresModal()" style="color: #fff; font-size: 18px;">✕</button>
+        <button class="pt-btn-close" onclick="window.PXLApp.closeStudentStudioModal()" style="color: #fff; font-size: 18px;">✕</button>
       </div>
-      <div id="studentScoresModalBody" style="padding: 18px; overflow-y: auto; flex: 1;">
-        <div style="padding: 30px; text-align: center; color: #64748b;">⏳ Scores ophalen...</div>
+
+      <!-- STUDENT STUDIO TABS -->
+      <div style="display: flex; background: #f1f5f9; border-bottom: 1px solid #cbd5e1; padding: 0 16px;">
+        <button id="tabBtnStudentLabs" class="pt-btn active" onclick="window.PXLApp.switchStudentStudioTab('labs')" style="border-radius: 0; border: none; border-bottom: 3px solid #0284c7; background: transparent; font-weight: 700; color: #0f172a; padding: 10px 16px;">
+          📊 Mijn Labs &amp; Testen
+        </button>
+        <button id="tabBtnStudentAccount" class="pt-btn" onclick="window.PXLApp.switchStudentStudioTab('account')" style="border-radius: 0; border: none; border-bottom: 3px solid transparent; background: transparent; font-weight: 600; color: #64748b; padding: 10px 16px;">
+          👤 Account &amp; Wachtwoord
+        </button>
       </div>
-      <div style="padding: 10px 18px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 11px; color: #64748b;">💡 Tip: Klik op 'Openen' om een eerder labo of examen direct te heropenen in de simulator.</span>
-        <button class="pt-btn pt-btn-secondary" onclick="window.PXLApp.closeStudentScoresModal()">Sluiten</button>
+
+      <div id="studentStudioModalBody" style="padding: 18px; overflow-y: auto; flex: 1; background: #f8fafc;">
+        <!-- TAB 1: LABS & TESTEN -->
+        <div id="paneStudentLabs">
+          <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; color: #475569;">
+              💡 <em>Labs kan je zelfstandig resetten om opnieuw te oefenen. Officiële testen vereisen een reset door je docent.</em>
+            </span>
+            <button class="pt-btn pt-btn-secondary" style="font-size: 11px; padding: 4px 8px;" onclick="window.PXLApp.loadStudentStudioData()">
+              🔄 Vernieuwen
+            </button>
+          </div>
+          <div id="studentAssignedListContainer">
+            <div style="padding: 30px; text-align: center; color: #64748b;">⏳ Toegewezen labs en testen ophalen...</div>
+          </div>
+        </div>
+
+        <!-- TAB 2: ACCOUNT & WACHTWOORD -->
+        <div id="paneStudentAccount" style="display: none;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <h4 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+                📋 Accountgegevens
+              </h4>
+              <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
+                <div><span style="color: #64748b; font-weight: 600;">Studentennummer:</span> <strong id="studentInfoUsername">-</strong></div>
+                <div><span style="color: #64748b; font-weight: 600;">Naam:</span> <strong id="studentInfoFullName">-</strong></div>
+                <div><span style="color: #64748b; font-weight: 600;">Klasgroep:</span> <strong id="studentInfoClass">-</strong></div>
+                <div><span style="color: #64748b; font-weight: 600;">Opleiding:</span> <strong id="studentInfoProgram">-</strong></div>
+                <div><span style="color: #64748b; font-weight: 600;">Academiejaar:</span> <strong id="studentInfoYear">2026-27</strong></div>
+              </div>
+            </div>
+
+            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <h4 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+                🔐 Wachtwoord Wijzigen
+              </h4>
+              <form id="studentChangePwForm" onsubmit="window.PXLApp.handleStudentChangePassword(event)" style="display: flex; flex-direction: column; gap: 8px;">
+                <div>
+                  <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 2px;">Huidig Wachtwoord:</label>
+                  <input type="password" id="studentOldPw" required class="pt-input" style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                </div>
+                <div>
+                  <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 2px;">Nieuw Wachtwoord (min. 4 tekens):</label>
+                  <input type="password" id="studentNewPw" required minlength="4" class="pt-input" style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                </div>
+                <div>
+                  <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 2px;">Bevestig Nieuw Wachtwoord:</label>
+                  <input type="password" id="studentConfirmPw" required minlength="4" class="pt-input" style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                </div>
+                <div id="studentPwAlert" style="display: none; font-size: 11px; padding: 6px 10px; border-radius: 4px; margin-top: 4px;"></div>
+                <button type="submit" class="pt-btn pt-btn-primary" style="margin-top: 6px; padding: 6px 12px; font-size: 12px; justify-content: center;">
+                  💾 Wachtwoord Opslaan
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding: 10px 18px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; align-items: center;">
+        <button class="pt-btn pt-btn-secondary" onclick="window.PXLApp.closeStudentStudioModal()">Sluiten</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST PASSWORD PROMPT MODAL -->
+  <div class="pt-modal-overlay" id="testPasswordModal" style="display: none;">
+    <div class="pt-device-dialog" style="width: 440px; max-width: 95vw;">
+      <div class="pt-device-header" style="background: linear-gradient(135deg, #d97706, #b45309); color: #fff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">🔒</span>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;" id="testPasswordModalTitle">Test Wachtwoord Vereist</h3>
+        </div>
+        <button class="pt-btn-close" onclick="window.PXLApp.closeTestPasswordModal()" style="color: #fff; font-size: 18px;">✕</button>
+      </div>
+      <div style="padding: 18px; background: #fff;">
+        <p style="margin: 0 0 12px 0; font-size: 12.5px; color: #334155; line-height: 1.4;" id="testPasswordModalDesc">
+          Deze opdracht is een beveiligde test. Voer het wachtwoord in dat door je docent is vrijgegeven om de test te starten.
+        </p>
+        <form id="testPasswordForm" onsubmit="window.PXLApp.submitTestPassword(event)">
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; font-size: 11.5px; font-weight: 600; color: #475569; margin-bottom: 4px;">Wachtwoord:</label>
+            <input type="password" id="inputTestPassword" required autofocus class="pt-input" placeholder="Bijv. PXL-TEST-2026" style="width: 100%; box-sizing: border-box; padding: 8px 12px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px;">
+          </div>
+          <div id="testPasswordAlert" style="display: none; font-size: 12px; padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c;"></div>
+          <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button type="button" class="pt-btn pt-btn-secondary" onclick="window.PXLApp.closeTestPasswordModal()">Annuleren</button>
+            <button type="submit" class="pt-btn pt-btn-primary" style="background: #d97706; border-color: #b45309;">🚀 Start Test</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
