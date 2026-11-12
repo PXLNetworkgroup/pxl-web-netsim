@@ -356,6 +356,141 @@ const CiscoIcons = {
       <circle cx="16" cy="34" r="1.2" fill="#38bdf8"/>
       <!-- Brand Text -->
       <text x="39" y="44" font-family="Arial, sans-serif" font-weight="900" font-size="7" fill="#ff7900" text-anchor="middle">aruba</text>
+    </svg>`,
+
+  // Cisco ASA 5506-X Security Appliance
+  cisco_asa: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 60" width="76" height="60">
+      <defs>
+        <linearGradient id="asaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#0284c7"/>
+          <stop offset="50%" stop-color="#0369a1"/>
+          <stop offset="100%" stop-color="#0c4a6e"/>
+        </linearGradient>
+      </defs>
+      <rect x="4" y="8" width="68" height="44" rx="5" ry="5" fill="url(#asaGrad)" stroke="#38bdf8" stroke-width="1.5"/>
+      <!-- Brick Wall Pattern -->
+      <line x1="8" y1="20" x2="68" y2="20" stroke="#024e7a" stroke-width="1.5"/>
+      <line x1="8" y1="32" x2="68" y2="32" stroke="#024e7a" stroke-width="1.5"/>
+      <line x1="8" y1="44" x2="68" y2="44" stroke="#024e7a" stroke-width="1.5"/>
+      <line x1="22" y1="8" x2="22" y2="20" stroke="#024e7a" stroke-width="1.5"/>
+      <line x1="42" y1="8" x2="42" y2="20" stroke="#024e7a" stroke-width="1.5"/>
+      <line x1="62" y1="8" x2="62" y2="20" stroke="#024e7a" stroke-width="1.5"/>
+      <line x1="14" y1="20" x2="14" y2="32" stroke="#024e7a" stroke-width="1.5"/>
+      <line x1="34" y1="20" x2="34" y2="32" stroke="#024e7a" stroke-width="1.5"/>
+      <line x1="54" y1="20" x2="54" y2="32" stroke="#024e7a" stroke-width="1.5"/>
+      <!-- Security Shield Badge -->
+      <path d="M 38 16 Q 48 16 52 24 Q 48 42 38 48 Q 28 42 24 24 Q 28 16 38 16 Z" fill="#f8fafc" stroke="#0c4a6e" stroke-width="1.5"/>
+      <path d="M 38 21 L 46 26 L 46 34 Q 46 41 38 45 Q 30 41 30 34 L 30 26 Z" fill="#0284c7"/>
+      <!-- Lock Icon -->
+      <rect x="35" y="32" width="6" height="5" rx="1" fill="#ffffff"/>
+      <path d="M 36 32 L 36 30 A 2 2 0 0 1 40 30 L 40 32" fill="none" stroke="#ffffff" stroke-width="1.2"/>
+      <text x="38" y="56" font-family="Arial, sans-serif" font-weight="900" font-size="7" fill="#38bdf8" text-anchor="middle">ASA 5506-X</text>
+    </svg>`,
+
+  // Fortinet FortiGate Firewall
+  fortigate: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 60" width="76" height="60">
+      <defs>
+        <linearGradient id="fortiGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ef4444"/>
+          <stop offset="70%" stop-color="#dc2626"/>
+          <stop offset="100%" stop-color="#991b1b"/>
+        </linearGradient>
+      </defs>
+      <!-- Appliance Body -->
+      <rect x="4" y="8" width="68" height="44" rx="5" ry="5" fill="#1e293b" stroke="#dc2626" stroke-width="1.5"/>
+      <!-- Red Top Banner -->
+      <path d="M 4 13 A 5 5 0 0 1 9 8 L 67 8 A 5 5 0 0 1 72 13 L 72 20 L 4 20 Z" fill="url(#fortiGrad)"/>
+      <text x="38" y="16" font-family="Arial, sans-serif" font-weight="900" font-size="7.5" fill="#ffffff" text-anchor="middle" letter-spacing="1">FORTINET</text>
+      <!-- Fortinet Gate Icons / Bricks -->
+      <g fill="#dc2626">
+        <rect x="18" y="27" width="8" height="6" rx="1"/>
+        <rect x="29" y="27" width="8" height="6" rx="1"/>
+        <rect x="40" y="27" width="8" height="6" rx="1"/>
+        <rect x="51" y="27" width="8" height="6" rx="1"/>
+        <rect x="23" y="35" width="8" height="6" rx="1"/>
+        <rect x="34" y="35" width="8" height="6" rx="1"/>
+        <rect x="45" y="35" width="8" height="6" rx="1"/>
+      </g>
+      <!-- Port LEDs -->
+      <circle cx="12" cy="46" r="1.5" fill="#22c55e"/>
+      <circle cx="17" cy="46" r="1.5" fill="#22c55e"/>
+      <text x="44" y="48" font-family="Arial, sans-serif" font-weight="900" font-size="7" fill="#f87171" text-anchor="middle">FortiGate-60F</text>
+    </svg>`,
+
+  // Palo Alto Networks PA-440 Next-Gen Firewall
+  paloalto: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 60" width="76" height="60">
+      <defs>
+        <linearGradient id="panGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#334155"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+      </defs>
+      <!-- Chassis Body -->
+      <rect x="4" y="8" width="68" height="44" rx="5" ry="5" fill="url(#panGrad)" stroke="#f97316" stroke-width="1.5"/>
+      <!-- Orange Palo Alto Chevron / Hexagon -->
+      <polygon points="38,15 52,23 52,39 38,47 24,39 24,23" fill="#f97316" stroke="#ea580c" stroke-width="1.5"/>
+      <!-- Inner Scanner Aperture -->
+      <polygon points="38,20 47,25 47,36 38,41 29,36 29,25" fill="#0f172a"/>
+      <circle cx="38" cy="30" r="4" fill="#38bdf8"/>
+      <text x="38" y="50" font-family="Arial, sans-serif" font-weight="900" font-size="6.5" fill="#f97316" text-anchor="middle">PA-440 (PAN-OS)</text>
+    </svg>`,
+
+  // OPNsense Open Source Firewall
+  opnsense: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 60" width="76" height="60">
+      <defs>
+        <linearGradient id="opnGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#b91c1c"/>
+          <stop offset="70%" stop-color="#991b1b"/>
+          <stop offset="100%" stop-color="#450a0a"/>
+        </linearGradient>
+      </defs>
+      <!-- OPNsense Deep Red Base -->
+      <rect x="4" y="8" width="68" height="44" rx="5" ry="5" fill="url(#opnGrad)" stroke="#fca5a5" stroke-width="1.5"/>
+      <!-- Shield Silhouette -->
+      <path d="M 38 14 Q 50 14 54 23 Q 50 39 38 46 Q 26 39 22 23 Q 26 14 38 14 Z" fill="#ffffff" opacity="0.95"/>
+      <!-- Letter O & Keyhole -->
+      <circle cx="38" cy="27" r="6" fill="#991b1b"/>
+      <polygon points="36,29 40,29 41,37 35,37" fill="#991b1b"/>
+      <text x="38" y="51" font-family="Arial, sans-serif" font-weight="900" font-size="6.5" fill="#ffffff" text-anchor="middle">OPNsense 24</text>
+    </svg>`,
+
+  // pfSense Plus / CE Open Source Firewall
+  pfsense: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 60" width="76" height="60">
+      <defs>
+        <linearGradient id="pfGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1e3a8a"/>
+          <stop offset="60%" stop-color="#1e40af"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+      </defs>
+      <!-- pfSense Deep Blue Base -->
+      <rect x="4" y="8" width="68" height="44" rx="5" ry="5" fill="url(#pfGrad)" stroke="#60a5fa" stroke-width="1.5"/>
+      <!-- Netgate Shield -->
+      <path d="M 38 14 Q 50 14 54 23 Q 50 39 38 46 Q 26 39 22 23 Q 26 14 38 14 Z" fill="#ffffff"/>
+      <!-- Blue Shield Core -->
+      <path d="M 38 17 Q 47 17 50 24 Q 47 37 38 43 Q 29 37 26 24 Q 29 17 38 17 Z" fill="#1e40af"/>
+      <!-- Keylock -->
+      <rect x="35" y="28" width="6" height="5" rx="1" fill="#ffffff"/>
+      <path d="M 36 28 L 36 26 A 2 2 0 0 1 40 26 L 40 28" fill="none" stroke="#ffffff" stroke-width="1.2"/>
+      <text x="38" y="51" font-family="Arial, sans-serif" font-weight="900" font-size="6.5" fill="#93c5fd" text-anchor="middle">pfSense Plus</text>
+    </svg>`,
+
+  // Generic Cloud WAN / ISP Appliance
+  cloud_wan: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 60" width="84" height="60">
+      <defs>
+        <linearGradient id="cloudWanGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#38bdf8"/>
+          <stop offset="60%" stop-color="#0284c7"/>
+          <stop offset="100%" stop-color="#0c4a6e"/>
+        </linearGradient>
+      </defs>
+      <path d="M 24 45 L 62 45 A 14 14 0 0 0 64 18 A 18 18 0 0 0 31 16 A 16 16 0 0 0 17 33 A 12 12 0 0 0 24 45 Z"
+            fill="url(#cloudWanGrad)" stroke="#bae6fd" stroke-width="2"/>
+      <!-- Globe Meridian Lines -->
+      <circle cx="42" cy="30" r="10" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.9"/>
+      <ellipse cx="42" cy="30" rx="4.5" ry="10" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
+      <line x1="32" y1="30" x2="52" y2="30" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
+      <text x="42" y="54" font-family="Arial, sans-serif" font-weight="900" font-size="6.5" fill="#e0f2fe" text-anchor="middle">CLOUD WAN</text>
     </svg>`
 };
 
@@ -365,6 +500,13 @@ const CiscoIcons = {
 function getCiscoDeviceIcon(type, model = "") {
   const t = (type || "").toLowerCase();
   const m = (model || "").toLowerCase();
+
+  // Firewalls & Security Devices
+  if (t === 'cisco_asa' || m.includes('asa') || m.includes('5506')) return CiscoIcons.cisco_asa;
+  if (t === 'fortigate' || m.includes('forti') || m.includes('fortios')) return CiscoIcons.fortigate;
+  if (t === 'paloalto' || m.includes('palo') || m.includes('pan-os') || m.includes('pa-440')) return CiscoIcons.paloalto;
+  if (t === 'opnsense' || m.includes('opn')) return CiscoIcons.opnsense;
+  if (t === 'pfsense' || m.includes('pfsense')) return CiscoIcons.pfsense;
 
   if (t === 'hpe_switch' || m.includes('aruba') || m.includes('hpe') || m.includes('2530') || m.includes('2930')) {
     return CiscoIcons.hpe_switch;
@@ -388,6 +530,7 @@ function getCiscoDeviceIcon(type, model = "") {
   if (t === 'laptop') return CiscoIcons.laptop;
   if (t === 'server') return CiscoIcons.server;
   if (t === 'mikrotik') return CiscoIcons.mikrotik;
+  if (t === 'cloud_wan' || m.includes('cloud-pt')) return CiscoIcons.cloud_wan;
   if (t === 'internet_public' || (t.includes('internet') && t.includes('pub'))) return CiscoIcons.internet_public;
   if (t === 'internet_simulated' || (t.includes('internet') && t.includes('sim'))) return CiscoIcons.internet_simulated;
   if (t === 'internet_cloud' || t === 'internet' || t === 'cloud') return CiscoIcons.internet_cloud;

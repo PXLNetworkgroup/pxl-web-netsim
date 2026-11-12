@@ -15,4 +15,8 @@ Thumbs.db
 data/*.db
 screenshot_*.png
 sample_decrypted.xml
-test_*.py
+tests/screenshots/
+check_ha_*.ps1
+remote_*.py
+run_*.py
+

@@ -144,6 +144,12 @@ class CanvasWorkspace {
     if (type === 'openwrt') prefix = 'OpenWrt';
     if (type === 'internet_cloud' || type === 'internet_simulated') prefix = 'InetSim';
     if (type === 'internet_public') prefix = 'InetPublic';
+    if (type === 'cisco_asa') prefix = 'ASA';
+    if (type === 'fortigate') prefix = 'FortiGate';
+    if (type === 'paloalto') prefix = 'PA';
+    if (type === 'opnsense') prefix = 'OPNsense';
+    if (type === 'pfsense') prefix = 'pfSense';
+    if (type === 'cloud_wan') prefix = 'Cloud';
 
     const id = `${prefix}${count}`;
     const newDev = new CiscoDevice(id, type, id, {

@@ -158,8 +158,8 @@
 
   <!-- BOTTOM PACKET TRACER DEVICE SHELF -->
   <footer class="pt-device-shelf">
-    <div class="pt-shelf-categories">
-      <button class="pt-category-btn active">🌐 Netwerkapparaten & Kabels</button>
+    <div class="pt-shelf-categories" id="shelfCategories">
+      <!-- Dynamically populated categories: Switch & Router, Computers, Cloud, Wifi, Cables, Firewalls -->
     </div>
     <div class="pt-shelf-items" id="deviceShelfItems">
       <!-- Dynamically populated shelf items (Routers, Switches, PCs, Cables) -->
@@ -185,6 +185,10 @@
         <button class="pt-tab-btn" id="tabBtnWrtWeb" onclick="window.PXLApp.switchDeviceModalTab('wrtweb')" style="display:none; background: #0284c7; color: white;">🌐 WRT300N GUI</button>
         <button class="pt-tab-btn" id="tabBtnWlcWeb" onclick="window.PXLApp.switchDeviceModalTab('wlcweb')" style="display:none; background: #0c4a6e; color: #38bdf8; border: 1px solid #0284c7;">🌐 WLC 3504 GUI</button>
         <button class="pt-tab-btn" id="tabBtnApWeb" onclick="window.PXLApp.switchDeviceModalTab('apweb')" style="display:none; background: #0369a1; color: white;">🌐 AP Web GUI</button>
+        <button class="pt-tab-btn" id="tabBtnFortiWeb" onclick="window.PXLApp.switchDeviceModalTab('fortiweb')" style="display:none; background: #dc2626; color: white;">🌐 FortiGate GUI</button>
+        <button class="pt-tab-btn" id="tabBtnPanWeb" onclick="window.PXLApp.switchDeviceModalTab('panweb')" style="display:none; background: #ea580c; color: white;">🌐 PAN-OS GUI</button>
+        <button class="pt-tab-btn" id="tabBtnOpnWeb" onclick="window.PXLApp.switchDeviceModalTab('opnweb')" style="display:none; background: #991b1b; color: white;">🌐 OPNsense GUI</button>
+        <button class="pt-tab-btn" id="tabBtnPfWeb" onclick="window.PXLApp.switchDeviceModalTab('pfweb')" style="display:none; background: #002d62; color: white;">🌐 pfSense GUI</button>
       </div>
 
       <div class="pt-device-body">
@@ -198,6 +202,10 @@
         <div class="pt-modal-pane" id="modalPaneWrtweb"></div>
         <div class="pt-modal-pane" id="modalPaneWlcweb"></div>
         <div class="pt-modal-pane" id="modalPaneApweb"></div>
+        <div class="pt-modal-pane" id="modalPaneFortiweb"></div>
+        <div class="pt-modal-pane" id="modalPanePanweb"></div>
+        <div class="pt-modal-pane" id="modalPaneOpnweb"></div>
+        <div class="pt-modal-pane" id="modalPanePfweb"></div>
       </div>
     </div>
   </div>
@@ -489,6 +497,7 @@
   <script src="js/course_labs.js?v=20261111_v7"></script>
   <script src="js/grading_engine.js?v=20261111_v7"></script>
   <script src="js/submission_exporter.js?v=20261111_v7"></script>
+  <script src="js/firewall_security.js?v=20261112_v1"></script>
   <script src="js/teacher_studio.js?v=20261111_v7"></script>
   <script src="js/app.js?v=20261112_v1"></script>
 

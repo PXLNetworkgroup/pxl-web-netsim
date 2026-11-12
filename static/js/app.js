@@ -309,44 +309,95 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
   }
 
   // --- DEVICE SHELF (BOTTOM DOCK) ---
+  // --- DEVICE SHELF (BOTTOM DOCK) ---
   initDeviceShelf() {
-    const shelfItems = [
-      // Network Devices - Cisco Routers
-      { type: 'router', model: '4331', label: 'Cisco 4331', category: 'routers' },
-      { type: 'router', model: '2911', label: 'Cisco 2911', category: 'routers' },
-      // Network Devices - MikroTik & OpenWrt Routers
-      { type: 'mikrotik', model: 'hEX lite (RB750r2)', label: 'MikroTik hEX lite', category: 'routers' },
-      { type: 'openwrt', model: 'OpenWrt 23.05', label: 'OpenWrt Router', category: 'routers' },
-      // Internet Gateways (Public Real NAT & Simulated Welkom op het Internet)
-      { type: 'internet_simulated', model: 'PXL Internet (Simulated)', label: 'Internet (Simulated)', category: 'routers' },
-      { type: 'internet_public', model: 'PXL Internet (Public NAT)', label: 'Internet (Public)', category: 'routers' },
-      { type: 'internet_cloud', model: 'PXL Global Internet', label: 'Het Internet (Hybrid)', category: 'routers' },
-      // Network Devices - Switches
-      { type: 'switch', model: '2960-24TT', label: '2960-24TT Switch', category: 'switches' },
-      { type: 'switch', model: '3560-24PS', label: '3560 Multilayer', category: 'switches' },
-      { type: 'hpe_switch', model: 'Aruba-2530-24G', label: 'HPE Aruba 2530', category: 'switches' },
-      { type: 'hpe_switch', model: 'Aruba-2930F-24G', label: 'HPE Aruba 2930F', category: 'switches' },
-      // Network Devices - Wireless (SNE Networks 1 Ch 8)
-      { type: 'wireless_router', model: 'WRT300N', label: 'WRT300N Router', category: 'wireless' },
-      { type: 'wireless_ap', model: 'AIR-LAP3702', label: 'Cisco LAP-PT (AP)', category: 'wireless' },
-      { type: 'wlc', model: '3504', label: 'Cisco 3504 WLC', category: 'wireless' },
-      // End Devices
-      { type: 'pc', model: 'Standard', label: 'PC-PT', category: 'end_devices' },
-      { type: 'laptop', model: 'Standard', label: 'Laptop-PT', category: 'end_devices' },
-      { type: 'server', model: 'Standard', label: 'Server-PT', category: 'end_devices' },
-      // Connections
-      { cableType: 'auto', label: 'Automatisch', category: 'connections', icon: '⚡' },
-      { cableType: 'straight', label: 'Straight-Through', category: 'connections', icon: '⎯' },
-      { cableType: 'crossover', label: 'Cross-Over', category: 'connections', icon: '╍' },
-      { cableType: 'serial', label: 'Serial DCE', category: 'connections', icon: '↯' },
-      { cableType: 'console', label: 'Console Kabel', category: 'connections', icon: '⌒' }
+    this.shelfCategories = [
+      { id: 'routers_switches', label: 'Switch & Router devices', icon: '🔀' },
+      { id: 'computers', label: 'Computer systems', icon: '💻' },
+      { id: 'cloud', label: 'Cloud', icon: '☁️' },
+      { id: 'wifi', label: 'Wifi', icon: '📶' },
+      { id: 'cables', label: 'Cables & Patches', icon: '🔌' },
+      { id: 'firewalls', label: 'Firewall & Security', icon: '🛡️' }
     ];
 
+    this.allShelfItems = [
+      // 1. Switch & Router devices
+      { type: 'router', model: '4331', label: 'Cisco 4331', category: 'routers_switches' },
+      { type: 'router', model: '2911', label: 'Cisco 2911', category: 'routers_switches' },
+      { type: 'switch', model: '2960-24TT', label: '2960-24TT Switch', category: 'routers_switches' },
+      { type: 'switch', model: '3560-24PS', label: '3560 Multilayer', category: 'routers_switches' },
+      { type: 'hpe_switch', model: 'Aruba-2530-24G', label: 'HPE Aruba 2530', category: 'routers_switches' },
+      { type: 'hpe_switch', model: 'Aruba-2930F-24G', label: 'HPE Aruba 2930F', category: 'routers_switches' },
+      { type: 'mikrotik', model: 'hEX lite (RB750r2)', label: 'MikroTik hEX lite', category: 'routers_switches' },
+      { type: 'openwrt', model: 'OpenWrt 23.05', label: 'OpenWrt Router', category: 'routers_switches' },
+
+      // 2. Computer systems
+      { type: 'pc', model: 'Standard', label: 'PC-PT', category: 'computers' },
+      { type: 'laptop', model: 'Standard', label: 'Laptop-PT', category: 'computers' },
+      { type: 'server', model: 'Standard', label: 'Server-PT', category: 'computers' },
+
+      // 3. Cloud
+      { type: 'internet_simulated', model: 'PXL Internet (Simulated)', label: 'Internet (Simulated)', category: 'cloud' },
+      { type: 'internet_public', model: 'PXL Internet (Public NAT)', label: 'Internet (Public)', category: 'cloud' },
+      { type: 'internet_cloud', model: 'PXL Global Internet', label: 'Het Internet (Hybrid)', category: 'cloud' },
+      { type: 'cloud_wan', model: 'Cloud-PT', label: 'Cloud WAN / ISP', category: 'cloud' },
+
+      // 4. Wifi
+      { type: 'wireless_router', model: 'WRT300N', label: 'WRT300N Router', category: 'wifi' },
+      { type: 'wireless_ap', model: 'AIR-LAP3702', label: 'Cisco LAP-PT (AP)', category: 'wifi' },
+      { type: 'wlc', model: '3504', label: 'Cisco 3504 WLC', category: 'wifi' },
+      { type: 'wireless_router', model: 'HomeGateway', label: 'Home Gateway', category: 'wifi' },
+
+      // 5. Cables & Patches
+      { cableType: 'auto', label: 'Automatisch (⚡)', category: 'cables', icon: '⚡' },
+      { cableType: 'straight', label: 'Copper Straight (⎯)', category: 'cables', icon: '⎯' },
+      { cableType: 'crossover', label: 'Copper Cross (╍)', category: 'cables', icon: '╍' },
+      { cableType: 'serial', label: 'Serial DCE (↯)', category: 'cables', icon: '↯' },
+      { cableType: 'console', label: 'Console Kabel (⌒)', category: 'cables', icon: '⌒' },
+      { cableType: 'fiber', label: 'Fiber Optic Patch (🗲)', category: 'cables', icon: '🗲' },
+
+      // 6. Firewall & Security
+      { type: 'cisco_asa', model: 'ASA 5506-X', label: 'Cisco ASA 5506-X', category: 'firewalls' },
+      { type: 'fortigate', model: 'FortiGate-60F', label: 'FortiGate (FortiOS)', category: 'firewalls' },
+      { type: 'paloalto', model: 'PA-440', label: 'Palo Alto (PAN-OS)', category: 'firewalls' },
+      { type: 'opnsense', model: 'OPNsense 24.1', label: 'OPNsense 24.1', category: 'firewalls' },
+      { type: 'pfsense', model: 'pfSense Plus 23.09', label: 'pfSense Plus', category: 'firewalls' }
+    ];
+
+    if (!this.activeShelfCategory) {
+      this.activeShelfCategory = 'routers_switches';
+    }
+
+    this.renderShelfCategoryButtons();
+    this.renderShelfItems();
+  }
+
+  renderShelfCategoryButtons() {
+    const catContainer = document.getElementById('shelfCategories');
+    if (!catContainer) return;
+    catContainer.innerHTML = '';
+
+    this.shelfCategories.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = `pt-category-btn ${cat.id === this.activeShelfCategory ? 'active' : ''}`;
+      btn.innerHTML = `<span style="font-size: 13px;">${cat.icon}</span> <span>${cat.label}</span>`;
+      btn.title = cat.label;
+      btn.onclick = () => {
+        this.activeShelfCategory = cat.id;
+        this.renderShelfCategoryButtons();
+        this.renderShelfItems();
+      };
+      catContainer.appendChild(btn);
+    });
+  }
+
+  renderShelfItems() {
     const shelfContainer = document.getElementById('deviceShelfItems');
     if (!shelfContainer) return;
-
     shelfContainer.innerHTML = '';
-    shelfItems.forEach(item => {
+
+    const items = this.allShelfItems.filter(item => item.category === this.activeShelfCategory);
+    items.forEach(item => {
       const btn = document.createElement('button');
       btn.className = 'pt-shelf-btn';
 
@@ -639,6 +690,10 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     const wrtWebTabBtn = document.getElementById('tabBtnWrtWeb');
     const wlcWebTabBtn = document.getElementById('tabBtnWlcWeb');
     const apWebTabBtn = document.getElementById('tabBtnApWeb');
+    const fortiWebTabBtn = document.getElementById('tabBtnFortiWeb');
+    const panWebTabBtn = document.getElementById('tabBtnPanWeb');
+    const opnWebTabBtn = document.getElementById('tabBtnOpnWeb');
+    const pfWebTabBtn = document.getElementById('tabBtnPfWeb');
 
     if (cliTabBtn) {
       cliTabBtn.style.display = (isHost || isWrt) ? 'none' : 'inline-block';
@@ -650,8 +705,18 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
         cliTabBtn.innerText = 'CLI (ArubaOS-S)';
       } else if (device.type === 'wlc') {
         cliTabBtn.innerText = 'CLI (AireOS)';
-      } else if (device.type === 'internet_cloud' || device.type === 'internet_simulated' || device.type === 'internet_public') {
-        cliTabBtn.innerText = '🌐 Uitleg & Aansluiting (RFC 3849)';
+      } else if (device.type === 'cisco_asa') {
+        cliTabBtn.innerText = 'CLI (ASA-OS)';
+      } else if (device.type === 'fortigate') {
+        cliTabBtn.innerText = 'CLI (FortiOS)';
+      } else if (device.type === 'paloalto') {
+        cliTabBtn.innerText = 'CLI (PAN-OS)';
+      } else if (device.type === 'opnsense') {
+        cliTabBtn.innerText = 'Console (OPNsense)';
+      } else if (device.type === 'pfsense') {
+        cliTabBtn.innerText = 'Console (pfSense)';
+      } else if (device.type === 'internet_cloud' || device.type === 'internet_simulated' || device.type === 'internet_public' || device.type === 'cloud_wan') {
+        cliTabBtn.innerText = '🌐 Uitleg & Aansluiting';
       } else {
         cliTabBtn.innerText = 'CLI (Cisco IOS)';
       }
@@ -663,6 +728,10 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     if (wrtWebTabBtn) wrtWebTabBtn.style.display = isWrt ? 'inline-block' : 'none';
     if (wlcWebTabBtn) wlcWebTabBtn.style.display = isWlc ? 'inline-block' : 'none';
     if (apWebTabBtn) apWebTabBtn.style.display = isAp ? 'inline-block' : 'none';
+    if (fortiWebTabBtn) fortiWebTabBtn.style.display = (device.type === 'fortigate') ? 'inline-block' : 'none';
+    if (panWebTabBtn) panWebTabBtn.style.display = (device.type === 'paloalto') ? 'inline-block' : 'none';
+    if (opnWebTabBtn) opnWebTabBtn.style.display = (device.type === 'opnsense') ? 'inline-block' : 'none';
+    if (pfWebTabBtn) pfWebTabBtn.style.display = (device.type === 'pfsense') ? 'inline-block' : 'none';
 
     // Switch to primary operational tab
     if (isServer) {
@@ -689,7 +758,7 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
   }
 
   switchDeviceModalTab(tabKey) {
-    const tabs = ['physical', 'config', 'cli', 'desktop', 'services', 'webfig', 'hpeweb', 'wrtweb', 'wlcweb', 'apweb'];
+    const tabs = ['physical', 'config', 'cli', 'desktop', 'services', 'webfig', 'hpeweb', 'wrtweb', 'wlcweb', 'apweb', 'fortiweb', 'panweb', 'opnweb', 'pfweb'];
     tabs.forEach(t => {
       const pane = document.getElementById(`modalPane${t.charAt(0).toUpperCase() + t.slice(1)}`);
       if (pane) pane.classList.remove('active');
@@ -702,6 +771,7 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     const activeBtn = document.getElementById(`tabBtn${tabKey.charAt(0).toUpperCase() + tabKey.slice(1)}`);
     if (activeBtn) activeBtn.classList.add('active');
 
+    const dev = this.activeDevice;
     if (tabKey === 'physical') this.renderPhysicalTab();
     if (tabKey === 'config') this.renderConfigTab();
     if (tabKey === 'cli') this.renderCliTab();
@@ -712,6 +782,10 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     if (tabKey === 'wrtweb') this.renderWrtWebTab();
     if (tabKey === 'wlcweb') this.renderWlcWebTab();
     if (tabKey === 'apweb') this.renderApWebTab();
+    if (tabKey === 'fortiweb' && window.FirewallGuiRenderers) window.FirewallGuiRenderers.renderFortiWebTab(dev, document.getElementById('modalPaneFortiweb'));
+    if (tabKey === 'panweb' && window.FirewallGuiRenderers) window.FirewallGuiRenderers.renderPanWebTab(dev, document.getElementById('modalPanePanweb'));
+    if (tabKey === 'opnweb' && window.FirewallGuiRenderers) window.FirewallGuiRenderers.renderOpnWebTab(dev, document.getElementById('modalPaneOpnweb'));
+    if (tabKey === 'pfweb' && window.FirewallGuiRenderers) window.FirewallGuiRenderers.renderPfWebTab(dev, document.getElementById('modalPanePfweb'));
   }
 
   renderApWebTab() {
@@ -1505,8 +1579,106 @@ Router(config)# ip nat inside source list 1 interface GigabitEthernet0/0/0 overl
       if (!dev.terminalBuffer) {
         dev.terminalBuffer = `(Cisco Controller)\nCisco 3504 Wireless LAN Controller\nSoftware Version: 8.10.190.0 (AireOS)\nType '?' or 'help' for command summary.\n\n`;
       }
+    } else if (dev.type === 'cisco_asa') {
+      this.activeTerminalParser = new CiscoASACLIParser(
+        dev,
+        (text) => {
+          screen.innerHTML += `${text}\n`;
+          dev.terminalBuffer = (dev.terminalBuffer || '') + `${text}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => {
+          prompt.innerText = this.activeTerminalParser.getPrompt();
+        },
+        () => this.triggerScoreUpdate()
+      );
+      if (!dev.terminalBuffer) {
+        dev.terminalBuffer = `Cisco Adaptive Security Appliance Software Version 9.14(2)\nDevice Manager Version 7.14(1)\nCompiled on Thu 16-Jul-20 23:59 by builders\nSystem image file is "disk0:/asa9142-smp-k8.bin"\n\nType "help" or "?" for a list of available commands.\n\n`;
+      }
       screen.innerHTML = dev.terminalBuffer;
       prompt.innerText = this.activeTerminalParser.getPrompt();
+    } else if (dev.type === 'fortigate') {
+      this.activeTerminalParser = new FortiOSCLIParser(
+        dev,
+        (text) => {
+          screen.innerHTML += `${text}\n`;
+          dev.terminalBuffer = (dev.terminalBuffer || '') + `${text}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => {
+          prompt.innerText = this.activeTerminalParser.getPrompt();
+        },
+        () => this.triggerScoreUpdate()
+      );
+      if (!dev.terminalBuffer) {
+        dev.terminalBuffer = `FortiGate-60F (FGT60FTK23048921)\nFortiOS v7.4.2 build2573 (GA)\nType '?' or 'help' for command summary.\n\n`;
+      }
+      screen.innerHTML = dev.terminalBuffer;
+      prompt.innerText = this.activeTerminalParser.getPrompt();
+    } else if (dev.type === 'paloalto') {
+      this.activeTerminalParser = new PANOSCLIParser(
+        dev,
+        (text) => {
+          screen.innerHTML += `${text}\n`;
+          dev.terminalBuffer = (dev.terminalBuffer || '') + `${text}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => {
+          prompt.innerText = this.activeTerminalParser.getPrompt();
+        },
+        () => this.triggerScoreUpdate()
+      );
+      if (!dev.terminalBuffer) {
+        dev.terminalBuffer = `Palo Alto Networks PA-440 (PAN-OS 11.0.2)\nLogin: admin\nLast login: ${new Date().toLocaleDateString()} from 192.168.1.100\n\n`;
+      }
+      screen.innerHTML = dev.terminalBuffer;
+      prompt.innerText = this.activeTerminalParser.getPrompt();
+    } else if (dev.type === 'opnsense') {
+      this.activeTerminalParser = new OPNsenseConsoleParser(
+        dev,
+        (text) => {
+          screen.innerHTML += `${text}\n`;
+          dev.terminalBuffer = (dev.terminalBuffer || '') + `${text}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => {
+          prompt.innerText = this.activeTerminalParser.getPrompt();
+        },
+        () => this.triggerScoreUpdate()
+      );
+      if (!dev.terminalBuffer) {
+        this.activeTerminalParser.renderMenu();
+      } else {
+        screen.innerHTML = dev.terminalBuffer;
+        prompt.innerText = this.activeTerminalParser.getPrompt();
+      }
+    } else if (dev.type === 'pfsense') {
+      this.activeTerminalParser = new pfSenseConsoleParser(
+        dev,
+        (text) => {
+          screen.innerHTML += `${text}\n`;
+          dev.terminalBuffer = (dev.terminalBuffer || '') + `${text}\n`;
+          screen.scrollTop = screen.scrollHeight;
+        },
+        () => {
+          prompt.innerText = this.activeTerminalParser.getPrompt();
+        },
+        () => this.triggerScoreUpdate()
+      );
+      if (!dev.terminalBuffer) {
+        this.activeTerminalParser.renderMenu();
+      } else {
+        screen.innerHTML = dev.terminalBuffer;
+        prompt.innerText = this.activeTerminalParser.getPrompt();
+      }
+    } else if (dev.type === 'cloud_wan') {
+      this.activeTerminalParser = {
+        getPrompt: () => 'Cloud-WAN> ',
+        handleCommand: (c) => screen.innerHTML += `% Cloud WAN is een beheerde WAN-infrastructuur (Frame Relay/Cable/DSL ISP cloud). Sluit routers aan via Serial0/0/0 of Ethernet6.\n`,
+        tabComplete: () => ''
+      };
+      screen.innerHTML = `PXL Multi-Access Cloud WAN Infrastructure\nProvider Backbone ISP Core (MPLS / DOCSIS / Frame Relay)\n\n`;
+      prompt.innerText = 'Cloud-WAN> ';
     } else {
       this.activeTerminalParser = new CiscoCLIParser(
         dev,

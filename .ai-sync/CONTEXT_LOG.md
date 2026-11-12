@@ -1,0 +1,99 @@
+# PXL Web NetSim • Shared AI & Developer Context Log
+*Dit bestand fungeert als het gedeelde geheugen tussen samenwerkende ontwikkelaars en hun respectievelijke AI-assistenten (Antigravity, GitHub Copilot, VS Code).*
+
+---
+
+## [2026-11-12 12:10] • 6 APPARATEN-CATEGORIEËN, 5 NEXT-GEN/OPEN SOURCE FIREWALLS & SAMENWERKINGSSYSTEEM
+**Auteur / Agent:** David Parren & Antigravity (Host-PC)  
+**Status Lock:** FREE (Vrijgegeven na afronding)  
+**Git Branch:** `main`  
+**Live Cloud Run URL:** `https://pxl-web-netsim-1088457364327.europe-west1.run.app`  
+
+### 1. Wat is er gebouwd en gewijzigd?
+* **Onderste Apparatenbalk Herindeling in 6 Categorieën:**
+  * Geherstructureerd in een responsieve 2-koloms grid met duidelijke iconen en badges:
+    1. `🔀 Switch & Router devices` (Cisco 4331, 2911, 2960 Switch, 3560 Multilayer, Aruba 2530/2930F, MikroTik hEX lite, OpenWrt)
+    2. `💻 Computer systems` (PC-PT, Laptop-PT, Server-PT)
+    3. `☁️ Cloud` (Internet Simulated, Internet Public NAT, Het Internet Hybrid, Cloud WAN/ISP)
+    4. `📶 Wifi` (WRT300N Router, Cisco LAP-PT AP, Cisco 3504 WLC, Home Gateway)
+    5. `🔌 Cables & Patches` (Automatisch, Straight-Through, Cross-Over, Serial DCE, Console, Fiber Optic)
+    6. `🛡️ Firewall & Security` (Cisco ASA, FortiGate FortiOS, Palo Alto PAN-OS, OPNsense, pfSense)
+* **5 Volwaardige Firewall & Security Platformen Toegevoegd:**
+  * **Cisco ASA 5506-X (`cisco_asa`):** Volledige ASA-OS CLI implementatie (`nameif outside/inside/dmz`, `security-level 0-100`, `object network`, `nat (inside,outside) dynamic interface`, `show ip address`, `show run`, `route`).
+  * **Fortinet FortiGate-60F (`fortigate`):** FortiOS 7.x CLI (`config system interface`, `edit port1`, `set allowaccess`, `config firewall policy`) + moderne donkere **FortiOS Web UI Tab** met live systeemstatus en firewall policies.
+  * **Palo Alto Networks PA-440 (`paloalto`):** PAN-OS 11.x CLI (`set deviceconfig`, `set network interface ethernet`, `set zone`, `commit`) + **PAN-OS Web UI Tab** met Application Command Center en Security Policies.
+  * **OPNsense 24.1 (`opnsense`):** Authentieke interactieve FreeBSD console menu (opties 0-14, optie 2 interactieve IP wizard, optie 8 FreeBSD Shell `root@opnsense:~ #`) + **OPNsense Web UI Tab**.
+  * **pfSense Plus 23.09 (`pfsense`):** Authentieke Netgate console menu (opties 0-16, optie 8 FreeBSD Shell `[23.09-RELEASE][root@pfSense]/root:`) + **pfSense Web UI Tab**.
+* **Beveiligd Samenwerkingsprotocol (`.ai-sync/`, `AGENTS.md`):**
+  * `.ai-sync/LOCK.json` voor strikte exclusieve vergrendeling tijdens actieve werkzaamheden.
+  * `.ai-sync/CONTEXT_LOG.md` voor contextbehoud tussen collega's en AI-tools.
+  * `AGENTS.md` en `.github/copilot-instructions.md` voor automatische naleving van de regels.
+  * `PXL_NetSim_Samenwerken_Handleiding.pdf` met een complete Nederlandstalige handleiding voor het toevoegen van het project in Antigravity of VS Code.
+
+### 2. Gewijzigde & Nieuwe Bestanden:
+* `static/index.html` (Tabs en panes voor FortiGate, PAN-OS, OPNsense en pfSense Web GUIs)
+* `static/css/packet_tracer.css` (2-koloms grid voor categorieën)
+* `static/js/app.js` (Categorie-filtering, shelf rendering, CLI parser dispatching, Web GUI tabs)
+* `static/js/cisco_device.js` (Interface- en hardware-initialisatie voor alle firewalls)
+* `static/js/cisco_icons.js` (Vector SVG iconen voor alle firewalls en Cloud WAN)
+* `static/js/canvas_workspace.js` (Device prefix mappings)
+* `static/js/firewall_security.js` (Nieuw: alle 5 firewall CLI parsers & Web GUI renderers)
+* `.ai-sync/LOCK.json` & `.ai-sync/CONTEXT_LOG.md`
+* `AGENTS.md` & `.github/copilot-instructions.md`
+* `PXL_NetSim_Samenwerken_Handleiding.pdf`
+* `tests/test_firewall_and_shelf_categories.py` (Geautomatiseerde E2E test, 6/6 geslaagd)
+
+---
+
+## [2026-11-12 11:55] • INITIAL CONTEXT ENTRY
+**Auteur / Agent:** David Parren & Antigravity (Host-PC)  
+**Status Lock:** FREE  
+**Git Branch / Commit:** `main`  
+**Live Cloud Run URL:** `https://pxl-web-netsim-1088457364327.europe-west1.run.app`  
+**Lokale Server:** `http://localhost:8080` (Python 3.12 `server.py`)
+
+### 1. Projectoverzicht & Doelstelling
+**PXL Web NetSim** is een volwaardige, browsergebaseerde netwerksimulator en geautomatiseerd evaluatieplatform ontwikkeld voor Hogeschool PXL (Departement Toegepaste Informatica / System & Network Engineering - SNE). Het stelt studenten in staat om zonder zware lokale software (zoals Cisco Packet Tracer) netwerktopologieën te bouwen, kabels aan te sluiten, apparaten via authentieke CLI en Web GUIs te configureren, Wireshark packet captures uit te voeren en opdrachten cryptografisch ondertekend in te leveren via Blackboard/Schoolyear. Docenten kunnen toetsen klaarzetten, resultaten monitoren en Packet Tracer `.pka`/`.pkt` bestanden importeren en automatisch omzetten naar interactieve labs.
+
+### 2. Volledige Architectuur & Tech-Stack
+* **Frontend (100% Zero-Dependency Modular Vanilla Web):**
+  * Geen zware Node.js/npm dependencies of bundlers nodig; laadt direct razendsnel in elke moderne browser.
+  * `static/index.html`: Hoofdinterface met interactieve canvas werkruimte, topologie-knoppen, statusbalken, modale vensters en bottom device shelf.
+  * `static/css/packet_tracer.css`: Packet Tracer geïnspireerde styling, responsive faceplates, terminals, modale vensters en dock.
+  * `static/js/app.js`: Centrale controller (`PXLApp`), initialiseert alle deelsystemen, beheert modale vensters, auth-state en event listeners.
+  * `static/js/canvas_workspace.js`: HTML5 Canvas rendering engine met soepele zoom, pan, grid-snapping, kabel-animaties, link LEDs en drag-and-drop.
+  * `static/js/cisco_device.js`: Datamodel voor elk netwerkapparaat (interfaces, IP/mask, ARP/MAC-tabellen, routingtabellen, NVRAM startup/running-config).
+  * `static/js/cisco_cli.js` & `cisco_ios.js`: Cisco IOS / AireOS state machine met command parsing, inline help (`?`), tab completion en paginering (`--More--`).
+  * `static/js/simulation_engine.js`: Event-driven netwerksimulator (ARP requests, ICMP echo/reply, DHCP discover/offer, DNS lookups, TCP 3-way handshakes).
+  * `static/js/wireshark_app.js`: Ingebouwde grafische packet analyzer met live packet stream, packet hex view en decodering.
+  * `static/js/grading_engine.js`: Realtime rubric evaluatie-engine die de topologie en device running configs toetst aan gestelde eisen.
+  * `static/js/teacher_studio.js`: Docentenpaneel voor live monitoring, examen- en labbeheer, PKA rubric generator en bug center.
+* **Backend (Python 3.12 REST API & Database):**
+  * `server.py`: Asynchrone en multithreaded HTTP server met sessiebeheer (cookies), static file caching en JSON REST endpoints.
+  * `backend/database.py`: SQLite3 database (`data/netsim.db`) in WAL-modus met tabellen voor `users`, `exams`, `exam_assignments`, `student_saves`, `exam_submissions`, `system_settings` en `bug_reports`.
+  * `backend/pka_generator.py`: Geavanceerde Packet Tracer parser die `.pka`/`.pkt` XML extract, running-configs uitleest, en automatische rubrics en gestripte starttopologieën bouwt.
+  * `backend/crypto_verifier.py`: HMAC-SHA256 en RSA ondertekening van `.pxlexam` inzendpakketten ter voorkoming van fraude en manipulatie.
+  * `deploy_gcloud.ps1`: Automatische één-klik deployment naar Google Cloud Run (regio `europe-west1`).
+
+### 3. Belangrijke Ontwerpkeuzes & Logica
+1. **Rolgebaseerde Studio Toegang:**
+   * Studenten zien na inloggen enkel `[🧑‍🎓 Student Studio]`; docenten zien enkel `[🛠️ Teacher Studio]`. Niet-ingelogde gebruikers zien enkel een inlogknop.
+2. **Onderverdeling Lab vs Test:**
+   * **Labs (Oefenlabs):** Vrij toegankelijk, direct te starten, student kan zelf zijn voortgang resetten om blanco opnieuw te oefenen.
+   * **Testen (Officiële Examens):** Vereisen een startsein van de docent (`is_started = 1`) en optioneel een test-wachtwoord. Studenten kunnen testen NOOIT zelfstandig resetten (beveiligd in backend).
+3. **PKA Generator met Auto-Stripping:**
+   * Docenten uploaden een 100% afgewerkte model-PKA. De docent vinkt in een interactieve checklist aan welke instellingen punten opleveren.
+   * De generator wist automatisch die aangevinkte instellingen uit de studenten-topologie (zodat de student deze zelf moet invoeren) en genereert de instructietekst met Adresseringstabel.
+4. **Bug Melding Systeem met AI-Export/Import:**
+   * Knop `🐞 Bug Melden` maakt een complete JSON snapshot van alle actieve configs, kabels en topologie.
+   * Exporteerbaar naar `<bug_code>.json`. Een AI kan de bug lokaal inspecteren en via een gestructureerde JSON-oplossing terugvoeden naar Teacher Studio Tab 4 en Student Studio Tab 3.
+5. **Veilig Samenwerkingsprotocol (`.ai-sync/`):**
+   * Strikte lock (`LOCK.json`) voorkomt gelijktijdige conflicterende commits tussen collega's en AI-assistenten.
+   * `CONTEXT_LOG.md` garandeert dat alle context, achtergrondkennis en ontwerpkeuzes behouden blijven.
+
+### 4. Actuele Status & Huidige Taak
+* Cursuslabo's verrijkt met volledige adresseringstabellen en hostnames.
+* MikroTik ping & WebFig compatibiliteit gefixt.
+* Huidige actieve uitbreiding:
+  * Herindeling van de onderste apparatenbalk in 6 duidelijke categorieën: `Switch & Router devices`, `Computer systems`, `Cloud`, `Wifi`, `Cables & Patches`, `Firewall & Security`.
+  * Toevoegen van 5 volwaardige Next-Gen / Open Source Firewall platformen inclusief realistische CLI & Web GUI ondersteuning: **Cisco ASA**, **Fortinet FortiGate (FortiOS)**, **Palo Alto (PAN-OS)**, **OPNsense** en **pfSense**.

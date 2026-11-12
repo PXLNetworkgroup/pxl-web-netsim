@@ -439,6 +439,79 @@ class CiscoDevice {
         '208.67.222.222': 'OpenDNS Anycast',
         '209.165.200.230': 'Cisco CCNA Public Web Server'
       };
+    } else if (this.type === 'cisco_asa') {
+      // Cisco ASA 5506-X Security Appliance: 8 Gigabit ports + Management + Console
+      this.interfaces = {
+        'GigabitEthernet1/1': { ip: "203.0.113.2", mask: "255.255.255.0", nameif: "outside", securityLevel: 0, shutdown: false, description: "Outside WAN", mac: genMac('00d0.ba') },
+        'GigabitEthernet1/2': { ip: "192.168.1.1", mask: "255.255.255.0", nameif: "inside", securityLevel: 100, shutdown: false, description: "Inside LAN", mac: genMac('00d0.ba') },
+        'GigabitEthernet1/3': { ip: "172.16.1.1", mask: "255.255.255.0", nameif: "dmz", securityLevel: 50, shutdown: true, description: "DMZ Zone", mac: genMac('00d0.ba') },
+        'GigabitEthernet1/4': { ip: "", mask: "", shutdown: true, description: "", mac: genMac('00d0.ba') },
+        'GigabitEthernet1/5': { ip: "", mask: "", shutdown: true, description: "", mac: genMac('00d0.ba') },
+        'GigabitEthernet1/6': { ip: "", mask: "", shutdown: true, description: "", mac: genMac('00d0.ba') },
+        'GigabitEthernet1/7': { ip: "", mask: "", shutdown: true, description: "", mac: genMac('00d0.ba') },
+        'GigabitEthernet1/8': { ip: "", mask: "", shutdown: true, description: "", mac: genMac('00d0.ba') },
+        'Management1/1': { ip: "192.168.45.1", mask: "255.255.255.0", nameif: "mgmt", securityLevel: 100, shutdown: false, description: "ASDM Management", mac: genMac('00d0.ba') },
+        'Console': { ip: "", mask: "", shutdown: false, description: "RJ-45 Management Console Port", portType: 'console', mac: genMac('00d0.ba') }
+      };
+      this.ip = "192.168.1.1";
+      this.mask = "255.255.255.0";
+    } else if (this.type === 'fortigate') {
+      // Fortinet FortiGate-60F: wan1, wan2, port1-port5, Console
+      this.interfaces = {
+        'wan1': { ip: "198.51.100.2", mask: "255.255.255.0", allowAccess: "ping https ssh", shutdown: false, description: "WAN 1 Uplink", mac: genMac('704c.a5') },
+        'wan2': { ip: "", mask: "", allowAccess: "ping", shutdown: true, description: "WAN 2 Backup", mac: genMac('704c.a5') },
+        'port1': { ip: "192.168.1.99", mask: "255.255.255.0", allowAccess: "ping https ssh http", shutdown: false, description: "Internal LAN Port 1", mac: genMac('704c.a5') },
+        'port2': { ip: "192.168.1.99", mask: "255.255.255.0", allowAccess: "ping https", shutdown: false, description: "Internal Switch Port 2", mac: genMac('704c.a5') },
+        'port3': { ip: "192.168.1.99", mask: "255.255.255.0", allowAccess: "ping https", shutdown: false, description: "Internal Switch Port 3", mac: genMac('704c.a5') },
+        'port4': { ip: "192.168.1.99", mask: "255.255.255.0", allowAccess: "ping https", shutdown: false, description: "Internal Switch Port 4", mac: genMac('704c.a5') },
+        'port5': { ip: "192.168.1.99", mask: "255.255.255.0", allowAccess: "ping https", shutdown: false, description: "Internal Switch Port 5", mac: genMac('704c.a5') },
+        'Console': { ip: "", mask: "", shutdown: false, description: "RJ-45 Management Console Port", portType: 'console', mac: genMac('704c.a5') }
+      };
+      this.ip = "192.168.1.99";
+      this.mask = "255.255.255.0";
+    } else if (this.type === 'paloalto') {
+      // Palo Alto Networks PA-440: management, ethernet1/1 - ethernet1/4, console
+      this.interfaces = {
+        'management': { ip: "192.168.1.1", mask: "255.255.255.0", shutdown: false, description: "Dedicated MGT Port", mac: genMac('001b.17') },
+        'ethernet1/1': { ip: "10.0.0.1", mask: "255.255.255.0", zone: "UNTRUST", shutdown: false, description: "WAN Untrusted", mac: genMac('001b.17') },
+        'ethernet1/2': { ip: "192.168.10.1", mask: "255.255.255.0", zone: "TRUST", shutdown: false, description: "LAN Trusted", mac: genMac('001b.17') },
+        'ethernet1/3': { ip: "", mask: "", zone: "DMZ", shutdown: true, description: "DMZ / HA1", mac: genMac('001b.17') },
+        'ethernet1/4': { ip: "", mask: "", zone: "DMZ", shutdown: true, description: "DMZ / HA2", mac: genMac('001b.17') },
+        'Console': { ip: "", mask: "", shutdown: false, description: "Serial Console Port", portType: 'console', mac: genMac('001b.17') }
+      };
+      this.ip = "192.168.10.1";
+      this.mask = "255.255.255.0";
+    } else if (this.type === 'opnsense') {
+      // OPNsense 24.1: LAN (vtnet0), WAN (vtnet1), OPT1 (vtnet2), OPT2 (vtnet3), Console
+      this.interfaces = {
+        'vtnet0 (LAN)': { ip: "192.168.1.1", mask: "255.255.255.0", shutdown: false, description: "LAN Interface (vtnet0)", mac: genMac('0015.5d') },
+        'vtnet1 (WAN)': { ip: "192.168.100.10", mask: "255.255.255.0", shutdown: false, description: "WAN Interface (vtnet1)", mac: genMac('0015.5d') },
+        'vtnet2 (OPT1)': { ip: "", mask: "", shutdown: true, description: "OPT1 DMZ (vtnet2)", mac: genMac('0015.5d') },
+        'vtnet3 (OPT2)': { ip: "", mask: "", shutdown: true, description: "OPT2 Sync (vtnet3)", mac: genMac('0015.5d') },
+        'Console': { ip: "", mask: "", shutdown: false, description: "Serial Video / TTY Console", portType: 'console', mac: genMac('0015.5d') }
+      };
+      this.ip = "192.168.1.1";
+      this.mask = "255.255.255.0";
+    } else if (this.type === 'pfsense') {
+      // pfSense Plus: WAN (vtnet0), LAN (vtnet1), OPT1 (vtnet2), OPT2 (vtnet3), Console
+      this.interfaces = {
+        'vtnet0 (WAN)': { ip: "198.51.100.15", mask: "255.255.255.0", shutdown: false, description: "WAN Interface (vtnet0)", mac: genMac('000c.29') },
+        'vtnet1 (LAN)': { ip: "192.168.1.1", mask: "255.255.255.0", shutdown: false, description: "LAN Interface (vtnet1)", mac: genMac('000c.29') },
+        'vtnet2 (OPT1)': { ip: "", mask: "", shutdown: true, description: "OPT1 DMZ (vtnet2)", mac: genMac('000c.29') },
+        'vtnet3 (OPT2)': { ip: "", mask: "", shutdown: true, description: "OPT2 Sync (vtnet3)", mac: genMac('000c.29') },
+        'Console': { ip: "", mask: "", shutdown: false, description: "Serial Video / TTY Console", portType: 'console', mac: genMac('000c.29') }
+      };
+      this.ip = "192.168.1.1";
+      this.mask = "255.255.255.0";
+    } else if (this.type === 'cloud_wan') {
+      // Cloud WAN / ISP Frame Relay & Cable/DSL Cloud
+      this.interfaces = {
+        'Serial0/0/0': { ip: "", mask: "", shutdown: false, description: "Frame Relay Serial DCE 0", mac: genMac('0002.17') },
+        'Serial0/0/1': { ip: "", mask: "", shutdown: false, description: "Frame Relay Serial DCE 1", mac: genMac('0002.17') },
+        'Ethernet6': { ip: "", mask: "", shutdown: false, description: "Gigabit WAN Uplink", mac: genMac('0002.17') },
+        'Ethernet7': { ip: "", mask: "", shutdown: false, description: "Gigabit WAN Distribution", mac: genMac('0002.17') },
+        'Coaxial7': { ip: "", mask: "", shutdown: false, description: "DOCSIS Cable RF Port", mac: genMac('0002.17') }
+      };
     }
 
     // 2. Overlay any custom interface configurations (excluding null / None keys)
