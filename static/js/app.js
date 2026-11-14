@@ -60,6 +60,24 @@ class PXLNetSimApp {
     }, 10000);
   }
 
+  // --- FEATURE & GUI RESTRICTION LOCKING (DIDACTIC / ANTI-CHEAT) ---
+  isFeatureLocked(device, featureName) {
+    if (!device && !featureName) return false;
+    if (device && device.isFeatureLocked && device.isFeatureLocked(featureName)) return true;
+    if (this.activeExam && this.activeExam.lockedFeatures) {
+      const lf = this.activeExam.lockedFeatures;
+      if (Array.isArray(lf) && (lf.includes(featureName) || lf.includes('all'))) return true;
+      if (lf.global && Array.isArray(lf.global) && (lf.global.includes(featureName) || lf.global.includes('all'))) return true;
+      if (lf.devices && device) {
+        const dName = device.hostname || device.name;
+        const dId = device.id;
+        const devLocks = lf.devices[dName] || lf.devices[dId];
+        if (Array.isArray(devLocks) && (devLocks.includes(featureName) || devLocks.includes('all'))) return true;
+      }
+    }
+    return false;
+  }
+
   // --- PRESET EXAMS BUNDLED FOR STANDALONE RUNTIME ---
   initPresetExams() {
     this.presetExams = {
@@ -280,6 +298,14 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
       topo.devices.forEach(d => {
         const devId = d.id || d.name;
         const devHostname = d.hostname || d.name || devId;
+        // Merge exam-level locked features if present
+        if (exam.lockedFeatures && !d.lockedFeatures) {
+          if (Array.isArray(exam.lockedFeatures)) {
+            d.lockedFeatures = [...exam.lockedFeatures];
+          } else if (exam.lockedFeatures.global) {
+            d.lockedFeatures = [...exam.lockedFeatures.global];
+          }
+        }
         const dev = new CiscoDevice(devId, d.type, devHostname, d);
         this.sim.registerDevice(dev);
       });
@@ -763,6 +789,19 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     const isWrt = (device.type === 'wireless_router');
     const isWlc = (device.type === 'wlc');
     const isAp = (device.type === 'wireless_ap');
+    const configTabBtn = document.getElementById('tabBtnConfig');
+    const isConfigLocked = this.isFeatureLocked(device, 'config_tab') || this.isFeatureLocked(device, 'disable_config_tab');
+    if (configTabBtn) {
+      if (isConfigLocked) {
+        configTabBtn.innerText = '🔒 Config (Vergrendeld)';
+        configTabBtn.style.opacity = '0.6';
+        configTabBtn.title = 'Config (GUI) is uitgeschakeld voor deze opdracht. Gebruik de CLI.';
+      } else {
+        configTabBtn.innerText = 'Config (GUI)';
+        configTabBtn.style.opacity = '1';
+        configTabBtn.title = '';
+      }
+    }
     const cliTabBtn = document.getElementById('tabBtnCli');
     const desktopTabBtn = document.getElementById('tabBtnDesktop');
     const servicesTabBtn = document.getElementById('tabBtnServices');
@@ -933,6 +972,15 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
   }
 
   switchDeviceModalTab(tabKey) {
+    const dev = this.activeDevice;
+
+    // Check if Config (GUI) tab is locked by the teacher / lab assignment
+    if (tabKey === 'config' && dev && (this.isFeatureLocked(dev, 'config_tab') || this.isFeatureLocked(dev, 'disable_config_tab'))) {
+      this.showToast("🔒 Het tabblad Config (GUI) is uitgeschakeld voor deze opdracht. Gebruik de CLI.");
+      this.switchDeviceModalTab('cli');
+      return;
+    }
+
     const tabs = ['physical', 'config', 'cli', 'desktop', 'services', 'webfig', 'luciweb', 'hpeweb', 'wrtweb', 'wlcweb', 'apweb', 'fortiweb', 'panweb', 'opnweb', 'pfweb', 'wgweb', 'asaweb'];
     tabs.forEach(t => {
       const pane = document.getElementById(`modalPane${t.charAt(0).toUpperCase() + t.slice(1)}`);
@@ -946,7 +994,6 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     const activeBtn = document.getElementById(`tabBtn${tabKey.charAt(0).toUpperCase() + tabKey.slice(1)}`);
     if (activeBtn) activeBtn.classList.add('active');
 
-    const dev = this.activeDevice;
     if (tabKey === 'physical') this.renderPhysicalTab();
     if (tabKey === 'config') this.renderConfigTab();
     if (tabKey === 'cli') this.renderCliTab();
@@ -1132,6 +1179,8 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     const container = document.getElementById('modalPaneConfig');
     if (!dev || !container) return;
 
+    const isIpLocked = this.isFeatureLocked(dev, 'gui_ip_config') || this.isFeatureLocked(dev, 'disable_gui_ip');
+
     container.innerHTML = `
       <div class="pt-config-layout">
         <div class="pt-config-sidebar">
@@ -1147,6 +1196,11 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
           }).join('')}
         </div>
         <div class="pt-config-body" id="configPortEditor">
+          ${isIpLocked ? `
+            <div style="background: rgba(239,68,68,0.12); border: 1.5px solid #ef4444; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; color: #ef4444; font-size: 12px; line-height: 1.45;">
+              🔒 <strong>GUI IP-configuratie is vergrendeld:</strong> Voor deze opdracht mogen IP-adressen niet via de GUI worden ingevuld. Gebruik het tabblad <strong>CLI</strong> om interfaces te configureren via commando's (bijv. <code>interface FastEthernet0/0</code> &bull; <code>ip address ...</code>).
+            </div>
+          ` : ''}
           <h4>Algemene Instellingen</h4>
           <div class="pt-form-group">
             <label>Hostname:</label>
@@ -1154,8 +1208,8 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
           </div>
           ${dev.type === 'switch' ? `
             <div class="pt-form-group">
-              <label>Default Gateway:</label>
-              <input type="text" class="pt-input" value="${dev.defaultGateway || ''}" onchange="window.PXLApp.updateDeviceGateway(this.value)">
+              <label>Default Gateway: ${isIpLocked ? '<span style="color:#ef4444; font-size:11px;">🔒 (Vergrendeld)</span>' : ''}</label>
+              <input type="text" class="pt-input" ${isIpLocked ? 'disabled="disabled" style="background:#1e293b; color:#94a3b8; cursor:not-allowed;"' : ''} value="${dev.defaultGateway || ''}" onchange="window.PXLApp.updateDeviceGateway(this.value)">
             </div>
           ` : ''}
           ${dev.type === 'mikrotik' ? `
@@ -1343,6 +1397,8 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     const editor = document.getElementById('configPortEditor');
     if (!dev || !intf || !editor) return;
 
+    const isIpLocked = this.isFeatureLocked(dev, 'gui_ip_config') || this.isFeatureLocked(dev, 'disable_gui_ip');
+
     if (portName.startsWith('Wireless')) {
       const w = dev.wireless || {};
       editor.innerHTML = `
@@ -1445,12 +1501,12 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
         </label>
       </div>
       <div class="pt-form-group">
-        <label>IP Adres:</label>
-        <input type="text" class="pt-input" id="cfgPortIpInput" value="${intf.ip || ''}" placeholder="bv. 192.168.88.1 of 192.168.88.1/24" onchange="window.PXLApp.updatePortIp('${portName}', this.value)">
+        <label>IP Adres: ${isIpLocked ? '<span style="color:#ef4444; font-size:11px; margin-left:6px;">🔒 (Vergrendeld)</span>' : ''}</label>
+        <input type="text" class="pt-input" id="cfgPortIpInput" ${isIpLocked ? 'disabled="disabled" style="background:#1e293b; color:#94a3b8; cursor:not-allowed;"' : ''} value="${intf.ip || ''}" placeholder="bv. 192.168.88.1 of 192.168.88.1/24" onchange="window.PXLApp.updatePortIp('${portName}', this.value)">
       </div>
       <div class="pt-form-group">
-        <label>Subnet Masker:</label>
-        <input type="text" class="pt-input" id="cfgPortMaskInput" value="${intf.mask || ''}" placeholder="bv. 255.255.255.0" onchange="window.PXLApp.updatePortMask('${portName}', this.value)">
+        <label>Subnet Masker: ${isIpLocked ? '<span style="color:#ef4444; font-size:11px; margin-left:6px;">🔒 (Vergrendeld)</span>' : ''}</label>
+        <input type="text" class="pt-input" id="cfgPortMaskInput" ${isIpLocked ? 'disabled="disabled" style="background:#1e293b; color:#94a3b8; cursor:not-allowed;"' : ''} value="${intf.mask || ''}" placeholder="bv. 255.255.255.0" onchange="window.PXLApp.updatePortMask('${portName}', this.value)">
       </div>
       <div class="pt-form-group">
         <label>Beschrijving:</label>
@@ -1565,6 +1621,11 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
 
   updateDeviceGateway(val) {
     if (this.activeDevice) {
+      if (this.isFeatureLocked(this.activeDevice, 'gui_ip_config') || this.isFeatureLocked(this.activeDevice, 'disable_gui_ip')) {
+        this.showToast("🔒 Gateway configuratie via GUI is vergrendeld voor deze opdracht. Gebruik de CLI.");
+        this.renderConfigTab();
+        return;
+      }
       this.activeDevice.defaultGateway = val.trim();
       this.triggerScoreUpdate();
     }
@@ -1580,6 +1641,12 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
 
   updatePortIp(portName, ip) {
     if (this.activeDevice && this.activeDevice.interfaces[portName]) {
+      if (this.isFeatureLocked(this.activeDevice, 'gui_ip_config') || this.isFeatureLocked(this.activeDevice, 'disable_gui_ip')) {
+        this.showToast("🔒 IP-configuratie via GUI is vergrendeld voor deze opdracht. Gebruik de CLI.");
+        this.renderConfigTab();
+        this.selectConfigPort(portName);
+        return;
+      }
       let trimmed = ip.trim();
       let detectedMask = null;
 
@@ -1626,6 +1693,12 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
 
   updatePortMask(portName, mask) {
     if (this.activeDevice && this.activeDevice.interfaces[portName]) {
+      if (this.isFeatureLocked(this.activeDevice, 'gui_ip_config') || this.isFeatureLocked(this.activeDevice, 'disable_gui_ip')) {
+        this.showToast("🔒 IP/Masker-configuratie via GUI is vergrendeld voor deze opdracht. Gebruik de CLI.");
+        this.renderConfigTab();
+        this.selectConfigPort(portName);
+        return;
+      }
       const trimmed = mask.trim();
       this.activeDevice.interfaces[portName].mask = trimmed;
       if (trimmed && (this.activeDevice.type === 'switch' || this.activeDevice.type === 'hpe_switch')) {
@@ -2583,6 +2656,10 @@ Type 'help', 'ip a', or 'python3' to get started.
   savePcIpConfig() {
     const dev = this.activeDevice;
     if (!dev) return;
+    if (this.isFeatureLocked(dev, 'desktop_ip_config')) {
+      this.showToast('🔒 Handmatige IP-configuratie is vergrendeld voor deze opdracht (gebruik DHCP).');
+      return;
+    }
     dev.ip = document.getElementById('pcIpInput').value.trim();
     dev.mask = document.getElementById('pcMaskInput').value.trim();
     dev.gateway = document.getElementById('pcGwInput').value.trim();
@@ -3090,84 +3167,229 @@ Type 'help', 'ip a', or 'python3' to get started.
       if (!dns.forwarders) {
         dns.forwarders = { enabled: true, primary: '8.8.8.8', secondary: '1.1.1.1' };
       }
+      if (!dns.forwardZones || dns.forwardZones.length === 0) {
+        dns.forwardZones = [
+          {
+            id: 'fz_default',
+            name: 'pxl.local',
+            type: 'Primary',
+            records: [
+              { name: '@', type: 'SOA', target: 'dc01.pxl.local', ttl: 3600 },
+              { name: '@', type: 'NS', target: 'dc01.pxl.local', ttl: 3600 },
+              { name: 'dc01', type: 'A', ip: dev.ip || '172.16.1.10', ttl: 3600 },
+              { name: 'www', type: 'A', ip: dev.ip || '172.16.1.10', ttl: 3600 },
+              { name: 'web', type: 'CNAME', target: 'www.pxl.local', ttl: 3600 }
+            ]
+          }
+        ];
+      }
+      if (!dns.reverseZones || dns.reverseZones.length === 0) {
+        const ipParts = (dev.ip || '172.16.1.10').split('.');
+        const subnetPrefix = ipParts.slice(0, 3).join('.');
+        const reverseArpa = ipParts.slice(0, 3).reverse().join('.') + '.in-addr.arpa';
+        dns.reverseZones = [
+          {
+            id: 'rz_default',
+            name: reverseArpa,
+            networkPrefix: subnetPrefix,
+            type: 'Primary',
+            records: [
+              { name: '@', type: 'SOA', target: 'dc01.pxl.local', ttl: 3600 },
+              { name: '@', type: 'NS', target: 'dc01.pxl.local', ttl: 3600 },
+              { name: ipParts[3] || '10', type: 'PTR', target: 'dc01.pxl.local', ip: dev.ip || '172.16.1.10', ttl: 3600 }
+            ]
+          }
+        ];
+      }
+
+      if (!this.dnsActiveSubtab) this.dnsActiveSubtab = 'flz';
+      if (!this.selectedFlzZoneId && dns.forwardZones.length > 0) this.selectedFlzZoneId = dns.forwardZones[0].id;
+      if (!this.selectedRlzZoneId && dns.reverseZones.length > 0) this.selectedRlzZoneId = dns.reverseZones[0].id;
+
+      const activeFlz = dns.forwardZones.find(z => z.id === this.selectedFlzZoneId) || dns.forwardZones[0];
+      const activeRlz = dns.reverseZones.find(z => z.id === this.selectedRlzZoneId) || dns.reverseZones[0];
 
       return `
-        <h3>🔎 DNS Server Service & Forwarders (Cisco Packet Tracer + Anycast / Live WAN)</h3>
-        <div class="pt-service-status-bar">
+        <h3>🔎 DNS Server Service, Lookup Zones & Forwarders (Windows / BIND Architecture)</h3>
+        <div class="pt-service-status-bar" style="margin-bottom: 12px;">
           <span>Dienst Status:</span>
           <label><input type="radio" name="srvDns" ${dns.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceDns(true)"> Ingeschakeld (On)</label>
           <label><input type="radio" name="srvDns" ${!dns.enabled ? 'checked' : ''} onchange="window.PXLApp.setServiceDns(false)"> Uitgeschakeld (Off)</label>
         </div>
 
-        <!-- Add Resource Record Form -->
-        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
-          <h4 style="margin: 0 0 10px; color: #0284c7; font-size: 13px;">Nieuw Resource Record Toevoegen:</h4>
-          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <input type="text" id="dnsNameInput" class="pt-input" placeholder="Domeinnaam (bv. www.pxl.be of portal.pxl.local)" style="flex: 2; min-width: 180px;">
-            <select id="dnsTypeInput" class="pt-input" style="flex: 1; min-width: 110px;" onchange="window.PXLApp.onDnsTypeChange(this.value)">
-              <option value="A">A Record (Host)</option>
-              <option value="CNAME">CNAME (Alias)</option>
-            </select>
-            <input type="text" id="dnsTargetInput" class="pt-input" placeholder="IP Adres (bv. 172.16.1.10)" style="flex: 2; min-width: 180px;">
-            <button class="pt-btn pt-btn-primary" onclick="window.PXLApp.addDnsRecord()">+ Toevoegen</button>
-          </div>
+        <!-- DNS Subtab Navigation -->
+        <div style="display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 2px solid #cbd5e1; padding-bottom: 4px;">
+          <button type="button" class="pt-btn ${this.dnsActiveSubtab === 'flz' ? 'pt-btn-primary' : 'pt-btn-secondary'}" style="font-size: 11.5px; padding: 5px 12px;" onclick="window.PXLApp.switchDnsSubtab('flz')">
+            🌐 1. Forward Lookup Zones (FLZ)
+          </button>
+          <button type="button" class="pt-btn ${this.dnsActiveSubtab === 'rlz' ? 'pt-btn-primary' : 'pt-btn-secondary'}" style="font-size: 11.5px; padding: 5px 12px;" onclick="window.PXLApp.switchDnsSubtab('rlz')">
+            🔄 2. Reverse Lookup Zones (RLZ)
+          </button>
+          <button type="button" class="pt-btn ${this.dnsActiveSubtab === 'fwd' ? 'pt-btn-primary' : 'pt-btn-secondary'}" style="font-size: 11.5px; padding: 5px 12px;" onclick="window.PXLApp.switchDnsSubtab('fwd')">
+            ⏩ 3. DNS Forwarders
+          </button>
         </div>
 
-        <h4>Actieve DNS Records:</h4>
-        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 16px;">
-          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-            <thead>
-              <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
-                <th style="padding: 6px 10px;">Domeinnaam</th>
-                <th style="padding: 6px 10px;">Type</th>
-                <th style="padding: 6px 10px;">Doel (IP / Host Alias)</th>
-                <th style="padding: 6px 10px; width: 60px;">Actie</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${(dns.records || []).map((r, i) => `
-                <tr style="border-bottom: 1px solid #e2e8f0;">
-                  <td style="padding: 6px 10px; font-weight: 600; color: #0284c7;">${r.name}</td>
-                  <td style="padding: 6px 10px;"><span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">${r.type}</span></td>
-                  <td style="padding: 6px 10px; font-family: monospace;">${r.type === 'CNAME' ? (r.target || r.alias) : r.ip}</td>
-                  <td style="padding: 6px 10px;"><button class="pt-btn-del" onclick="window.PXLApp.deleteDnsRecord(${i})">🗑️</button></td>
+        ${this.dnsActiveSubtab === 'flz' ? `
+          <!-- FORWARD LOOKUP ZONE VIEW -->
+          <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <label style="font-weight: 700; font-size: 12px; color: #0369a1;">Selecteer Forward Zone:</label>
+                <select class="pt-input" style="font-size: 12px; padding: 4px 8px; min-width: 180px;" onchange="window.PXLApp.selectFlzZone(this.value)">
+                  ${dns.forwardZones.map(z => `<option value="${z.id}" ${z.id === activeFlz.id ? 'selected' : ''}>${z.name} (${z.type || 'Primary'})</option>`).join('')}
+                </select>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button type="button" class="pt-btn pt-btn-secondary" style="font-size: 11px; padding: 4px 10px;" onclick="window.PXLApp.promptAddFlzZone()">+ Nieuwe FLZ Zone</button>
+                ${dns.forwardZones.length > 1 ? `<button type="button" class="pt-btn pt-btn-secondary" style="font-size: 11px; color:#ef4444; border-color:#fca5a5; padding: 4px 8px;" onclick="window.PXLApp.deleteFlzZone('${activeFlz.id}')">🗑️ Zone Wissen</button>` : ''}
+              </div>
+            </div>
+
+            <!-- Add FLZ Record Form -->
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-top: 10px;">
+              <h5 style="margin: 0 0 8px; color: #0284c7; font-size: 12px;">Nieuw Resource Record Toevoegen in '${activeFlz.name}':</h5>
+              <div style="display: grid; grid-template-columns: 2fr 1.2fr 2.5fr auto; gap: 8px; align-items: center;">
+                <input type="text" id="flzRecordNameInput" class="pt-input" placeholder="Naam (bv. www, portal, @)" style="font-size: 12px;">
+                <select id="flzRecordTypeInput" class="pt-input" style="font-size: 12px;" onchange="window.PXLApp.onFlzTypeChange(this.value)">
+                  <option value="A">A (Host IPv4)</option>
+                  <option value="CNAME">CNAME (Alias FQDN)</option>
+                  <option value="MX">MX (Mail Exchanger)</option>
+                  <option value="NS">NS (Name Server)</option>
+                  <option value="SOA">SOA (Authority)</option>
+                </select>
+                <input type="text" id="flzRecordTargetInput" class="pt-input" placeholder="IP Adres (bv. 172.16.1.10)" style="font-size: 12px;">
+                <button type="button" class="pt-btn pt-btn-primary" style="font-size: 12px;" onclick="window.PXLApp.addFlzRecord('${activeFlz.id}')">+ Toevoegen</button>
+              </div>
+              <div id="flzRecordPtrOption" style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+                <label style="font-size: 11.5px; color: #15803d; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                  <input type="checkbox" id="flzAutoCreatePtr" checked style="cursor: pointer;">
+                  <span>🔄 <strong>Maak automatisch gekoppeld Pointer (PTR) record aan</strong> in de bijbehorende Reverse Lookup Zone</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- FLZ Records Table -->
+          <h4 style="margin: 0 0 8px; font-size: 13px; color: #334155;">Actieve Records in '${activeFlz.name}':</h4>
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 16px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+              <thead>
+                <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
+                  <th style="padding: 6px 10px;">Record Naam</th>
+                  <th style="padding: 6px 10px;">Type</th>
+                  <th style="padding: 6px 10px;">Doel / IP Adres</th>
+                  <th style="padding: 6px 10px; width: 60px;">TTL</th>
+                  <th style="padding: 6px 10px; width: 60px;">Actie</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                ${(activeFlz.records || []).map((r, i) => `
+                  <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 6px 10px; font-weight: 600; color: #0284c7;">${r.name === '@' ? `(same as parent folder) [@.${activeFlz.name}]` : `${r.name}.${activeFlz.name}`}</td>
+                    <td style="padding: 6px 10px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">${r.type}</span></td>
+                    <td style="padding: 6px 10px; font-family: monospace;">${r.type === 'CNAME' ? (r.target || r.alias) : (r.ip || r.target)}</td>
+                    <td style="padding: 6px 10px; color: #64748b;">${r.ttl || 3600}s</td>
+                    <td style="padding: 6px 10px;">${r.type === 'SOA' || r.type === 'NS' ? '-' : `<button class="pt-btn-del" onclick="window.PXLApp.deleteFlzRecord('${activeFlz.id}', ${i})">🗑️</button>`}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : ''}
 
-        <!-- DNS FORWARDERS CARD -->
-        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 14px; margin-top: 10px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 16px;">🌐</span>
-              <h4 style="margin: 0; color: #166534; font-size: 13px;">DNS Forwarders (Public Internet / Loopback Anycast)</h4>
+        ${this.dnsActiveSubtab === 'rlz' ? `
+          <!-- REVERSE LOOKUP ZONE VIEW -->
+          <div style="background: #fdf2f8; border: 1.5px solid #f472b6; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <label style="font-weight: 700; font-size: 12px; color: #9d174d;">Selecteer Reverse Zone:</label>
+                <select class="pt-input" style="font-size: 12px; padding: 4px 8px; min-width: 240px;" onchange="window.PXLApp.selectRlzZone(this.value)">
+                  ${dns.reverseZones.map(z => `<option value="${z.id}" ${z.id === activeRlz.id ? 'selected' : ''}>${z.name} [Subnet: ${z.networkPrefix}.x]</option>`).join('')}
+                </select>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button type="button" class="pt-btn pt-btn-secondary" style="font-size: 11px; padding: 4px 10px;" onclick="window.PXLApp.promptAddRlzZone()">+ Nieuwe RLZ Zone</button>
+                ${dns.reverseZones.length > 1 ? `<button type="button" class="pt-btn pt-btn-secondary" style="font-size: 11px; color:#ef4444; border-color:#fca5a5; padding: 4px 8px;" onclick="window.PXLApp.deleteRlzZone('${activeRlz.id}')">🗑️ Zone Wissen</button>` : ''}
+              </div>
             </div>
-            <label style="font-size: 12px; font-weight: 600; color: #15803d; cursor: pointer;">
-              <input type="checkbox" id="dnsForwarderCheck" ${dns.forwarders?.enabled !== false ? 'checked' : ''} style="margin-right: 4px;"> Forwarding Ingeschakeld
-            </label>
-          </div>
-          <p style="font-size: 11.5px; color: #166534; margin: 0 0 10px; line-height: 1.45;">
-            Wanneer een client een domeinnaam opvraagt die niet lokaal in de zone staat (bijv. <code>google.com</code>, <code>pxl.be</code>), stuurt de server de query door naar deze publieke upstream forwarders.
-          </p>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">
-            <div>
-              <label style="font-size: 11px; font-weight: 600; color: #14532d; display: block; margin-bottom: 3px;">Primaire Forwarder (Google Anycast):</label>
-              <input type="text" id="dnsFwdPrimary" class="pt-input" value="${dns.forwarders?.primary || '8.8.8.8'}" style="width: 100%; background: #ffffff;">
-            </div>
-            <div>
-              <label style="font-size: 11px; font-weight: 600; color: #14532d; display: block; margin-bottom: 3px;">Secundaire Forwarder (Cloudflare Anycast):</label>
-              <input type="text" id="dnsFwdSecondary" class="pt-input" value="${dns.forwarders?.secondary || '1.1.1.1'}" style="width: 100%; background: #ffffff;">
+
+            <!-- Add RLZ PTR Record Form -->
+            <div style="background: #ffffff; border: 1px solid #fbcfe8; border-radius: 6px; padding: 12px; margin-top: 10px;">
+              <h5 style="margin: 0 0 8px; color: #be185d; font-size: 12px;">Nieuw Pointer (PTR) Record Toevoegen in '${activeRlz.name}':</h5>
+              <div style="display: grid; grid-template-columns: 2fr 1fr 3fr auto; gap: 8px; align-items: center;">
+                <input type="text" id="rlzHostNumInput" class="pt-input" placeholder="Host IP / Nummer (bv. 10 of 172.16.1.10)" style="font-size: 12px;">
+                <div style="font-size: 11px; font-weight: bold; background: #fdf2f8; color: #be185d; padding: 6px 10px; border-radius: 4px; text-align: center;">PTR (Pointer)</div>
+                <input type="text" id="rlzTargetFqdnInput" class="pt-input" placeholder="Host FQDN (bv. dc01.pxl.local of www.pxl.be)" style="font-size: 12px;">
+                <button type="button" class="pt-btn" style="background: #db2777; color: white; border: none; font-size: 12px; padding: 6px 12px; border-radius: 4px; cursor: pointer;" onclick="window.PXLApp.addRlzRecord('${activeRlz.id}')">+ PTR Toevoegen</button>
+              </div>
+              <p style="font-size: 11px; color: #831843; margin: 8px 0 0 0;">
+                💡 <em>Een PTR-record koppelt een IP-adres terug aan een FQDN domeinnaam voor Reverse DNS Lookups (bijv. <code>nslookup ${activeRlz.networkPrefix || '172.16.1'}.10</code>).</em>
+              </p>
             </div>
           </div>
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-            <span style="font-size: 11px; color: #15803d;">
-              ${this.sim.isLiveInternet ? '🟢 <strong>Live WAN Proxy:</strong> Verbinding met fysieke internet gateway actief.' : '🟡 <strong>Simulatie:</strong> Beantwoordt via virtuele 8.8.8.8 / 1.1.1.1 Loopbacks op Cloud RFC 3849.'}
-            </span>
-            <button class="pt-btn pt-btn-primary" style="background: #16a34a; border-color: #15803d;" onclick="window.PXLApp.saveDnsForwarders()">💾 Forwarders Opslaan</button>
+
+          <!-- RLZ Records Table -->
+          <h4 style="margin: 0 0 8px; font-size: 13px; color: #334155;">Actieve Pointer Records in '${activeRlz.name}':</h4>
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 16px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+              <thead>
+                <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: left;">
+                  <th style="padding: 6px 10px;">Host IP-adres</th>
+                  <th style="padding: 6px 10px;">Type</th>
+                  <th style="padding: 6px 10px;">Gekoppelde Hostnaam (FQDN)</th>
+                  <th style="padding: 6px 10px; width: 60px;">TTL</th>
+                  <th style="padding: 6px 10px; width: 60px;">Actie</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(activeRlz.records || []).map((r, i) => `
+                  <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 6px 10px; font-weight: 600; color: #be185d; font-family: monospace;">${r.ip ? r.ip : (r.name === '@' ? activeRlz.name : `${r.name}.${activeRlz.name}`)}</td>
+                    <td style="padding: 6px 10px;"><span style="background: #fce7f3; color: #9d174d; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">${r.type}</span></td>
+                    <td style="padding: 6px 10px; font-family: monospace;">${r.target || '-'}</td>
+                    <td style="padding: 6px 10px; color: #64748b;">${r.ttl || 3600}s</td>
+                    <td style="padding: 6px 10px;">${r.type === 'SOA' || r.type === 'NS' ? '-' : `<button class="pt-btn-del" onclick="window.PXLApp.deleteRlzRecord('${activeRlz.id}', ${i})">🗑️</button>`}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
           </div>
-        </div>
+        ` : ''}
+
+        ${this.dnsActiveSubtab === 'fwd' ? `
+          <!-- DNS FORWARDERS CARD -->
+          <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 14px; margin-top: 10px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">🌐</span>
+                <h4 style="margin: 0; color: #166534; font-size: 13px;">DNS Forwarders (Public Internet / Loopback Anycast)</h4>
+              </div>
+              <label style="font-size: 12px; font-weight: 600; color: #15803d; cursor: pointer;">
+                <input type="checkbox" id="dnsForwarderCheck" ${dns.forwarders?.enabled !== false ? 'checked' : ''} style="margin-right: 4px;"> Forwarding Ingeschakeld
+              </label>
+            </div>
+            <p style="font-size: 11.5px; color: #166534; margin: 0 0 10px; line-height: 1.45;">
+              Wanneer een client een domeinnaam opvraagt die niet lokaal in de zone staat (bijv. <code>google.com</code>, <code>pxl.be</code>), stuurt de server de query door naar deze publieke upstream forwarders.
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+              <div>
+                <label style="font-size: 11px; font-weight: 600; color: #14532d; display: block; margin-bottom: 3px;">Primaire Forwarder (Google Anycast):</label>
+                <input type="text" id="dnsFwdPrimary" class="pt-input" value="${dns.forwarders?.primary || '8.8.8.8'}" style="width: 100%; background: #ffffff;">
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: 600; color: #14532d; display: block; margin-bottom: 3px;">Secundaire Forwarder (Cloudflare Anycast):</label>
+                <input type="text" id="dnsFwdSecondary" class="pt-input" value="${dns.forwarders?.secondary || '1.1.1.1'}" style="width: 100%; background: #ffffff;">
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+              <span style="font-size: 11px; color: #15803d;">
+                ${this.sim.isLiveInternet ? '🟢 <strong>Live WAN Proxy:</strong> Verbinding met fysieke internet gateway actief.' : '🟡 <strong>Simulatie:</strong> Beantwoordt via virtuele 8.8.8.8 / 1.1.1.1 Loopbacks op Cloud RFC 3849.'}
+              </span>
+              <button class="pt-btn pt-btn-primary" style="background: #16a34a; border-color: #15803d;" onclick="window.PXLApp.saveDnsForwarders()">💾 Forwarders Opslaan</button>
+            </div>
+          </div>
+        ` : ''}
       `;
     } else if (sub === 'ldap') {
       const ldap = dev.services.ldap;
@@ -3425,7 +3647,7 @@ Type 'help', 'ip a', or 'python3' to get started.
     }
   }
 
-  // --- DNS SERVICE HELPERS ---
+  // --- DNS SERVICE & LOOKUP ZONES HELPERS ---
   setServiceDns(val) {
     if (this.activeDevice && this.activeDevice.services) {
       this.activeDevice.services.dns.enabled = val;
@@ -3433,51 +3655,354 @@ Type 'help', 'ip a', or 'python3' to get started.
     }
   }
 
-  onDnsTypeChange(val) {
-    const targetInput = document.getElementById('dnsTargetInput');
-    if (targetInput) {
-      if (val === 'CNAME') {
-        targetInput.placeholder = 'Doelhost / Alias FQDN (bv. www.pxl.be)';
-      } else {
-        targetInput.placeholder = 'IP Adres (bv. 172.16.1.10)';
+  switchDnsSubtab(tabKey) {
+    this.dnsActiveSubtab = tabKey;
+    this.renderServicesTab();
+  }
+
+  selectFlzZone(zoneId) {
+    this.selectedFlzZoneId = zoneId;
+    this.renderServicesTab();
+  }
+
+  selectRlzZone(zoneId) {
+    this.selectedRlzZoneId = zoneId;
+    this.renderServicesTab();
+  }
+
+  promptAddFlzZone() {
+    const dev = this.activeDevice;
+    if (!dev?.services?.dns) return;
+    const name = prompt("Voer de naam van de nieuwe Forward Lookup Zone in (bijv. pxl.local of bedrijf.be):", "pxl.local");
+    if (!name || !name.trim()) return;
+    const cleanName = name.trim().toLowerCase();
+    const zoneId = 'fz_' + cleanName.replace(/[^a-z0-9]/g, '_') + '_' + Date.now();
+
+    if (!dev.services.dns.forwardZones) dev.services.dns.forwardZones = [];
+    if (dev.services.dns.forwardZones.some(z => z.name.toLowerCase() === cleanName)) {
+      alert(`Zone '${cleanName}' bestaat al!`);
+      return;
+    }
+
+    dev.services.dns.forwardZones.push({
+      id: zoneId,
+      name: cleanName,
+      type: 'Primary',
+      soa: {
+        primaryServer: `dc01.${cleanName}`,
+        responsiblePerson: `hostmaster.${cleanName}`,
+        serialNumber: 2026111401,
+        ttl: 3600
+      },
+      records: [
+        { name: '@', type: 'SOA', target: `dc01.${cleanName}`, ttl: 3600 },
+        { name: '@', type: 'NS', target: `dc01.${cleanName}`, ttl: 3600 },
+        { name: 'dc01', type: 'A', ip: dev.ip || '172.16.1.10', ttl: 3600 }
+      ]
+    });
+
+    this.selectedFlzZoneId = zoneId;
+    this.syncDnsFlatRecords(dev);
+    this.renderServicesTab();
+    this.showToast(`✅ Forward Lookup Zone '${cleanName}' aangemaakt.`);
+    this.triggerScoreUpdate();
+  }
+
+  deleteFlzZone(zoneId) {
+    const dev = this.activeDevice;
+    if (!dev?.services?.dns?.forwardZones) return;
+    if (dev.services.dns.forwardZones.length <= 1) {
+      alert("Je kunt niet de laatste Forward Lookup Zone verwijderen.");
+      return;
+    }
+    const idx = dev.services.dns.forwardZones.findIndex(z => z.id === zoneId);
+    if (idx !== -1) {
+      const zName = dev.services.dns.forwardZones[idx].name;
+      if (confirm(`Weet je zeker dat je Forward Zone '${zName}' en alle bijbehorende records wilt wissen?`)) {
+        dev.services.dns.forwardZones.splice(idx, 1);
+        this.selectedFlzZoneId = dev.services.dns.forwardZones[0].id;
+        this.syncDnsFlatRecords(dev);
+        this.renderServicesTab();
+        this.showToast(`🗑️ Forward Zone '${zName}' verwijderd.`);
+        this.triggerScoreUpdate();
       }
     }
   }
 
-  addDnsRecord() {
-    const nameInput = document.getElementById('dnsNameInput');
-    const typeInput = document.getElementById('dnsTypeInput');
-    const targetInput = document.getElementById('dnsTargetInput');
-    if (!nameInput || !typeInput || !targetInput || !this.activeDevice) return;
-
-    const name = nameInput.value.trim();
-    const type = typeInput.value.trim();
-    const val = targetInput.value.trim();
-
-    if (!name || !val) {
-      this.showToast('⚠️ Voer domeinnaam en doel in');
-      return;
-    }
-    if (type === 'A' && !IPUtils.isValidIp(val)) {
-      this.showToast('⚠️ Voer een geldig IPv4-adres in voor A record');
+  promptAddRlzZone() {
+    const dev = this.activeDevice;
+    if (!dev?.services?.dns) return;
+    const prefix = prompt("Voer de eerste 3 octetten van het IPv4-subnet in (bijv. 172.16.1 of 192.168.88):", "172.16.1");
+    if (!prefix || !prefix.trim()) return;
+    const cleanPfx = prefix.trim();
+    const parts = cleanPfx.split('.').filter(p => p.trim());
+    if (parts.length < 3) {
+      alert("Voer een geldig classful subnet in met minimaal 3 octetten (bijv. 172.16.1)");
       return;
     }
 
-    if (!this.activeDevice.services.dns.records) this.activeDevice.services.dns.records = [];
-    if (type === 'CNAME') {
-      this.activeDevice.services.dns.records.push({ name, type: 'CNAME', target: val });
-    } else {
-      this.activeDevice.services.dns.records.push({ name, type: 'A', ip: val });
+    const reverseArpa = parts.slice(0, 3).reverse().join('.') + '.in-addr.arpa';
+    const zoneId = 'rz_' + parts.slice(0, 3).join('_') + '_' + Date.now();
+
+    if (!dev.services.dns.reverseZones) dev.services.dns.reverseZones = [];
+    if (dev.services.dns.reverseZones.some(z => z.name.toLowerCase() === reverseArpa.toLowerCase())) {
+      alert(`Reverse Zone '${reverseArpa}' bestaat al!`);
+      return;
     }
 
+    dev.services.dns.reverseZones.push({
+      id: zoneId,
+      name: reverseArpa,
+      networkPrefix: parts.slice(0, 3).join('.'),
+      type: 'Primary',
+      soa: {
+        primaryServer: `dc01.pxl.local`,
+        responsiblePerson: `hostmaster.pxl.local`,
+        serialNumber: 2026111401,
+        ttl: 3600
+      },
+      records: [
+        { name: '@', type: 'SOA', target: 'dc01.pxl.local', ttl: 3600 },
+        { name: '@', type: 'NS', target: 'dc01.pxl.local', ttl: 3600 }
+      ]
+    });
+
+    this.selectedRlzZoneId = zoneId;
     this.renderServicesTab();
-    this.showToast(`✅ DNS Record '${name} [${type}] -> ${val}' toegevoegd`);
+    this.showToast(`✅ Reverse Lookup Zone '${reverseArpa}' aangemaakt.`);
     this.triggerScoreUpdate();
   }
 
+  deleteRlzZone(zoneId) {
+    const dev = this.activeDevice;
+    if (!dev?.services?.dns?.reverseZones) return;
+    if (dev.services.dns.reverseZones.length <= 1) {
+      alert("Je kunt niet de laatste Reverse Lookup Zone verwijderen.");
+      return;
+    }
+    const idx = dev.services.dns.reverseZones.findIndex(z => z.id === zoneId);
+    if (idx !== -1) {
+      const zName = dev.services.dns.reverseZones[idx].name;
+      if (confirm(`Weet je zeker dat je Reverse Zone '${zName}' en alle PTR-records wilt wissen?`)) {
+        dev.services.dns.reverseZones.splice(idx, 1);
+        this.selectedRlzZoneId = dev.services.dns.reverseZones[0].id;
+        this.renderServicesTab();
+        this.showToast(`🗑️ Reverse Zone '${zName}' verwijderd.`);
+        this.triggerScoreUpdate();
+      }
+    }
+  }
+
+  onFlzTypeChange(type) {
+    const targetInput = document.getElementById('flzRecordTargetInput');
+    const ptrOpt = document.getElementById('flzRecordPtrOption');
+    if (targetInput) {
+      if (type === 'CNAME') {
+        targetInput.placeholder = 'Doelhost / Alias FQDN (bv. www.pxl.local of portal.pxl.local)';
+      } else if (type === 'MX') {
+        targetInput.placeholder = 'Mail Server FQDN (bv. mail.pxl.local)';
+      } else if (type === 'NS' || type === 'SOA') {
+        targetInput.placeholder = 'Nameserver FQDN (bv. dc01.pxl.local)';
+      } else {
+        targetInput.placeholder = 'IPv4 Adres (bv. 172.16.1.10)';
+      }
+    }
+    if (ptrOpt) {
+      ptrOpt.style.display = (type === 'A') ? 'flex' : 'none';
+    }
+  }
+
+  addFlzRecord(zoneId) {
+    const dev = this.activeDevice;
+    if (!dev?.services?.dns?.forwardZones) return;
+    const zone = dev.services.dns.forwardZones.find(z => z.id === zoneId) || dev.services.dns.forwardZones[0];
+    if (!zone) return;
+
+    const nameInput = document.getElementById('flzRecordNameInput');
+    const typeInput = document.getElementById('flzRecordTypeInput');
+    const targetInput = document.getElementById('flzRecordTargetInput');
+    const autoPtrCb = document.getElementById('flzAutoCreatePtr');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const type = typeInput ? typeInput.value.trim() : 'A';
+    const val = targetInput ? targetInput.value.trim() : '';
+    const createPtr = autoPtrCb ? autoPtrCb.checked : false;
+
+    if (!name || !val) {
+      this.showToast('⚠️ Voer zowel een recordnaam als doelwaarde/IP in');
+      return;
+    }
+    if (type === 'A' && !IPUtils.isValidIp(val)) {
+      this.showToast('⚠️ Voer een geldig IPv4-adres in voor een A-record');
+      return;
+    }
+
+    if (!zone.records) zone.records = [];
+    const newRec = { name, type, ttl: 3600 };
+    if (type === 'A') {
+      newRec.ip = val;
+    } else if (type === 'CNAME') {
+      newRec.target = val;
+    } else if (type === 'MX') {
+      newRec.target = val;
+      newRec.priority = 10;
+    } else {
+      newRec.target = val;
+    }
+    zone.records.push(newRec);
+
+    // Auto-create PTR record in matching Reverse Zone
+    let ptrCreated = false;
+    if (type === 'A' && createPtr && IPUtils.isValidIp(val)) {
+      const parts = val.split('.');
+      const pfx = parts.slice(0, 3).join('.');
+      const hostNum = parts[3];
+      const fqdn = name === '@' ? zone.name : `${name}.${zone.name}`;
+
+      if (!dev.services.dns.reverseZones) dev.services.dns.reverseZones = [];
+      let rz = dev.services.dns.reverseZones.find(z => z.networkPrefix === pfx);
+      if (!rz) {
+        // Create matching reverse zone automatically
+        const reverseArpa = parts.slice(0, 3).reverse().join('.') + '.in-addr.arpa';
+        rz = {
+          id: 'rz_' + pfx.replace(/\./g, '_') + '_' + Date.now(),
+          name: reverseArpa,
+          networkPrefix: pfx,
+          type: 'Primary',
+          records: [
+            { name: '@', type: 'SOA', target: 'dc01.pxl.local', ttl: 3600 },
+            { name: '@', type: 'NS', target: 'dc01.pxl.local', ttl: 3600 }
+          ]
+        };
+        dev.services.dns.reverseZones.push(rz);
+      }
+      if (!rz.records.some(r => r.type === 'PTR' && r.name === hostNum)) {
+        rz.records.push({ name: hostNum, type: 'PTR', target: fqdn, ip: val, ttl: 3600 });
+        ptrCreated = true;
+      }
+    }
+
+    this.syncDnsFlatRecords(dev);
+    this.renderServicesTab();
+    if (ptrCreated) {
+      this.showToast(`✅ Record '${name}' toegevoegd én gekoppeld PTR-record in Reverse Zone aangemaakt!`);
+    } else {
+      this.showToast(`✅ Record '${name} [${type}]' toegevoegd aan '${zone.name}'`);
+    }
+    this.triggerScoreUpdate();
+  }
+
+  deleteFlzRecord(zoneId, idx) {
+    const dev = this.activeDevice;
+    if (!dev?.services?.dns?.forwardZones) return;
+    const zone = dev.services.dns.forwardZones.find(z => z.id === zoneId);
+    if (zone && zone.records && zone.records[idx]) {
+      const rec = zone.records.splice(idx, 1)[0];
+      this.syncDnsFlatRecords(dev);
+      this.renderServicesTab();
+      this.showToast(`🗑️ Record '${rec.name}' verwijderd.`);
+      this.triggerScoreUpdate();
+    }
+  }
+
+  addRlzRecord(zoneId) {
+    const dev = this.activeDevice;
+    if (!dev?.services?.dns?.reverseZones) return;
+    const zone = dev.services.dns.reverseZones.find(z => z.id === zoneId) || dev.services.dns.reverseZones[0];
+    if (!zone) return;
+
+    const hostInput = document.getElementById('rlzHostNumInput');
+    const fqdnInput = document.getElementById('rlzTargetFqdnInput');
+    const hostVal = hostInput ? hostInput.value.trim() : '';
+    const fqdnVal = fqdnInput ? fqdnInput.value.trim() : '';
+
+    if (!hostVal || !fqdnVal) {
+      this.showToast('⚠️ Voer zowel een host-IP als FQDN doelhostnaam in');
+      return;
+    }
+
+    let hostNum = hostVal;
+    let fullIp = hostVal;
+    if (hostVal.includes('.')) {
+      fullIp = hostVal;
+      hostNum = hostVal.split('.').pop();
+    } else if (zone.networkPrefix) {
+      fullIp = `${zone.networkPrefix}.${hostVal}`;
+    }
+
+    if (!zone.records) zone.records = [];
+    zone.records.push({
+      name: hostNum,
+      type: 'PTR',
+      ip: fullIp,
+      target: fqdnVal,
+      ttl: 3600
+    });
+
+    this.syncDnsFlatRecords(dev);
+    this.renderServicesTab();
+    this.showToast(`✅ PTR-record voor '${fullIp} -> ${fqdnVal}' toegevoegd.`);
+    this.triggerScoreUpdate();
+  }
+
+  deleteRlzRecord(zoneId, idx) {
+    const dev = this.activeDevice;
+    if (!dev?.services?.dns?.reverseZones) return;
+    const zone = dev.services.dns.reverseZones.find(z => z.id === zoneId);
+    if (zone && zone.records && zone.records[idx]) {
+      const rec = zone.records.splice(idx, 1)[0];
+      this.syncDnsFlatRecords(dev);
+      this.renderServicesTab();
+      this.showToast(`🗑️ PTR-record voor '${rec.target || rec.ip}' verwijderd.`);
+      this.triggerScoreUpdate();
+    }
+  }
+
+  // Keep legacy flat records array in sync with zones for backward compatibility with grading
+  syncDnsFlatRecords(dev) {
+    if (!dev?.services?.dns) return;
+    const flat = [];
+    (dev.services.dns.forwardZones || []).forEach(fz => {
+      (fz.records || []).forEach(r => {
+        if (r.type === 'A') {
+          const fqdn = r.name === '@' ? fz.name : `${r.name}.${fz.name}`;
+          flat.push({ name: fqdn, type: 'A', ip: r.ip });
+          if (r.name !== '@') flat.push({ name: r.name, type: 'A', ip: r.ip });
+        } else if (r.type === 'CNAME') {
+          const fqdn = r.name === '@' ? fz.name : `${r.name}.${fz.name}`;
+          flat.push({ name: fqdn, type: 'CNAME', target: r.target });
+        }
+      });
+    });
+    // Add existing legacy records that might not be in zones
+    if (dev.services.dns.records) {
+      dev.services.dns.records.forEach(lr => {
+        if (!flat.some(f => f.name.toLowerCase() === lr.name.toLowerCase())) {
+          flat.push(lr);
+        }
+      });
+    }
+    dev.services.dns.records = flat;
+  }
+
+  // Compatibility wrappers for legacy buttons
+  onDnsTypeChange(val) {
+    this.onFlzTypeChange(val);
+  }
+
+  addDnsRecord() {
+    const dev = this.activeDevice;
+    if (!dev?.services?.dns) return;
+    const zId = this.selectedFlzZoneId || (dev.services.dns.forwardZones && dev.services.dns.forwardZones[0]?.id);
+    if (zId) {
+      this.addFlzRecord(zId);
+    }
+  }
+
   deleteDnsRecord(idx) {
-    if (this.activeDevice && this.activeDevice.services) {
-      this.activeDevice.services.dns.records.splice(idx, 1);
+    const dev = this.activeDevice;
+    if (dev?.services?.dns?.records) {
+      dev.services.dns.records.splice(idx, 1);
       this.renderServicesTab();
       this.triggerScoreUpdate();
     }

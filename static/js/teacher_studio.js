@@ -628,6 +628,34 @@ class TeacherStudio {
                   </div>
                 </div>
 
+                <!-- Feature Locking / Vergrendeling van functies per labo -->
+                <div style="background: #fefce8; border: 1.5px solid #fef08a; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px;">
+                  <div style="font-size: 11.5px; font-weight: 700; color: #854d0e; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                    <span>🔒</span> <span>Toestelfuncties Vergrendelen per Labo (Didactische Beperkingen):</span>
+                  </div>
+                  <div style="font-size: 11px; color: #713f12; margin-bottom: 8px;">
+                    Schakel specifieke GUI-functies uit zodat studenten verplicht worden de CLI te gebruiken of specifieke netwerkprotocollen zoals DHCP te testen.
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11.5px; color: #1e293b;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="aiLockConfigTab">
+                      <span><strong>Vergrendel 'Config (GUI)' tabblad</strong> (Dwing CLI af op routers &amp; switches)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="aiLockGuiIp">
+                      <span><strong>Blokkeer IP-invoer in GUI</strong> (Dwing 'ip address' via CLI af)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="aiLockRoutingGui">
+                      <span><strong>Blokkeer Statische Routes via GUI</strong> (Dwing 'ip route' via CLI af)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="aiLockDesktopIp">
+                      <span><strong>Blokkeer Handmatige IP op PC's</strong> (Dwing DHCP-configuratie af)</span>
+                    </label>
+                  </div>
+                </div>
+
                 <!-- Instructions Markdown Editor & Preview -->
                 <div style="margin-bottom: 14px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
@@ -1693,6 +1721,30 @@ class TeacherStudio {
           <div style="font-size: 16px; font-weight: 800; color: #334155;">🖥️ ${lab.devices_count || 0} stuks</div>
         </div>
       </div>
+
+      ${lab.lockedFeatures && (Array.isArray(lab.lockedFeatures) ? lab.lockedFeatures.length > 0 : Object.keys(lab.lockedFeatures).length > 0) ? `
+      <!-- Feature Locking Banner -->
+      <div style="background: #fefce8; border: 1.5px solid #fde047; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 16px;">🔒</span>
+          <div>
+            <div style="font-size: 12px; font-weight: 700; color: #854d0e;">Vergrendelde Functies (Didactische Beperkingen):</div>
+            <div style="font-size: 11px; color: #a16207;">Studenten worden verplicht om deze onderdelen via de CLI uit te voeren.</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          ${(Array.isArray(lab.lockedFeatures) ? lab.lockedFeatures : Object.keys(lab.lockedFeatures)).map(f => {
+            const labels = {
+              disable_config_tab: 'Config Tab Vergrendeld (CLI only)',
+              gui_ip_config: 'Geen GUI IP Invoer',
+              routing_gui: 'Geen GUI Routes',
+              desktop_ip_config: 'Geen PC IP GUI (DHCP only)'
+            };
+            return `<span style="background: #fef08a; color: #713f12; border: 1px solid #facc15; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;">${labels[f] || f}</span>`;
+          }).join('')}
+        </div>
+      </div>
+      ` : ''}
 
       <!-- Section 1: Opdrachtomschrijving -->
       <div style="margin-bottom: 20px;">
@@ -3841,6 +3893,18 @@ ${tmpl}`;
     if (pwInput) pwInput.value = data.test_password || data.testPassword || '';
     if (instrText) instrText.value = data.instructions || '';
 
+    // Feature locking checkboxes
+    const lockedList = Array.isArray(data.lockedFeatures) ? data.lockedFeatures : (Array.isArray(data.locked_features) ? data.locked_features : []);
+    const lockConfigTab = document.getElementById('aiLockConfigTab');
+    const lockGuiIp = document.getElementById('aiLockGuiIp');
+    const lockRoutingGui = document.getElementById('aiLockRoutingGui');
+    const lockDesktopIp = document.getElementById('aiLockDesktopIp');
+
+    if (lockConfigTab) lockConfigTab.checked = lockedList.includes('disable_config_tab') || lockedList.includes('config_tab');
+    if (lockGuiIp) lockGuiIp.checked = lockedList.includes('gui_ip_config');
+    if (lockRoutingGui) lockRoutingGui.checked = lockedList.includes('routing_gui');
+    if (lockDesktopIp) lockDesktopIp.checked = lockedList.includes('desktop_ip_config');
+
     // Topology summary
     const topo = data.initialTopology || data.topology || { devices: [], cables: [] };
     const devs = topo.devices || [];
@@ -4194,6 +4258,14 @@ ${tmpl}`;
     this.currentAiAssignmentDraft.category = category;
     this.currentAiAssignmentDraft.test_password = pw;
     this.currentAiAssignmentDraft.instructions = instr;
+
+    // Sync locked features
+    const lockedFeatures = [];
+    if (document.getElementById('aiLockConfigTab')?.checked) lockedFeatures.push('disable_config_tab');
+    if (document.getElementById('aiLockGuiIp')?.checked) lockedFeatures.push('gui_ip_config');
+    if (document.getElementById('aiLockRoutingGui')?.checked) lockedFeatures.push('routing_gui');
+    if (document.getElementById('aiLockDesktopIp')?.checked) lockedFeatures.push('desktop_ip_config');
+    this.currentAiAssignmentDraft.lockedFeatures = lockedFeatures;
   }
 
   async saveAiAssignmentJsonToDb() {
@@ -4218,7 +4290,8 @@ ${tmpl}`;
       time_limit: Number(data.timeLimitMinutes) || 60,
       category: data.category || 'ai_generated',
       kind: data.kind || 'lab',
-      test_password: data.test_password || data.testPassword || ''
+      test_password: data.test_password || data.testPassword || '',
+      lockedFeatures: data.lockedFeatures || []
     };
 
     try {

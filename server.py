@@ -601,6 +601,7 @@ def teacher_save_exam():
     created_by = session.get("username", "teacher")
     kind = (data.get("kind") or "lab").lower()
     test_password = (data.get("test_password") or "").strip()
+    locked_features = data.get("locked_features") or data.get("lockedFeatures") or []
 
     try:
         saved_id = save_exam(
@@ -613,7 +614,8 @@ def teacher_save_exam():
             category=category,
             created_by=created_by,
             kind=kind,
-            test_password=test_password
+            test_password=test_password,
+            locked_features=locked_features
         )
         return jsonify({
             "success": True,

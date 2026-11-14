@@ -644,13 +644,21 @@ ${port > 0 ? `TcpTestSucceeded       : ${tcpOk ? 'True' : 'False'}\nRemotePort  
       return;
     }
 
-    const res = sim.resolveDns(this.device.id, name);
+    const res = sim.resolveDns(this.device.id, name, recordType);
     if (res.success) {
-      this.print(`
+      if (res.type === 'PTR') {
+        this.print(`
+Name                                           Type   TTL   Section    NameHost
+----                                           ----   ---   -------    --------
+${name.padEnd(46, ' ')} PTR    300   Answer     ${res.target || res.hostname}
+`);
+      } else {
+        this.print(`
 Name                                           Type   TTL   Section    IPAddress
 ----                                           ----   ---   -------    ---------
-${name.padEnd(46, ' ')} ${recordType.padEnd(6, ' ')} 300   Answer     ${res.ip}
+${name.padEnd(46, ' ')} ${(res.type || recordType).padEnd(6, ' ')} 300   Answer     ${res.ip}
 `);
+      }
     } else {
       this.print(`Resolve-DnsName : ${name} : DNS name does not exist.`);
       this.print(`At line:1 char:1\n+ Resolve-DnsName ${name}\n+ ~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : ResourceUnavailable: (${name}:String) [Resolve-DnsName], Win32Exception\n    + FullyQualifiedErrorId : DNS_ERROR_RCODE_NAME_ERROR\n`);
@@ -668,7 +676,11 @@ ${name.padEnd(46, ' ')} ${recordType.padEnd(6, ' ')} 300   Answer     ${res.ip}
     if (sim) {
       const res = sim.resolveDns(this.device.id, host);
       if (res.success) {
-        this.print(`Name:    ${host}\nAddress: ${res.ip}\n`);
+        if (res.type === 'PTR') {
+          this.print(`Name:    ${res.hostname || res.target}\nAddress: ${res.ip}\n`);
+        } else {
+          this.print(`Name:    ${host}\nAddress: ${res.ip}\n`);
+        }
       } else {
         this.print(`*** dns.pxl.be can't find ${host}: Non-existent domain\n`);
       }

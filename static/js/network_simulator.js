@@ -715,20 +715,26 @@ class NetworkSimulator {
   }
 
   // --- DNS & HTTP & FTP SERVICES SIMULATION ---
-  resolveDns(srcDevId, domainName) {
-    const cleanHost = domainName.replace(/^https?:\/\//i, '').split('/')[0].trim();
+  resolveDns(srcDevId, domainName, queryType = 'A') {
+    const rawQuery = (domainName || '').replace(/^https?:\/\//i, '').split('/')[0].trim();
+    const cleanHost = rawQuery;
     const srcDev = this.devices[srcDevId];
     if (!srcDev) {
       return { success: false, reason: 'Invalid source device' };
     }
 
+    // Detect if this is an IPv4 Reverse Lookup (PTR query)
+    const isIpQuery = typeof IPUtils !== 'undefined' && IPUtils.isValidIp ? IPUtils.isValidIp(cleanHost) : /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(cleanHost);
+    const isArpaQuery = cleanHost.toLowerCase().endsWith('.in-addr.arpa');
+    const isReverseLookup = isIpQuery || isArpaQuery || queryType === 'PTR';
+
     // If Het Internet cloud is active in the network, it provides automatic public DNS resolution!
     const inetCloud = Object.values(this.devices).find(d => this.isInternetDevice(d) && d.powerOn);
-    if (inetCloud) {
+    if (inetCloud && !isReverseLookup) {
       const inetIp = inetCloud.interfaces['GigabitEthernet0']?.ip || '209.165.200.225';
       const routeToInet = this.routePacket(srcDevId, inetIp);
       if (routeToInet.success && (srcDev.dns === '8.8.8.8' || srcDev.dns === '1.1.1.1' || srcDev.dns === inetIp)) {
-        return { success: true, ip: inetCloud.type === 'internet_public' ? '8.8.8.8' : '209.165.200.230', dnsServerIp: srcDev.dns };
+        return { success: true, ip: inetCloud.type === 'internet_public' ? '8.8.8.8' : '209.165.200.230', dnsServerIp: srcDev.dns, type: 'A' };
       }
     }
 
@@ -745,10 +751,140 @@ class NetworkSimulator {
       return { success: false, reason: `DNS service inactive or not running on ${dnsIp}` };
     }
 
-    const records = dstInfo.device.services.dns.records || [];
+    const dnsService = dstInfo.device.services.dns;
+
+    // --- REVERSE LOOKUP (RLZ / PTR) RESOLUTION ---
+    if (isReverseLookup) {
+      let targetIp = cleanHost;
+      if (isArpaQuery) {
+        // Convert "10.1.16.172.in-addr.arpa" -> "172.16.1.10"
+        const parts = cleanHost.toLowerCase().replace('.in-addr.arpa', '').split('.').reverse();
+        targetIp = parts.join('.');
+      }
+
+      // Check configured Reverse Lookup Zones (RLZ)
+      const reverseZones = dnsService.reverseZones || [];
+      for (const rz of reverseZones) {
+        const records = rz.records || [];
+        for (const rec of records) {
+          if (rec.type === 'PTR') {
+            const hostNum = targetIp.split('.').pop();
+            const recName = (rec.name || '').toLowerCase();
+            const matchesHost = recName === hostNum || recName === targetIp.toLowerCase() || recName === `${hostNum}.${rz.name}`.toLowerCase() || rec.ip === targetIp;
+            if (matchesHost && rec.target) {
+              this.recordDnsExchange(srcDev, dstInfo.device, cleanHost, rec.target);
+              return {
+                success: true,
+                type: 'PTR',
+                ip: targetIp,
+                hostname: rec.target,
+                target: rec.target,
+                dnsServerIp: dnsIp,
+                zoneName: rz.name
+              };
+            }
+          }
+        }
+      }
+
+      // Fallback: Check if any forward A-record points to this IP
+      const forwardZones = dnsService.forwardZones || [];
+      for (const fz of forwardZones) {
+        const records = fz.records || [];
+        for (const rec of records) {
+          if (rec.type === 'A' && rec.ip === targetIp) {
+            const fqdn = rec.name === '@' ? fz.name : `${rec.name}.${fz.name}`;
+            this.recordDnsExchange(srcDev, dstInfo.device, cleanHost, fqdn);
+            return {
+              success: true,
+              type: 'PTR',
+              ip: targetIp,
+              hostname: fqdn,
+              target: fqdn,
+              dnsServerIp: dnsIp,
+              zoneName: fz.name
+            };
+          }
+        }
+      }
+
+      // Check legacy flat records for matching IP
+      const flatRecords = dnsService.records || [];
+      const matchingFlat = flatRecords.find(r => r.type === 'A' && r.ip === targetIp);
+      if (matchingFlat) {
+        this.recordDnsExchange(srcDev, dstInfo.device, cleanHost, matchingFlat.name);
+        return {
+          success: true,
+          type: 'PTR',
+          ip: targetIp,
+          hostname: matchingFlat.name,
+          target: matchingFlat.name,
+          dnsServerIp: dnsIp
+        };
+      }
+
+      return { success: false, reason: `Reverse Lookup Failed: No PTR record found for IP '${targetIp}' in Reverse Lookup Zones` };
+    }
+
+    // --- FORWARD LOOKUP (FLZ / A / CNAME / MX / NS) RESOLUTION ---
+    const forwardZones = dnsService.forwardZones || [];
+    for (const fz of forwardZones) {
+      const zName = (fz.name || '').toLowerCase();
+      const queryLower = cleanHost.toLowerCase();
+      if (queryLower === zName || queryLower.endsWith('.' + zName)) {
+        let subName = queryLower === zName ? '@' : queryLower.replace('.' + zName, '');
+        const records = fz.records || [];
+        let rec = records.find(r => (r.name || '').toLowerCase() === subName);
+
+        // Follow CNAME alias
+        if (rec && rec.type === 'CNAME') {
+          const targetFqdn = (rec.target || rec.alias || '').toLowerCase();
+          const targetSub = targetFqdn === zName ? '@' : targetFqdn.replace('.' + zName, '');
+          const targetA = records.find(r => (r.name || '').toLowerCase() === targetSub && r.type === 'A');
+          if (targetA) {
+            this.recordDnsExchange(srcDev, dstInfo.device, cleanHost, targetA.ip);
+            return {
+              success: true,
+              type: 'CNAME',
+              ip: targetA.ip,
+              target: rec.target,
+              dnsServerIp: dnsIp,
+              zoneName: fz.name
+            };
+          }
+        }
+
+        if (rec && (rec.type === 'A' || rec.type === 'AAAA')) {
+          this.recordDnsExchange(srcDev, dstInfo.device, cleanHost, rec.ip);
+          return {
+            success: true,
+            type: rec.type,
+            ip: rec.ip,
+            name: cleanHost,
+            dnsServerIp: dnsIp,
+            zoneName: fz.name
+          };
+        }
+
+        if (rec && (rec.type === 'MX' || rec.type === 'NS' || rec.type === 'SOA')) {
+          return {
+            success: true,
+            type: rec.type,
+            target: rec.target,
+            priority: rec.priority,
+            ip: rec.ip || dnsIp,
+            dnsServerIp: dnsIp,
+            zoneName: fz.name
+          };
+        }
+      }
+    }
+
+    // Check legacy flat records
+    const records = dnsService.records || [];
     let rec = records.find(r => r.name && r.name.toLowerCase() === cleanHost.toLowerCase());
 
-    // CNAME Alias resolution
+    // CNAME Alias resolution in flat records
     if (rec && rec.type === 'CNAME') {
       const targetRec = records.find(r => r.name && r.name.toLowerCase() === (rec.target || rec.ip).toLowerCase() && r.type === 'A');
       if (targetRec) {
@@ -758,7 +894,7 @@ class NetworkSimulator {
 
     // If not found in local records, check DNS Forwarders!
     if (!rec) {
-      const fwd = dstInfo.device.services.dns.forwarders;
+      const fwd = dnsService.forwarders;
       if (fwd && fwd.enabled) {
         const forwarderIp = fwd.primary || '8.8.8.8';
         const isLive = inetCloud && (inetCloud.type === 'internet_public' || (inetCloud.type === 'internet_cloud' && this.liveInternetEnabled));
@@ -778,9 +914,9 @@ class NetworkSimulator {
 
         if (resolvedForwardIp) {
           this.recordDnsExchange(srcDev, dstInfo.device, cleanHost, resolvedForwardIp);
-          return { success: true, ip: resolvedForwardIp, dnsServerIp: dnsIp, forwarded: true, forwarderIp: forwarderIp };
+          return { success: true, ip: resolvedForwardIp, dnsServerIp: dnsIp, forwarded: true, forwarderIp: forwarderIp, type: 'A' };
         } else if (isLive) {
-          return { success: true, ip: '8.8.8.8', dnsServerIp: dnsIp, isLiveDns: true, liveDomain: cleanHost, forwarderIp: forwarderIp };
+          return { success: true, ip: '8.8.8.8', dnsServerIp: dnsIp, isLiveDns: true, liveDomain: cleanHost, forwarderIp: forwarderIp, type: 'A' };
         }
       }
 
@@ -788,7 +924,7 @@ class NetworkSimulator {
     }
 
     this.recordDnsExchange(srcDev, dstInfo.device, cleanHost, rec.ip);
-    return { success: true, ip: rec.ip, dnsServerIp: dnsIp };
+    return { success: true, ip: rec.ip, dnsServerIp: dnsIp, type: rec.type || 'A' };
   }
 
   fetchHttp(srcDevId, target) {

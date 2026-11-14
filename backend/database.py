@@ -173,6 +173,7 @@ def init_db():
     _add_column_if_not_exists(cursor, 'exams', 'created_by', "TEXT DEFAULT 'teacher'")
     _add_column_if_not_exists(cursor, 'exams', 'kind', "TEXT DEFAULT 'lab'")
     _add_column_if_not_exists(cursor, 'exams', 'test_password', "TEXT DEFAULT ''")
+    _add_column_if_not_exists(cursor, 'exams', 'locked_features', "TEXT DEFAULT '[]'")
 
     # Exam assignments table: open exams for classes or students with time limit
     cursor.execute("""
@@ -523,7 +524,8 @@ def list_labs_catalog():
     cursor = conn.cursor()
     cursor.execute("""
         SELECT e.id, e.title, e.instructions, e.time_limit_minutes, e.is_active,
-               e.category, e.created_by, e.created_at, e.rubric_json, e.topology_json
+               e.category, e.created_by, e.created_at, e.rubric_json, e.topology_json,
+               e.locked_features
         FROM exams e
         ORDER BY CASE e.category 
                     WHEN 'course_lab' THEN 1 
@@ -544,6 +546,10 @@ def list_labs_catalog():
             topo = json.loads(r['topology_json'] or '{}')
         except Exception:
             topo = {}
+        try:
+            locked = json.loads(r['locked_features'] or '[]') if 'locked_features' in r.keys() and r['locked_features'] else []
+        except Exception:
+            locked = []
 
         devices = topo.get('devices', []) if isinstance(topo, dict) else []
         total_points = sum(item.get('points', 0) for item in rubric if isinstance(item, dict))
@@ -563,7 +569,8 @@ def list_labs_catalog():
             'rubric_items_count': len(rubric),
             'total_points': total_points,
             'devices_count': len(devices),
-            'device_types': list(set(d.get('type', 'device') for d in devices if isinstance(d, dict)))
+            'device_types': list(set(d.get('type', 'device') for d in devices if isinstance(d, dict))),
+            'lockedFeatures': locked
         })
     return catalog
 
@@ -973,7 +980,7 @@ def assign_exam_batch(exam_id, title, targets, time_limit_minutes=80, is_active=
     return count
 
 # --- EXAMS MANAGEMENT & PERSISTENCE ---
-def save_exam(exam_id, title, instructions='', topology=None, rubric=None, time_limit_minutes=80, is_active=1, category='custom', created_by='teacher', kind='lab', test_password=''):
+def save_exam(exam_id, title, instructions='', topology=None, rubric=None, time_limit_minutes=80, is_active=1, category='custom', created_by='teacher', kind='lab', test_password='', locked_features=None):
     if not title or not title.strip():
         raise ValueError("Examen/opdracht naam is verplicht")
     if not exam_id or not exam_id.strip():
@@ -984,10 +991,11 @@ def save_exam(exam_id, title, instructions='', topology=None, rubric=None, time_
     cursor = conn.cursor()
     topo_str = json.dumps(topology) if isinstance(topology, (dict, list)) else (topology or '{}')
     rubric_str = json.dumps(rubric) if isinstance(rubric, list) else (rubric or '[]')
+    locked_str = json.dumps(locked_features) if isinstance(locked_features, (list, dict)) else (locked_features or '[]')
 
     cursor.execute("""
-        INSERT INTO exams (id, title, instructions, topology_json, rubric_json, time_limit_minutes, is_active, category, created_by, kind, test_password, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO exams (id, title, instructions, topology_json, rubric_json, time_limit_minutes, is_active, category, created_by, kind, test_password, locked_features, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(id) DO UPDATE SET
             title = excluded.title,
             instructions = excluded.instructions,
@@ -998,8 +1006,9 @@ def save_exam(exam_id, title, instructions='', topology=None, rubric=None, time_
             category = excluded.category,
             created_by = excluded.created_by,
             kind = excluded.kind,
-            test_password = excluded.test_password;
-    """, (exam_id.strip(), title.strip(), instructions or '', topo_str, rubric_str, time_limit_minutes, is_active, category, created_by, kind, test_password))
+            test_password = excluded.test_password,
+            locked_features = excluded.locked_features;
+    """, (exam_id.strip(), title.strip(), instructions or '', topo_str, rubric_str, time_limit_minutes, is_active, category, created_by, kind, test_password, locked_str))
     conn.commit()
     conn.close()
     return exam_id.strip()
@@ -1038,6 +1047,10 @@ def get_exam_by_id(exam_id):
         rubric = json.loads(row['rubric_json'] or '[]')
     except Exception:
         rubric = []
+    try:
+        locked = json.loads(row['locked_features'] or '[]') if 'locked_features' in row.keys() and row['locked_features'] else []
+    except Exception:
+        locked = []
     return {
         'id': row['id'],
         'title': row['title'],
@@ -1050,7 +1063,8 @@ def get_exam_by_id(exam_id):
         'is_active': bool(row['is_active']),
         'category': row['category'] or 'custom',
         'created_by': row['created_by'] or 'teacher',
-        'created_at': row['created_at']
+        'created_at': row['created_at'],
+        'lockedFeatures': locked
     }
 
 def delete_exam(exam_id):

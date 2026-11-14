@@ -1,7 +1,8 @@
 {
   "status": "FREE",
-  "locked_by": null,
-  "started_at": null,
-  "working_on": null,
-  "message": "Docentenomgeving uitgebreid met labo/rubric catalogus, docentenbeheer en laatst ingelogd tracking."
+  "lockedBy": null,
+  "lockedAt": null,
+  "agent": null,
+  "task": null,
+  "expiresAt": null
 }

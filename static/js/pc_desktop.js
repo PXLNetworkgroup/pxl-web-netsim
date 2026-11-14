@@ -339,8 +339,13 @@ class PCDesktopHandler {
     if (window.PXLNetworkSim) {
       const res = window.PXLNetworkSim.resolveDns(this.device.id, host);
       if (res.success) {
-        this.print(`Name:    ${host}`);
-        this.print(`Address: ${res.ip}\n`);
+        if (res.type === 'PTR') {
+          this.print(`Name:    ${res.hostname || res.target}`);
+          this.print(`Address: ${res.ip}\n`);
+        } else {
+          this.print(`Name:    ${host}`);
+          this.print(`Address: ${res.ip}\n`);
+        }
       } else {
         this.print(`*** dns.pxl.be can't find ${host}: Non-existent domain\n`);
       }

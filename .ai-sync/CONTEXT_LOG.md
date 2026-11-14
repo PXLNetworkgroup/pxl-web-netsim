@@ -3,6 +3,66 @@
 
 ---
 
+## [2026-11-14 17:10] • TOESTEL-EMULATIE, MIKROTIK ROUTEROS 7.X, SERVER DNS-ZONES (FLZ/RLZ) & LABO FEATURE LOCKING
+**Auteur / Agent:** David Parren & Antigravity  
+**Status Lock:** FREE (Vrijgegeven na succesvolle verificatie)  
+**Git Branch:** `main`  
+**Live Cloud Run URL:** `https://pxl-web-netsim-1088457364327.europe-west1.run.app`  
+
+### 1. Wat is er gebouwd en gewijzigd?
+* **MikroTik RouterOS 7.x Volledige CLI Implementatie (`static/js/mikrotik_cli.js`):**
+  * Authentieke hiërarchische RouterOS context-navigatie: prompts veranderen dynamisch mee (`[admin@MikroTik] >`, `[admin@MikroTik] /ip address>`, `[admin@MikroTik] /interface bridge>`, etc.).
+  * Volledige ondersteuning voor `/`, `..`, relatieve submenu-commando's en absolute paden.
+  * Uitgebreide commando-set:
+    * `/ip address` (`print`, `add address=... interface=...`, `remove`, `set`, `enable`, `disable`).
+    * `/ip route` (`print`, `add dst-address=... gateway=... distance=...`, `remove`).
+    * `/interface bridge` (`add name=...`, `print`, `port add bridge=... interface=...`, `port print`).
+    * `/ip pool` (`add name=... ranges=...`, `print`) & `/ip dhcp-server` (`add`, `print`, `network add`, `lease print`).
+    * `/ip dhcp-client` (`add interface=... disabled=no`, `print`).
+    * `/ip dns` (`print`, `set servers=...`, `static add name=... address=...`, `static print`).
+    * `/ip firewall filter` & `/ip firewall nat` (`print`, `add chain=... action=...`).
+    * `/system resource print` (realistische CPU-load, MIPS 24Kc architectuur, RAM, uptime, RouterOS 7.14.1).
+    * `/system routerboard print`, `/system clock print`, `/system identity [print|set]`.
+    * `/export [compact]`, `/ping`, `/tool traceroute`, `/system reboot`, `/system reset-configuration`.
+* **Overige Toestellen Geanalyseerd & Gecompleteerd:**
+  * **OpenWrt Ash Shell (`static/js/openwrt_cli.js`):** Uitgebreid met Linux netwerk- en diagnosecommando's: `traceroute`, `nslookup`, `uname -a`, `uptime`, `free`, `df -h`, `ps`.
+  * **Cisco IOS, Cisco ASA, FortiGate, Palo Alto PAN-OS, OPNsense, pfSense, WatchGuard FireboxV & HPE Aruba switches:** Gecontroleerd op consistentie en 100% syntaxis-validerend gebleken.
+* **Server DNS-Zones: FLZ & RLZ Ondersteuning (`static/js/cisco_device.js`, `static/js/network_simulator.js`, `static/js/app.js`):**
+  * `CiscoDevice` servers beschikken nu over gestructureerde `forwardZones` (FLZ) en `reverseZones` (RLZ met `.in-addr.arpa`).
+  * `NetworkSimulator.resolveDns()` detecteert reverse lookups (zowel pure IP's als `*.in-addr.arpa`) en zoekt de overeenkomstige PTR records op.
+  * `nslookup` (cmd.exe) en `Resolve-DnsName` (PowerShell) tonen correct PTR antwoorden met resolved hostnames.
+  * Server GUI Services tabblad (`renderServicesTab`) voorzien van FLZ en RLZ subtabs met zone-aanmaak, auto-PTR checkbox bij toevoegen van A-records, en recordbeheer.
+* **Onderdelen Vergrendelen per Labo (Didactische Feature Locking):**
+  * Mogelijkheid om specifieke GUI-functies per labo te blokkeren:
+    * `disable_config_tab`: Vergrendelt het "Config (GUI)" tabblad en dwingt studenten naar de CLI.
+    * `gui_ip_config`: Schakelt IP- en Gateway-invoervelden uit in de router/switch GUI.
+    * `routing_gui`: Blokkeert het handmatig invoeren van statische routes via de GUI.
+    * `desktop_ip_config`: Blokkeert handmatige IP-invoer op PC's/laptops (dwingt DHCP af).
+  * Zowel globale opdracht-locks als apparaat-specifieke locks ondersteund (`isFeatureLocked()`).
+  * Geïntegreerd in de `TeacherStudio` AI Assignment & Rubric Editor met 4 handige checkboxes.
+  * Visuele banner in de `TeacherStudio` Labocatalogus (Tab 3) die toont welke functies vergrendeld zijn.
+* **Database & Persistence:**
+  * SQLite kolom `locked_features TEXT DEFAULT '[]'` toegevoegd aan `exams` tabel in `backend/database.py`.
+  * `save_exam`, `get_exam_by_id` en `list_labs_catalog` slaan `lockedFeatures` op en retourneren deze.
+* **Geautomatiseerde Testen (`tests/test_devices_dns_locking.py`):**
+  * Unit tests voor database persistentie, MikroTik RouterOS navigatie/commando's, DNS FLZ/RLZ en feature locking slagen 100%.
+  * Alle frontend JS-bestanden compileren foutloos (`node -c`).
+
+### 2. Gewijzigde Bestanden:
+* `static/js/mikrotik_cli.js` (complete RouterOS 7.14.1 rewrite)
+* `static/js/openwrt_cli.js` (diagnostische tools: traceroute, nslookup, uname, free, df, ps)
+* `static/js/cisco_device.js` (forwardZones, reverseZones, isFeatureLocked)
+* `static/js/network_simulator.js` (resolveDns PTR lookup)
+* `static/js/pc_desktop.js` & `static/js/powershell_engine.js` (nslookup/Resolve-DnsName PTR support)
+* `static/js/app.js` (DNS FLZ/RLZ beheerinterface, feature locking enforcement)
+* `static/js/teacher_studio.js` (feature locking selectievakjes, catalogus badges)
+* `backend/database.py` (kolom `locked_features`, CRUD integratie)
+* `server.py` (API mapping `locked_features`)
+* `tests/test_devices_dns_locking.py` (volledige automatische testsuite)
+* `.ai-sync/LOCK.json` & `.ai-sync/CONTEXT_LOG.md`
+
+---
+
 ## [2026-11-14 15:40] • DOCENTENOMGEVING: LABO- & RUBRIC-CATALOGUS, DOCENTENBEHEER & LAATST INGELOGD
 **Auteur / Agent:** David Parren & Antigravity  
 **Status Lock:** FREE (Vrijgegeven na succesvolle verificatie)  

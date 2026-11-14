@@ -107,6 +107,64 @@ class OpenWrtCLIParser {
       return;
     }
 
+    // 7b. traceroute
+    if (cmd === 'traceroute') {
+      this.handleTraceroute(tokens.slice(1));
+      return;
+    }
+
+    // 7c. nslookup
+    if (cmd === 'nslookup') {
+      this.handleNslookup(tokens.slice(1));
+      return;
+    }
+
+    // 7d. uname
+    if (cmd === 'uname') {
+      if (tokens.includes('-a')) {
+        this.print("Linux OpenWrt 5.15.137 #0 SMP Wed Nov 15 12:00:00 2023 mips GNU/Linux");
+      } else {
+        this.print("Linux");
+      }
+      return;
+    }
+
+    // 7e. uptime
+    if (cmd === 'uptime') {
+      this.print(" 12:34:56 up 2 days,  4:12,  load average: 0.05, 0.08, 0.02");
+      return;
+    }
+
+    // 7f. free
+    if (cmd === 'free') {
+      this.print("              total        used        free      shared  buff/cache   available");
+      this.print("Mem:         128456       34212       94244        1024       12800       91200");
+      this.print("Swap:             0           0           0");
+      return;
+    }
+
+    // 7g. df
+    if (cmd === 'df') {
+      this.print("Filesystem           1K-blocks      Used Available Use% Mounted on");
+      this.print("/dev/root                12288     12288         0 100% /rom");
+      this.print("tmpfs                    64228       612     63616   1% /tmp");
+      this.print("/dev/mtdblock3           16384      1420     14964   9% /overlay");
+      this.print("overlayfs:/overlay       16384      1420     14964   9% /");
+      return;
+    }
+
+    // 7h. ps
+    if (cmd === 'ps') {
+      this.print("  PID USER       VSZ STAT COMMAND");
+      this.print("    1 root      1420 S    /sbin/init");
+      this.print("  412 root       980 S    /sbin/ubusd");
+      this.print("  650 root      1240 S    /sbin/netifd");
+      this.print("  890 root      1120 S    /usr/sbin/dropbear -F -P /var/run/dropbear.1.pid");
+      this.print(" 1205 root      1340 S    /usr/sbin/dnsmasq -k");
+      this.print(" 1430 root      1210 S    /bin/ash --login");
+      return;
+    }
+
     // 8. passwd
     if (cmd === 'passwd') {
       this.print("Changing password for root.");
@@ -357,6 +415,60 @@ class OpenWrtCLIParser {
         this.print(`4 packets transmitted, 0 packets received, 100% packet loss\n`);
       }
     }
+  }
+
+  handleTraceroute(args) {
+    if (args.length === 0) {
+      this.print("traceroute: missing host operand");
+      return;
+    }
+    const target = args[0];
+    this.print(`traceroute to ${target} (${target}), 30 hops max, 38 byte packets`);
+    const sim = window.PXLApp?.sim || window.PXLNetworkSim;
+    if (sim && typeof sim.executeTraceroute === 'function') {
+      const hops = sim.executeTraceroute(this.device.id, target);
+      if (hops && hops.length > 0) {
+        hops.forEach((h, idx) => {
+          this.print(` ${idx + 1}  ${h.ip || h.name}  ${h.rtt || '2.145'} ms  ${h.rtt2 || '2.089'} ms  ${h.rtt3 || '2.112'} ms`);
+        });
+      } else {
+        this.print(` 1  * * *`);
+        this.print(` 2  * * *`);
+      }
+    } else {
+      this.print(` 1  ${target}  1.821 ms  1.654 ms  1.712 ms`);
+    }
+    this.print("");
+  }
+
+  handleNslookup(args) {
+    if (args.length === 0) {
+      this.print("nslookup: missing host operand");
+      return;
+    }
+    const query = args[0];
+    const sim = window.PXLApp?.sim;
+    const dnsServer = this.device.defaultGateway || '192.168.1.1';
+    this.print(`Server:    ${dnsServer}`);
+    this.print(`Address:   ${dnsServer}#53\n`);
+
+    if (sim && typeof sim.resolveDns === 'function') {
+      const res = sim.resolveDns(this.device.id, query);
+      if (res && res.success) {
+        if (res.type === 'PTR') {
+          this.print(`${query}.in-addr.arpa\tname = ${res.hostname}`);
+        } else {
+          this.print(`Name:      ${query}`);
+          this.print(`Address 1: ${res.ip}`);
+        }
+      } else {
+        this.print(`** server can't find ${query}: NXDOMAIN`);
+      }
+    } else {
+      this.print(`Name:      ${query}`);
+      this.print(`Address 1: 192.168.1.10`);
+    }
+    this.print("");
   }
 
   printOpenWrtBanner() {

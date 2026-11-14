@@ -12,6 +12,9 @@ class CiscoDevice {
     this.defaultHostname = defaultHostname || id;
     this.displayName = options.displayName || this.hostname;
 
+    // Hardware locking per lab (disable GUI IP, disable config tab, etc.)
+    this.lockedFeatures = options.lockedFeatures ? [...options.lockedFeatures] : [];
+
     // HPE Aruba Switch Configuration
     if (this.type === 'hpe_switch') {
       this.hpeConfig = {
@@ -273,6 +276,54 @@ class CiscoDevice {
       },
       dns: {
         enabled: this.type === 'server',
+        forwardZones: [
+          {
+            id: 'fz_pxl_local',
+            name: 'pxl.local',
+            type: 'Primary',
+            soa: {
+              primaryServer: 'dc01.pxl.local',
+              responsiblePerson: 'hostmaster.pxl.local',
+              serialNumber: 2026111401,
+              refreshInterval: 3600,
+              retryInterval: 600,
+              expiresAfter: 86400,
+              minimumTtl: 3600
+            },
+            records: [
+              { name: '@', type: 'SOA', target: 'dc01.pxl.local', ttl: 3600 },
+              { name: '@', type: 'NS', target: 'dc01.pxl.local', ttl: 3600 },
+              { name: 'dc01', type: 'A', ip: '172.16.1.10', ttl: 3600 },
+              { name: 'www', type: 'A', ip: '172.16.1.10', ttl: 3600 },
+              { name: 'web', type: 'CNAME', target: 'www.pxl.local', ttl: 3600 },
+              { name: 'mail', type: 'A', ip: '172.16.1.15', ttl: 3600 },
+              { name: '@', type: 'MX', target: 'mail.pxl.local', priority: 10, ttl: 3600 }
+            ]
+          }
+        ],
+        reverseZones: [
+          {
+            id: 'rz_172_16_1',
+            name: '1.16.172.in-addr.arpa',
+            networkPrefix: '172.16.1',
+            type: 'Primary',
+            soa: {
+              primaryServer: 'dc01.pxl.local',
+              responsiblePerson: 'hostmaster.pxl.local',
+              serialNumber: 2026111401,
+              refreshInterval: 3600,
+              retryInterval: 600,
+              expiresAfter: 86400,
+              minimumTtl: 3600
+            },
+            records: [
+              { name: '@', type: 'SOA', target: 'dc01.pxl.local', ttl: 3600 },
+              { name: '@', type: 'NS', target: 'dc01.pxl.local', ttl: 3600 },
+              { name: '10', type: 'PTR', target: 'dc01.pxl.local', ip: '172.16.1.10', ttl: 3600 },
+              { name: '15', type: 'PTR', target: 'mail.pxl.local', ip: '172.16.1.15', ttl: 3600 }
+            ]
+          }
+        ],
         records: [
           { name: 'www.pxl.be', type: 'A', ip: '172.16.1.10' },
           { name: 'cisco.pxl', type: 'A', ip: '172.16.1.10' },
@@ -563,6 +614,11 @@ class CiscoDevice {
         }
       }
     }
+  }
+
+  isFeatureLocked(featureName) {
+    if (!this.lockedFeatures || !Array.isArray(this.lockedFeatures)) return false;
+    return this.lockedFeatures.includes(featureName) || this.lockedFeatures.includes('all');
   }
 
   getPrompt() {
