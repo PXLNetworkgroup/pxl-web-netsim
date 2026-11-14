@@ -3,7 +3,30 @@
 
 ---
 
-## [2026-11-12 12:55] • WATCHGUARD FIREBOXV, 0% NUL-SCORE STARTGARANTIE & AI OPDRACHT GENERATOR
+## [2026-11-14 13:10] • CATEGORIE 1 BUGS/UI FIXES & ARCHITECTUUR DOCUMENTATIE (AGENTS.md & ARCHITECTURE.md)
+**Auteur / Agent:** David Parren & Antigravity  
+**Status Lock:** FREE (Vrijgegeven na succesvolle verificatie)  
+**Git Branch:** `main`  
+**Live Cloud Run URL:** `https://pxl-web-netsim-1088457364327.europe-west1.run.app`  
+
+### 1. Wat is er gebouwd en gewijzigd?
+* **Bugs & UI/UX Verbeteringen (Categorie 1):**
+  * **Refresh-bug Opgelost:** `.pt-header` en `.pt-toolbar` responsive gemaakt via flex-wrapping in `static/css/packet_tracer.css`; `app.js` slaat nu actieve examen-ID, shelf-categorie en studentenidentiteit op in `localStorage` zodat de interface stabiel herstelt na F5.
+  * **Drag-and-Drop Dubbelplaatsing Gefixt:** Drop-handler in `static/js/canvas_workspace.js` geïsoleerd met event stopping, automatische cleanup van pendende plaatsingsacties en een cooldown timer van 350ms. `app.js` shelf click-handlers controleren nu `isDraggingItem`.
+  * **Versleepbare Apparaat-Popups:** Apparaatconfiguratie modal (`#deviceModal`) voorzien van draggable drag handle via mousedown/mousemove listeners met viewport boundary clamping en dubbelklik-reset. Overlay styling aangepast zodat het canvas op de achtergrond klikbaar en zichtbaar blijft.
+  * **Toestellen Hernoemen:** Weergavenaam (`displayName`) kan nu direct worden aangepast via dubbelklik op het canvas-label, via een nieuw rechtsklik-contextmenu en via een knop "✏️ Hernoemen" in de modal header.
+* **Architectuur & AI Context Documentatie:**
+  * **`AGENTS.md`:** Compacte AI referentiekaart aangemaakt (strikt onder de 200 regels) met tech stack, bestandsoverzicht, kern-datastructuren, 6-staps flows, strikte conventies en concurrency-regels.
+  * **`ARCHITECTURE.md`:** Uitgebreide onboarding gids voor collega-docenten en ontwikkelaars met systeemoverzicht, simulatie-engine details, stapsgewijze handleiding voor nieuwe commando's en apparaten, en grading/export documentatie.
+
+### 2. Gewijzigde Bestanden:
+* `static/css/packet_tracer.css`
+* `static/css/modal.css`
+* `static/js/app.js`
+* `static/js/canvas_workspace.js`
+* `AGENTS.md`
+* `ARCHITECTURE.md`
+* `.ai-sync/CONTEXT_LOG.md`
 **Auteur / Agent:** David Parren & Antigravity (Host-PC)  
 **Status Lock:** FREE (Vrijgegeven na succesvolle verificatie)  
 **Git Branch:** `main`  

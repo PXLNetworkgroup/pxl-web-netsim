@@ -82,6 +82,9 @@ class CanvasWorkspace {
     };
     const handleDrop = (e) => {
       e.preventDefault();
+      e.stopPropagation();
+      this.cancelPlacingDevice();
+      this._lastDropTime = Date.now();
       try {
         const raw = e.dataTransfer.getData('text/plain');
         if (raw) {
@@ -95,8 +98,7 @@ class CanvasWorkspace {
         console.error('Drop error:', err);
       }
     };
-    this.container.addEventListener('dragover', handleDragOver);
-    this.container.addEventListener('drop', handleDrop);
+    // Only listen on canvas directly with stopPropagation to prevent double placement
     this.canvas.addEventListener('dragover', handleDragOver);
     this.canvas.addEventListener('drop', handleDrop);
 
@@ -171,6 +173,11 @@ class CanvasWorkspace {
   handleMouseDown(e) {
     // Only left click
     if (e.button !== 0) return;
+
+    // Cooldown check right after drag-drop to prevent double-click / spurious placement
+    if (this._lastDropTime && (Date.now() - this._lastDropTime < 350)) {
+      return;
+    }
 
     const pos = this.screenToCanvas(e.clientX, e.clientY);
 
@@ -316,8 +323,92 @@ class CanvasWorkspace {
     }
     const clickedDev = this.getDeviceAt(pos.x, pos.y);
     if (clickedDev && window.PXLApp) {
-      window.PXLApp.openDeviceModal(clickedDev);
+      this.showDeviceContextMenu(clickedDev, e.clientX, e.clientY);
       return;
+    }
+  }
+
+  showDeviceContextMenu(dev, screenX, screenY) {
+    this.closeDeviceContextMenu();
+    const pop = document.createElement('div');
+    pop.id = 'ptDeviceContextMenu';
+    pop.className = 'pt-cable-popover';
+    pop.style.width = '210px';
+    pop.style.zIndex = '9999';
+
+    let posX = screenX + 8;
+    let posY = screenY + 8;
+    if (posX + 220 > window.innerWidth) posX = window.innerWidth - 230;
+    if (posY + 160 > window.innerHeight) posY = window.innerHeight - 170;
+    pop.style.left = `${posX}px`;
+    pop.style.top = `${posY}px`;
+
+    pop.innerHTML = `
+      <div style="font-weight: 700; font-size: 12px; color: #0f172a; padding: 6px 10px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+        <span>${dev.hostname}</span>
+        <span style="font-size: 10px; color: #64748b; font-weight: normal;">${dev.model || dev.type}</span>
+      </div>
+      <div style="padding: 4px 0; display: flex; flex-direction: column;">
+        <button class="pt-btn" style="text-align: left; padding: 7px 12px; background: transparent; border: none; font-size: 12px; color: #1e293b; cursor: pointer; display: flex; align-items: center; gap: 8px;" id="ctxBtnOpen">
+          <span>⚙️</span> <span>Configureren (CLI)</span>
+        </button>
+        <button class="pt-btn" style="text-align: left; padding: 7px 12px; background: transparent; border: none; font-size: 12px; color: #1e293b; cursor: pointer; display: flex; align-items: center; gap: 8px;" id="ctxBtnRename">
+          <span>✏️</span> <span>Naam wijzigen</span>
+        </button>
+        <button class="pt-btn" style="text-align: left; padding: 7px 12px; background: transparent; border: none; font-size: 12px; color: #b91c1c; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid #f1f5f9;" id="ctxBtnDelete">
+          <span>🗑️</span> <span>Verwijderen</span>
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(pop);
+    this._deviceContextMenu = pop;
+
+    pop.querySelector('#ctxBtnOpen').onclick = () => {
+      this.closeDeviceContextMenu();
+      if (window.PXLApp) window.PXLApp.openDeviceModal(dev);
+    };
+    pop.querySelector('#ctxBtnRename').onclick = () => {
+      this.closeDeviceContextMenu();
+      this.promptRenameDevice(dev);
+    };
+    pop.querySelector('#ctxBtnDelete').onclick = () => {
+      this.closeDeviceContextMenu();
+      if (confirm(`Apparaat '${dev.hostname}' verwijderen inclusief aangesloten kabels?`)) {
+        window.PXLNetworkSim.removeDevice(dev.id);
+        this.render();
+        if (window.PXLApp) window.PXLApp.triggerScoreUpdate();
+      }
+    };
+
+    const closeHandler = (ev) => {
+      if (!pop.contains(ev.target)) {
+        this.closeDeviceContextMenu();
+        window.removeEventListener('mousedown', closeHandler);
+      }
+    };
+    setTimeout(() => window.addEventListener('mousedown', closeHandler), 10);
+  }
+
+  closeDeviceContextMenu() {
+    if (this._deviceContextMenu) {
+      this._deviceContextMenu.remove();
+      this._deviceContextMenu = null;
+    }
+  }
+
+  promptRenameDevice(dev) {
+    const current = dev.hostname || dev.name || 'Device';
+    const newName = prompt(`Hernoem apparaat '${current}':`, current);
+    if (newName && newName.trim() && newName.trim() !== current) {
+      dev.hostname = newName.trim();
+      dev.displayName = newName.trim();
+      if (dev.mikrotikConfig) dev.mikrotikConfig.identity = newName.trim();
+      this.render();
+      if (window.PXLApp) {
+        window.PXLApp.showToast(`🏷️ Apparaat hernoemd naar '${dev.hostname}'`);
+        window.PXLApp.triggerScoreUpdate();
+      }
     }
   }
 
@@ -405,6 +496,11 @@ class CanvasWorkspace {
     const pos = this.screenToCanvas(e.clientX, e.clientY);
     const clickedDev = this.getDeviceAt(pos.x, pos.y);
     if (clickedDev && window.PXLApp) {
+      // If double clicking the label area under the icon, trigger in-place rename prompt!
+      if (pos.y >= clickedDev.y + 65 && pos.y <= clickedDev.y + 105) {
+        this.promptRenameDevice(clickedDev);
+        return;
+      }
       window.PXLApp.openDeviceModal(clickedDev);
     }
   }

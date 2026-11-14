@@ -17,6 +17,27 @@
   z-index: 100;
 }
 
+/* FLOATING & DRAGGABLE DEVICE MODAL (Packet Tracer Window Style) */
+#deviceModal.pt-modal-overlay {
+  pointer-events: none;
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+}
+
+#deviceModal .pt-device-dialog {
+  pointer-events: auto;
+  position: absolute;
+  top: 65px;
+  left: calc(50vw - 410px);
+  margin: 0;
+  box-shadow: 0 16px 36px rgba(0,0,0,0.3);
+  resize: both;
+  min-width: 620px;
+  min-height: 420px;
+  max-width: 96vw;
+  max-height: 88vh;
+}
+
 /* DEVICE MODAL DIALOG */
 .pt-device-dialog {
   width: 820px;
@@ -38,6 +59,12 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
+  cursor: grab;
+  user-select: none;
+}
+
+.pt-device-header:active {
+  cursor: grabbing;
 }
 
 .pt-device-header h3 {

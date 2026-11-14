@@ -36,8 +36,15 @@ class PXLNetSimApp {
     // Initialize 10-second Running-Config scanner & live score updater
     this.initRunningConfigScanner();
 
-    // Load default exam
-    this.loadExam(this.presetExams['01_pxl_standard']);
+    // Restore previously active exam or fallback to default standard exam
+    const savedExamId = localStorage.getItem('pxl_active_exam_id');
+    if (savedExamId && this.presetExams[savedExamId]) {
+      this.loadExam(this.presetExams[savedExamId]);
+    } else if (savedExamId && this.loadCourseLab(savedExamId)) {
+      // Course lab restored from localStorage
+    } else {
+      this.loadExam(this.presetExams['01_pxl_standard']);
+    }
     this.initPinnedPanel();
   }
 
@@ -256,7 +263,11 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
   }
 
   loadExam(exam) {
+    if (!exam) return;
     this.activeExam = exam;
+    try {
+      localStorage.setItem('pxl_active_exam_id', exam.id || '01_pxl_standard');
+    } catch (e) {}
     this.timerSeconds = (exam.timeLimitMinutes || 80) * 60;
 
     // Reset simulator
@@ -417,8 +428,10 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
         const svgIcon = getCiscoDeviceIcon(item.type, item.model);
         btn.innerHTML = `<div class="pt-shelf-svg">${svgIcon}</div><span class="pt-shelf-text">${item.label}</span>`;
 
+        let isDraggingItem = false;
         // Click to enter Place Mode (Packet Tracer style)
         btn.onclick = () => {
+          if (isDraggingItem) return;
           this.canvasWorkspace.setPlacingDevice(item.type, item.model);
           this.highlightActiveShelfBtn(btn);
           this.showToast(`📍 Klik op het werkveld om ${item.label} te plaatsen.`);
@@ -426,8 +439,14 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
 
         // Drag to drop on Canvas
         btn.addEventListener('dragstart', (e) => {
+          isDraggingItem = true;
+          this.canvasWorkspace.cancelPlacingDevice();
           e.dataTransfer.setData('text/plain', JSON.stringify({ type: item.type, model: item.model }));
           e.dataTransfer.effectAllowed = 'copy';
+        });
+
+        btn.addEventListener('dragend', () => {
+          setTimeout(() => { isDraggingItem = false; }, 250);
         });
       }
       shelfContainer.appendChild(btn);
@@ -726,8 +745,17 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     const modal = document.getElementById('deviceModal');
     if (!modal) return;
 
-    // Header
-    document.getElementById('modalDeviceTitle').innerText = `${device.hostname} (${device.model || device.type})`;
+    // Header with direct rename pencil icon and model badge
+    const titleEl = document.getElementById('modalDeviceTitle');
+    if (titleEl) {
+      titleEl.innerHTML = `
+        <span id="modalDeviceHostnameText" style="cursor: pointer; border-bottom: 1px dashed #94a3b8;" onclick="window.PXLApp.renameCurrentModalDevice()" title="Klik om naam te wijzigen">${device.hostname}</span>
+        <span style="font-size: 11px; color: #64748b; font-weight: normal; margin-left: 6px;">(${device.model || device.type})</span>
+        <button class="pt-btn" style="background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; font-size: 11px; padding: 2px 7px; margin-left: 8px; color: #334155; font-weight: 600;" onclick="window.PXLApp.renameCurrentModalDevice()" title="Hostnaam wijzigen">✏️ Hernoemen</button>
+      `;
+    }
+
+    this.ensureDeviceModalDraggable();
 
     // Show/hide appropriate tabs
     const isHost = (device.type === 'pc' || device.type === 'laptop' || device.type === 'server');
@@ -822,6 +850,86 @@ In dit labo zet je een draadloos lokaal netwerk op via een Cisco WRT300N Wireles
     const modal = document.getElementById('deviceModal');
     if (modal) modal.style.display = 'none';
     this.activeDevice = null;
+  }
+
+  renameCurrentModalDevice() {
+    if (!this.activeDevice) return;
+    const current = this.activeDevice.hostname || this.activeDevice.name;
+    const newName = prompt(`Voer een nieuwe naam in voor apparaat '${current}':`, current);
+    if (newName && newName.trim() && newName.trim() !== current) {
+      this.activeDevice.hostname = newName.trim();
+      this.activeDevice.displayName = newName.trim();
+      if (this.activeDevice.mikrotikConfig) this.activeDevice.mikrotikConfig.identity = newName.trim();
+      const hostSpan = document.getElementById('modalDeviceHostnameText');
+      if (hostSpan) hostSpan.innerText = this.activeDevice.hostname;
+      if (this.canvasWorkspace) this.canvasWorkspace.render();
+      this.showToast(`🏷️ Apparaat hernoemd naar '${this.activeDevice.hostname}'`);
+      this.triggerScoreUpdate();
+    }
+  }
+
+  ensureDeviceModalDraggable() {
+    const dialog = document.querySelector('#deviceModal .pt-device-dialog');
+    const header = document.querySelector('#deviceModal .pt-device-header');
+    if (!dialog || !header || header._dragBound) return;
+    header._dragBound = true;
+
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let initialLeft = 0, initialTop = 0;
+
+    header.addEventListener('mousedown', (e) => {
+      // Don't drag if clicked on a button or editable span
+      if (e.target.closest('button') || e.target.id === 'modalDeviceHostnameText') return;
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+
+      const rect = dialog.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+
+      dialog.style.position = 'absolute';
+      dialog.style.left = `${initialLeft}px`;
+      dialog.style.top = `${initialTop}px`;
+      dialog.style.margin = '0';
+      header.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      let newLeft = initialLeft + dx;
+      let newTop = initialTop + dy;
+
+      const minX = 10;
+      const maxX = Math.max(minX, window.innerWidth - dialog.offsetWidth - 10);
+      const minY = 10;
+      const maxY = Math.max(minY, window.innerHeight - 80);
+
+      newLeft = Math.max(minX, Math.min(maxX, newLeft));
+      newTop = Math.max(minY, Math.min(maxY, newTop));
+
+      dialog.style.left = `${newLeft}px`;
+      dialog.style.top = `${newTop}px`;
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        header.style.cursor = 'grab';
+      }
+    });
+
+    // Double-click header resets to centered top position
+    header.addEventListener('dblclick', (e) => {
+      if (e.target.closest('button') || e.target.id === 'modalDeviceHostnameText') return;
+      dialog.style.left = `${Math.max(20, Math.round((window.innerWidth - dialog.offsetWidth) / 2))}px`;
+      dialog.style.top = '70px';
+    });
   }
 
   switchDeviceModalTab(tabKey) {
@@ -3873,8 +3981,10 @@ Type 'help', 'ip a', or 'python3' to get started.
       const data = await res.json();
       if (data.authenticated) {
         this.currentUser = data.user;
+        try { localStorage.setItem('pxl_cached_user', JSON.stringify(data.user)); } catch (e) {}
       } else {
         this.currentUser = null;
+        try { localStorage.removeItem('pxl_cached_user'); } catch (e) {}
       }
       this.updateAuthUi();
       if (this.currentUser && this.currentUser.role === 'student') {
@@ -3882,6 +3992,14 @@ Type 'help', 'ip a', or 'python3' to get started.
       }
     } catch (err) {
       console.log('Auth check error (offline mode):', err);
+      // Restore cached identity on offline reload so menus/buttons don't disappear
+      try {
+        const cached = localStorage.getItem('pxl_cached_user');
+        if (cached) {
+          this.currentUser = JSON.parse(cached);
+          this.updateAuthUi();
+        }
+      } catch (e) {}
     }
   }
 

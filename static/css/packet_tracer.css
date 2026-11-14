@@ -36,15 +36,18 @@ body {
 
 /* TOP NAVBAR */
 .pt-header {
-  height: 56px;
+  min-height: 56px;
+  height: auto;
   background-color: var(--pt-header-bg);
   border-bottom: 1px solid var(--pt-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 4px 16px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   z-index: 20;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .pt-brand {
@@ -75,7 +78,15 @@ body {
 .pt-header-center {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pt-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .pt-exam-title-badge {
@@ -188,14 +199,17 @@ body {
 
 /* WORKSPACE TOOLBAR */
 .pt-toolbar {
-  height: 38px;
+  min-height: 38px;
+  height: auto;
   background-color: #ffffff;
   border-bottom: 1px solid var(--pt-border);
   display: flex;
   align-items: center;
-  padding: 0 14px;
+  padding: 4px 14px;
   gap: 8px;
   z-index: 15;
+  flex-wrap: wrap;
+  overflow-x: auto;
 }
 
 .pt-tool-group {
