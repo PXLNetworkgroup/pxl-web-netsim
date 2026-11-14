@@ -1,6 +1,6 @@
 # Handleiding: Labs Ontwerpen, Importeren & Exporteren (AI & Docenten)
 **PXL Web NetSim • Cisco IOS, MikroTik, OpenWrt & Internet Lab Simulator**  
-*Auteurs: Gert Van Waeyenberg, David Parren, Kris Frissaer, Rembert Jean, Marc Hombroeks • Hogeschool PXL (Toegepaste Informatica / SNE)*
+*Auteurs: David Parren (owner), Gert Van Waeyenberg, Jeroen Jean, Guido Frissaer en Kathleen Hombroeks • Hogeschool PXL (Toegepaste Informatica / SNE)*
 
 ---
 

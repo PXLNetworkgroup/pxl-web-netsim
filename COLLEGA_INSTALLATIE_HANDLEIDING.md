@@ -1,6 +1,6 @@
 # PXL Web NetSim • Installatie- & Samenwerkingshandleiding voor Docenten
 > **Hogeschool PXL — Departement Toegepaste Informatica / SNE (System & Network Engineering)**  
-> **Auteurs:** © David Parren, Gert Van Waeyenberg, Lode Frissaer, Jean, Hombroeks  
+> **Auteurs:** © David Parren (owner), Gert Van Waeyenberg, Jeroen Jean, Guido Frissaer en Kathleen Hombroeks  
 > **GitHub Repository:** [https://github.com/PXLNetworkgroup/pxl-web-netsim](https://github.com/PXLNetworkgroup/pxl-web-netsim)  
 > **Live Productie URL:** [https://pxl-web-netsim-1088457364327.europe-west1.run.app](https://pxl-web-netsim-1088457364327.europe-west1.run.app)
 

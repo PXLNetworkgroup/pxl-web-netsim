@@ -3,7 +3,7 @@ server.py - Lightweight Backend Server & PKA Converter API for PXL Web NetSim
 Serves the web application and provides Cisco Packet Tracer file decoding,
 SQLite user authentication, 1-minute auto-save, and teacher student management.
 Part of PXL Web NetSim (Hogeschool PXL)
-© Parren, Van Waeyenberg, Frissaer, Jean, Hombroeks
+© David Parren (owner), Gert Van Waeyenberg, Jeroen Jean, Guido Frissaer en Kathleen Hombroeks
 """
 
 import os
@@ -1246,7 +1246,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     print(f"============================================================")
     print(f"  PXL Web NetSim • Cisco IOS Lab & Exam Platform (v2.1)")
-    print(f"  © Parren, Van Waeyenberg, Frissaer, Jean, Hombroeks")
+    print(f"  © David Parren (owner), Gert Van Waeyenberg, Jeroen Jean, Guido Frissaer en Kathleen Hombroeks")
     print(f"  Hogeschool PXL (Toegepaste Informatica / SNE)")
     print(f"============================================================")
     print(f"  Live Server actief op: http://localhost:{port}")

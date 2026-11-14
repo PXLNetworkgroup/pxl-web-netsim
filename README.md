@@ -1,7 +1,7 @@
 # PXL Web NetSim • CiscoExa NextGen (v2.1)
 > **Online Cisco Packet Tracer Exam & Lab Simulation Platform**  
 > *Ontwikkeld voor Hogeschool PXL — Departement Toegepaste Informatica / SNE (System & Network Engineering)*  
-> **Auteurs & Copyright:** © David Parren, Gert Van Waeyenberg, Lode Frissaer, Jean, Hombroeks • Hogeschool PXL
+> **Auteurs & Copyright:** © David Parren (owner), Gert Van Waeyenberg, Jeroen Jean, Guido Frissaer en Kathleen Hombroeks • Hogeschool PXL
 
 ---
 
@@ -106,6 +106,71 @@ apeeters;Geheim123!;An Peeters;1TIN-A
 
 ---
 
+## 📖 How-To: Installatie, AI Context & Samenwerken via GitHub
+
+### 1. AI Context Files gebruiken (`AGENTS.md` & `ARCHITECTURE.md`)
+Deze repository bevat twee gestandaardiseerde documentatiebestanden die speciaal zijn ontworpen voor naadloze samenwerking tussen docenten en AI-assistenten (zoals Google Antigravity, GitHub Copilot, Cursor of Claude):
+- **[`AGENTS.md`](AGENTS.md):** Een ultra-compacte referentiekaart (< 200 regels) met de tech stack, bestandsstructuur, kern-datastructuren, forwarding-flows en strikte ontwikkelconventies. AI-agents lezen dit bestand bij aanvang van een sessie automatisch in, waardoor onnodig bestanden scannen en tokenverbruik geminimaliseerd worden.
+  - *In Antigravity / Cursor / Claude Code:* Wordt automatisch geladen vanuit de hoofdmap.
+  - *In GitHub Copilot (VS Code):* Typ `@workspace bekijk AGENTS.md` of voeg `#file:AGENTS.md` toe aan je prompt.
+- **[`ARCHITECTURE.md`](ARCHITECTURE.md):** De diepgaande technische gids met codevoorbeelden voor het toevoegen van nieuwe CLI-commando's, nieuwe hardwaremodellen, grading-regels en simulatie-uitbreidingen.
+- **Concurrency Vergrendeling (`.ai-sync/LOCK.json`):** Controleer vóór aanvang van code-aanpassingen altijd of `status` op `"FREE"` staat om merge-conflicten tussen collega's en AI-agents te vermijden.
+
+---
+
+### 2. Lokaal Opzetten & Uitvoeren (Stap voor Stap)
+Volg onderstaande stappen om het project binnen 2 minuten lokaal draaiend te hebben:
+
+```bash
+# 1. Clone de repository
+git clone https://github.com/PXLNetworkgroup/pxl-web-netsim.git
+cd pxl-web-netsim
+
+# 2. Maak een virtuele omgeving aan en activeer deze
+python -m venv venv
+.\venv\Scripts\activate      # Op Windows (PowerShell / CMD)
+# of: source venv/bin/activate op macOS / Linux
+
+# 3. Installeer de vereiste Python-pakketten
+pip install -r requirements.txt
+
+# 4. Start de server
+python server.py
+# of dubbelklik op: start_local.bat
+```
+Open vervolgens je browser op: **`http://localhost:8080`**.
+
+---
+
+### 3. Samenwerken via GitHub: Fork, Branch & Pull Request
+Om aanpassingen of nieuwe labo's veilig voor te stellen voor de live productieomgeving:
+
+1. **Maak een Fork:**
+   - Navigeer naar [https://github.com/PXLNetworkgroup/pxl-web-netsim](https://github.com/PXLNetworkgroup/pxl-web-netsim).
+   - Klik rechtsboven op **Fork** om een persoonlijke kopie onder jouw GitHub-account te plaatsen.
+2. **Kloon jouw Fork lokaal en maak een Feature-Branch:**
+   ```bash
+   git clone https://github.com/<jouw-account>/pxl-web-netsim.git
+   cd pxl-web-netsim
+   git checkout -b feature/naam-van-jouw-wijziging
+   ```
+3. **Voer wijzigingen door & Test lokaal:**
+   - Pas de gewenste bestanden aan conform de richtlijnen in `AGENTS.md`.
+   - Voer geautomatiseerde tests uit met `pytest tests/`.
+4. **Commit en Push naar jouw Fork:**
+   ```bash
+   git add .
+   git commit -m "feat(module): duidelijke beschrijving van de toevoeging"
+   git push origin feature/naam-van-jouw-wijziging
+   ```
+5. **Dien een Pull Request in voor de Live Omgeving:**
+   - Ga op GitHub naar jouw geforkte repository en klik op **"Compare & pull request"**.
+   - Selecteer als target: `PXLNetworkgroup/pxl-web-netsim` op branch `main`.
+   - Voeg een toelichting toe en dien de PR in.
+   - Na collegiale review door de auteurs wordt de PR gemerged, waarna de Cloud Run deployment automatisch de live web-app bijwerkt.
+
+---
+
 ## ☁️ Implementatie naar Google Cloud (cloud.google.com)
 
 Het platform kan met één klik live worden gebracht op **Google Cloud Run** via de meegeleverde scripts.
@@ -125,22 +190,13 @@ gcloud auth login
 gcloud config set project UW_PROJECT_ID
 gcloud run deploy pxl-web-netsim --source . --region europe-west1 --allow-unauthenticated
 ```
-Google Cloud Run bouwt de Docker container automatisch via Cloud Build en levert een beveiligde, wereldwijd bereikbare HTTPS URL op (bijv. `https://pxl-web-netsim-xyz-ew.a.run.app`). Deze URL kan direct in **Schoolyear** worden ingegeven.
-
----
-
-## 💻 Lokaal Starten voor Testen
-
-```powershell
-pip install -r requirements.txt
-python server.py
-```
-Open vervolgens in uw browser: `http://localhost:8080` (of via het LAN-IP van de host, bijv. `http://192.168.1.163:8080`).
+Google Cloud Run bouwt de Docker container automatisch via Cloud Build en levert een beveiligde, wereldwijd bereikbare HTTPS URL op:  
+`https://pxl-web-netsim-1088457364327.europe-west1.run.app`. Deze URL kan direct in **Schoolyear** worden ingegeven.
 
 ---
 
 ## 👥 Auteurs & Licentie
 Ontwikkeld voor intern onderwijs- en examenbeheer aan **Hogeschool PXL**:  
-© David Parren, Gert Van Waeyenberg, Lode Frissaer, Jean, Hombroeks  
+© David Parren (owner), Gert Van Waeyenberg, Jeroen Jean, Guido Frissaer en Kathleen Hombroeks  
 Departement Toegepaste Informatica / System & Network Engineering (SNE)  
 Campus Elfde-Linie, Hasselt, België.

@@ -1,5 +1,5 @@
 # OVERDRACHT PXL WEB NETSIM • GEDEELD DOSSIER VOOR ANDER TOESTEL
-**Auteurs:** David Parren, Gert Van Waeyenberg, Lode Frissaer, Jean, Hombroeks • Hogeschool PXL (Toegepaste Informatica / SNE)  
+**Auteurs:** David Parren (owner), Gert Van Waeyenberg, Jeroen Jean, Guido Frissaer en Kathleen Hombroeks • Hogeschool PXL (Toegepaste Informatica / SNE)  
 **Datum & Tijdstip Overdracht:** 10 november 2026 om 21:00  
 **Status:** **100% Werkend & Operationeel** (Lokaal, GitHub & Google Cloud Run)
 
