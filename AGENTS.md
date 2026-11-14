@@ -100,6 +100,7 @@ Wanneer de gebruiker dit project heropent of vraagt naar de volgende stappen:
 2. **Presenteer de openstaande taken** (1 t/m 10) overzichtelijk aan de gebruiker.
 3. **Vraag de gebruiker:** *"Welke onderdelen wil je nu aanpakken? Je kunt één specifiek nummer kiezen om stap voor stap uit te rollen, of meerdere onderdelen tegelijk selecteren."*
 4. Voer pas wijzigingen uit nadat de gebruiker zijn/haar keuze heeft gemaakt.
+5. **Update TODO.md & Git:** Zodra een onderdeel succesvol gebouwd en geverifieerd is, werk direct [TODO.md](file:///G:/My%20Drive/antigravitylogs/pxl-web-netsim/TODO.md) bij (markeer als voltooid met opleverdatum), commit en push dit mee naar GitHub zodat de status op GitHub altijd 100% accuraat gesynchroniseerd blijft.
 
 ---
 Voor diepgaande technische uitleg, uitbreidingshandleidingen en architectuurdetails: zie [ARCHITECTURE.md](file:///G:/My%20Drive/antigravitylogs\pxl-web-netsim/ARCHITECTURE.md).

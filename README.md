@@ -47,6 +47,12 @@ Wanneer studenten de native desktopversie van Cisco Packet Tracer draaien, moet 
 
 ---
 
+## 🗺️ Openstaande Roadmap & Volgende Stappen
+De openstaande ontwikkelpunten en geplande uitbreidingen (didactische feature locks via JSON, help/hint-systeem, verborgen oplossingen in rubrics, scripting-oefeningen in PowerShell/Linux/Python, en omgekeerde PKA-export) worden centraal bijgehouden in:
+👉 **[Bekijk de complete Roadmap & Takenlijst in TODO.md](TODO.md)**
+
+---
+
 ## 🛠️ Architectuur & Structuur
 
 ```
