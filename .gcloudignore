@@ -15,6 +15,7 @@ check_*.py
 verify_*.py
 find_*.py
 read_*.py
+.ai-sync/
 
 # Explicitly KEEP SQLite database and seeds
 !data/netsim.db
