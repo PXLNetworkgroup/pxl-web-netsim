@@ -3,6 +3,20 @@
 
 ---
 
+## [2026-11-14 17:15] • ROADMAP VASTGELEGD & SESSIE-START PROTOCOL
+**Auteur / Agent:** David Parren & Antigravity  
+**Status Lock:** FREE (Vrijgegeven)  
+**Git Branch:** `main`  
+**Live Cloud Run URL:** `https://pxl-web-netsim-1088457364327.europe-west1.run.app`  
+
+### Volgende Fase Roadmap (`TODO.md`):
+De volledige backlog voor de volgende fase is vastgelegd in `TODO.md` en verankerd in `AGENTS.md`.
+Bij de eerstvolgende heropening van dit project zal de agent automatisch:
+1. `TODO.md` uitlezen en tonen aan de gebruiker.
+2. Expliciet vragen welke onderdelen (per nummer of gecombineerd) uitgerold moeten worden alvorens actie te ondernemen.
+
+---
+
 ## [2026-11-14 17:10] • TOESTEL-EMULATIE, MIKROTIK ROUTEROS 7.X, SERVER DNS-ZONES (FLZ/RLZ) & LABO FEATURE LOCKING
 **Auteur / Agent:** David Parren & Antigravity  
 **Status Lock:** FREE (Vrijgegeven na succesvolle verificatie)  

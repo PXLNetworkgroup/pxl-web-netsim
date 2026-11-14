@@ -94,5 +94,12 @@
 3. **Log:** Documenteer na afronding in `.ai-sync/CONTEXT_LOG.md`.
 4. **Unlock:** Zet `.ai-sync/LOCK.json` terug op `"FREE"` en commit/push alles naar GitHub.
 
+## 7. Openstaande Roadmap & Sessie-Start Protocol
+Wanneer de gebruiker dit project heropent of vraagt naar de volgende stappen:
+1. **Lees altijd [TODO.md](file:///G:/My%20Drive/antigravitylogs/pxl-web-netsim/TODO.md) uit.**
+2. **Presenteer de openstaande taken** (1 t/m 10) overzichtelijk aan de gebruiker.
+3. **Vraag de gebruiker:** *"Welke onderdelen wil je nu aanpakken? Je kunt één specifiek nummer kiezen om stap voor stap uit te rollen, of meerdere onderdelen tegelijk selecteren."*
+4. Voer pas wijzigingen uit nadat de gebruiker zijn/haar keuze heeft gemaakt.
+
 ---
-Voor diepgaande technische uitleg, uitbreidingshandleidingen en architectuurdetails: zie [ARCHITECTURE.md](file:///G:/My%20Drive/antigravitylogs/pxl-web-netsim/ARCHITECTURE.md).
+Voor diepgaande technische uitleg, uitbreidingshandleidingen en architectuurdetails: zie [ARCHITECTURE.md](file:///G:/My%20Drive/antigravitylogs\pxl-web-netsim/ARCHITECTURE.md).
