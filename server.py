@@ -63,6 +63,10 @@ from backend.database import (
     update_bug_report_status,
     apply_bug_solution,
     delete_bug_report,
+    list_teachers,
+    create_teacher,
+    delete_teacher,
+    list_labs_catalog,
     save_custom_project,
     list_custom_projects,
     get_custom_project,
@@ -454,6 +458,66 @@ def teacher_import_students():
     })
 
 
+# --- TEACHER ACCOUNTS MANAGEMENT ---
+@app.route("/api/teacher/teachers", methods=["GET"])
+def teacher_list_teachers():
+    """Lists all teacher accounts."""
+    teachers = list_teachers()
+    return jsonify({"status": "success", "count": len(teachers), "teachers": teachers})
+
+
+@app.route("/api/teacher/teacher/create", methods=["POST"])
+def teacher_create_teacher():
+    """Creates a new teacher account."""
+    data = request.json or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "").strip()
+    full_name = data.get("full_name", "").strip()
+    department = data.get("department", "PXL-SNE").strip()
+
+    if not username or not password or not full_name:
+        return jsonify({"status": "error", "error": "Gebruikersnaam, wachtwoord en volledige naam zijn verplicht"}), 400
+
+    try:
+        teacher_id = create_teacher(username, password, full_name, department)
+        return jsonify({
+            "status": "success",
+            "message": f"Docent '{full_name}' succesvol opgeslagen.",
+            "teacher_id": teacher_id
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 400
+
+
+@app.route("/api/teacher/teacher/delete", methods=["POST"])
+def teacher_delete_teacher():
+    """Deletes a teacher account."""
+    data = request.json or {}
+    teacher_id = data.get("teacher_id")
+    if not teacher_id:
+        return jsonify({"status": "error", "error": "Geen docent ID opgegeven"}), 400
+
+    requesting_id = session.get("user_id")
+    try:
+        deleted = delete_teacher(teacher_id, requesting_user_id=requesting_id)
+        if deleted:
+            return jsonify({"status": "success", "message": "Docent succesvol verwijderd."})
+        return jsonify({"status": "error", "error": "Docent kon niet worden gevonden of verwijderd."}), 404
+    except ValueError as ve:
+        return jsonify({"status": "error", "error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+# --- LABS & RUBRICS CATALOG ---
+@app.route("/api/teacher/labs-catalog", methods=["GET"])
+def teacher_labs_catalog():
+    """Returns all labs with parsed rubrics and instructions for teacher review."""
+    catalog = list_labs_catalog()
+    return jsonify({"status": "success", "count": len(catalog), "labs": catalog})
+
+
+
 # --- TEACHER TAB 2: SCORES OVERVIEW & BLACKBOARD / EXCEL EXPORT ---
 @app.route("/api/teacher/scores", methods=["GET"])
 def teacher_scores():
@@ -466,7 +530,7 @@ def teacher_scores():
         students = list_all_student_scores(class_groups=class_list, search=search)
     else:
         students = list_students_with_progress(exam_id=exam_id, class_groups=class_list, search=search)
-    return jsonify({"exam_id": exam_id, "scores": students})
+    return jsonify({"status": "success", "success": True, "exam_id": exam_id, "scores": students})
 
 
 @app.route("/api/teacher/scores/export", methods=["GET"])

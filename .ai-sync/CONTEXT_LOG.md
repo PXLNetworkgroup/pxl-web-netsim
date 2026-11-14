@@ -3,6 +3,50 @@
 
 ---
 
+## [2026-11-14 15:40] • DOCENTENOMGEVING: LABO- & RUBRIC-CATALOGUS, DOCENTENBEHEER & LAATST INGELOGD
+**Auteur / Agent:** David Parren & Antigravity  
+**Status Lock:** FREE (Vrijgegeven na succesvolle verificatie)  
+**Git Branch:** `main`  
+**Live Cloud Run URL:** `https://pxl-web-netsim-1088457364327.europe-west1.run.app`  
+
+### 1. Wat is er gebouwd en gewijzigd?
+* **📚 Labo- en Rubric-Overzicht (Tab 3: `📚 3. Labo- & Rubric-Overzicht`):**
+  * Geïntegreerd in de `TeacherStudio` dialog met live responsive master-detail weergave.
+  * Doorzoek alle beschikbare labo's en toetsen (zowel course labs als geïmporteerde PKA's en custom opdrachten) met instant zoekbalk en categoriefilter.
+  * Gedetailleerde inspectie per labo:
+    * Volledige opdrachtomschrijving / instructies in gerenderde Markdown styling (adresseringstabellen, doelstellingen, taken).
+    * Volledige beoordelingsrubric met puntenverdeling per criterium, categorietags, type controle en gedetailleerde voorwaarden.
+    * Metadata: totaal aantal punten, aantal apparaten, apparaatmodellen, tijdslimiet, auteur en datum.
+  * Directe actieknoppen per labo:
+    * `🚀 Direct Toewijzen aan Klas`: switcht met 1 klik naar het toewijzingspaneel met het geselecteerde labo voorgeselecteerd.
+    * `🖥️ Open Start-Topologie op Canvas`: laadt het labo onmiddellijk in de simulator om het direct visueel te inspecteren.
+* **👨‍🏫 Docentenbeheer (Tab 1 Subtab: `👨‍🏫 Docentenbeheer`):**
+  * Subtab-wisseling binnen Tab 1 (`🎓 Studenten & Klassen` vs `👨‍🏫 Docentenbeheer`).
+  * Nieuwe docentenaccounts toevoegen: formulier voor gebruikersnaam, wachtwoord, volledige naam en departement (default: `PXL-SNE`).
+  * Overzichtstabel met alle actieve docenten, departement, aanmaakdatum en laatste inlogsessie.
+  * Veilig verwijderen van docentenaccounts met dubbele beveiliging:
+    * Een docent kan zijn/haar eigen actieve account niet verwijderen.
+    * Het laatste docentenaccount kan niet worden verwijderd (beveiliging tegen lockouts).
+* **⏱️ Studentenactiviteit Bijhouden ('Laatst Ingelogd'):**
+  * SQLite database migratie via `_add_column_if_not_exists`: kolom `last_login_at TIMESTAMP` toegevoegd aan tabel `users`.
+  * `authenticate_user()` werkt nu bij elke succesvolle login automatisch `last_login_at = CURRENT_TIMESTAMP` bij.
+  * Kolom 'Laatst Ingelogd' toegevoegd aan:
+    * Het studenten- en klassenoverzicht (`loadStudentsTable`).
+    * Het algemene puntenoverzicht van alle studenten (`loadScoresTable`).
+    * De specifieke toetsresultatentabel per labo.
+  * Visuele badges: "Nu online (< 15 min)", "Xm geleden", "Vandaag om ...", "X dagen geleden" of datum badge.
+* **Geautomatiseerde Testen (`tests/test_new_teacher_features.py`):**
+  * 5/5 unit tests geslaagd (docentenlijst, docenten aanmaken/verwijderen, beveiligingscontroles, labocatalogus-extractie, timestamp tracking en API endpoints).
+
+### 2. Gewijzigde Bestanden:
+* `backend/database.py` (migratie `last_login_at`, docenten CRUD functies, `list_labs_catalog`, `get_user_by_id`)
+* `server.py` (API endpoints `/api/teacher/teachers`, `/api/teacher/teacher/create`, `/api/teacher/teacher/delete`, `/api/teacher/labs-catalog`)
+* `static/js/teacher_studio.js` (UI layout, subtab-routing, master-detail rubric viewer, docentenbeheer formulier en tabel, `formatLastLogin`)
+* `tests/test_new_teacher_features.py` (geautomatiseerde testsuite)
+* `.ai-sync/LOCK.json` & `.ai-sync/CONTEXT_LOG.md`
+
+---
+
 ## [2026-11-14 13:10] • CATEGORIE 1 BUGS/UI FIXES & ARCHITECTUUR DOCUMENTATIE (AGENTS.md & ARCHITECTURE.md)
 **Auteur / Agent:** David Parren & Antigravity  
 **Status Lock:** FREE (Vrijgegeven na succesvolle verificatie)  

@@ -29,6 +29,9 @@ class TeacherStudio {
     this.cachedImportQueue = [];
     this.allDbExams = [];
     this.isQueueCollapsed = false;
+    this.activeUserSubtab = 'students';
+    this.allLabsCatalog = [];
+    this.selectedCatalogLabId = null;
   }
 
   openStudioModal() {
@@ -70,88 +73,146 @@ class TeacherStudio {
         </div>
 
         <div class="pt-studio-tabs" style="display: flex; background: #f1f5f9; border-bottom: 2px solid #cbd5e1; padding: 0 10px; overflow-x: auto;">
-          <button class="pt-tab-btn active" id="tabBtnUsers" onclick="window.PXLApp.teacherStudio.switchTab('users')">👥 1. Studenten & Klassen</button>
+          <button class="pt-tab-btn active" id="tabBtnUsers" onclick="window.PXLApp.teacherStudio.switchTab('users')">👥 1. Studenten & Docenten</button>
           <button class="pt-tab-btn" id="tabBtnScores" onclick="window.PXLApp.teacherStudio.switchTab('scores')">📊 2. Scores & Voortgang</button>
-          <button class="pt-tab-btn" id="tabBtnExamMgmt" onclick="window.PXLApp.teacherStudio.switchTab('exam_mgmt')">📋 3. Opdrachten</button>
-          <button class="pt-tab-btn" id="tabBtnTeacherBugs" onclick="window.PXLApp.teacherStudio.switchTab('bugs')">🐞 4. Bugs</button>
-          <button class="pt-tab-btn" id="tabBtnTopology" onclick="window.PXLApp.teacherStudio.switchTab('topology')">📸 5. Topologie Snapshot</button>
-          <button class="pt-tab-btn" id="tabBtnRubric" onclick="window.PXLApp.teacherStudio.switchTab('rubric')">⚡ 6. Rubric, PKA & AI Generator</button>
+          <button class="pt-tab-btn" id="tabBtnLabsCatalog" onclick="window.PXLApp.teacherStudio.switchTab('labs_catalog')">📚 3. Labo- & Rubric-Overzicht</button>
+          <button class="pt-tab-btn" id="tabBtnExamMgmt" onclick="window.PXLApp.teacherStudio.switchTab('exam_mgmt')">📋 4. Opdrachten Toewijzen</button>
+          <button class="pt-tab-btn" id="tabBtnTeacherBugs" onclick="window.PXLApp.teacherStudio.switchTab('bugs')">🐞 5. Bugs</button>
+          <button class="pt-tab-btn" id="tabBtnTopology" onclick="window.PXLApp.teacherStudio.switchTab('topology')">📸 6. Topologie Snapshot</button>
+          <button class="pt-tab-btn" id="tabBtnRubric" onclick="window.PXLApp.teacherStudio.switchTab('rubric')">⚡ 7. Rubric, PKA & AI Generator</button>
         </div>
 
         <div class="pt-studio-content" style="flex: 1; overflow-y: auto; padding: 18px; background: #ffffff;">
 
           <!-- TAB 1: GEBRUIKERS & KLASSEN -->
           <div id="studioTabUsers" class="pt-studio-pane active">
-            <!-- Toolbar -->
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
-              <div style="display: flex; gap: 8px; align-items: center; flex: 1; min-width: 280px;">
-                <input type="text" id="usersSearchInput" placeholder="🔍 Zoek op naam, studentnummer of klas..." class="pt-input" style="padding: 6px 10px; font-size: 12px; flex: 1;" oninput="window.PXLApp.teacherStudio.filterUsersTable()">
-                <select id="usersClassFilter" class="pt-input" style="padding: 6px 10px; font-size: 12px; width: 140px;" onchange="window.PXLApp.teacherStudio.filterUsersTable()">
-                  <option value="">Alle klassen</option>
-                </select>
-              </div>
-              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                <button class="pt-btn pt-btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="window.PXLApp.teacherStudio.openAddStudentModal()">
-                  ➕ Student Toevoegen
-                </button>
-                <button class="pt-btn pt-btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="window.PXLApp.teacherStudio.toggleCsvImportBox()">
-                  📥 Blackboard CSV Import
-                </button>
-                <button class="pt-btn pt-btn-danger" style="padding: 6px 12px; font-size: 12px; background: #ef4444; color: #fff;" onclick="window.PXLApp.teacherStudio.deleteSelectedStudents()">
-                  🗑️ Verwijder Selectie
-                </button>
-              </div>
-            </div>
-
-            <!-- Move to Class Action Bar -->
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; background: #eff6ff; padding: 8px 12px; border-radius: 6px; border: 1px solid #bfdbfe;">
-              <span style="font-size: 12px; font-weight: 600; color: #1e40af;">📦 Verplaats geselecteerde studenten via dropdown naar klas:</span>
-              <select id="userMoveTargetClass" class="pt-input" style="padding: 4px 8px; font-size: 12px; width: 150px;"></select>
-              <button class="pt-btn pt-btn-primary" style="padding: 5px 12px; font-size: 12px;" onclick="window.PXLApp.teacherStudio.moveSelectedToClass()">
-                Verplaatsen
+            <!-- Subtab Selector: Studenten vs Docenten -->
+            <div style="display: flex; gap: 8px; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+              <button id="subtabStudentsBtn" class="pt-btn pt-btn-primary" style="padding: 6px 14px; font-size: 12px; font-weight: 700;" onclick="window.PXLApp.teacherStudio.switchUserSubtab('students')">
+                🎓 Studenten & Klassen (<span id="studioStudentCountBadge">...</span>)
               </button>
-              <span id="selectedCountLabel" style="font-size: 12px; color: #64748b; margin-left: auto;">0 geselecteerd</span>
+              <button id="subtabTeachersBtn" class="pt-btn pt-btn-secondary" style="padding: 6px 14px; font-size: 12px; font-weight: 700;" onclick="window.PXLApp.teacherStudio.switchUserSubtab('teachers')">
+                👨‍🏫 Docentenbeheer (<span id="studioTeacherCountBadge">...</span>)
+              </button>
             </div>
 
-            <!-- Blackboard CSV Collapsible Box -->
-            <div id="studioCsvBox" style="display: none; margin-bottom: 16px; background: #f8fafc; border: 1.5px dashed #0284c7; border-radius: 8px; padding: 14px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; font-size: 13px; color: #0369a1;">📥 Blackboard Student Export / CSV Importeren</h4>
-                <button class="pt-btn-close" onclick="window.PXLApp.teacherStudio.toggleCsvImportBox()">✕</button>
+            <!-- SUBTAB 1A: STUDENTEN & KLASSEN -->
+            <div id="studioSubtabStudentsContainer">
+              <!-- Toolbar -->
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <div style="display: flex; gap: 8px; align-items: center; flex: 1; min-width: 280px;">
+                  <input type="text" id="usersSearchInput" placeholder="🔍 Zoek op naam, studentnummer of klas..." class="pt-input" style="padding: 6px 10px; font-size: 12px; flex: 1;" oninput="window.PXLApp.teacherStudio.filterUsersTable()">
+                  <select id="usersClassFilter" class="pt-input" style="padding: 6px 10px; font-size: 12px; width: 140px;" onchange="window.PXLApp.teacherStudio.filterUsersTable()">
+                    <option value="">Alle klassen</option>
+                  </select>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <button class="pt-btn pt-btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="window.PXLApp.teacherStudio.openAddStudentModal()">
+                    ➕ Student Toevoegen
+                  </button>
+                  <button class="pt-btn pt-btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="window.PXLApp.teacherStudio.toggleCsvImportBox()">
+                    📥 Blackboard CSV Import
+                  </button>
+                  <button class="pt-btn pt-btn-danger" style="padding: 6px 12px; font-size: 12px; background: #ef4444; color: #fff;" onclick="window.PXLApp.teacherStudio.deleteSelectedStudents()">
+                    🗑️ Verwijder Selectie
+                  </button>
+                </div>
               </div>
-              <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0;">
-                Ondersteunt direct het officiële Blackboard Grade Center CSV-formaat (<code>Achternaam,Voornaam,Gebruikersnaam</code> zoals <code>Abbiusi (2026-27 - GRSNE - 1SNEb),Matteo,12603952</code>) én standaard formaat (<code>username;wachtwoord;volledige_naam;klas</code>).
-              </p>
-              <textarea id="studioStudentCsv" class="pt-input" style="width: 100%; height: 90px; font-family: monospace; font-size: 11px; box-sizing: border-box;" placeholder="Plak hier je Blackboard CSV-inhoud..."></textarea>
-              <div style="display: flex; gap: 10px; margin-top: 8px; align-items: center;">
-                <button class="pt-btn pt-btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="window.PXLApp.teacherStudio.importStudentCsv()">
-                  🚀 Start Import
+
+              <!-- Move to Class Action Bar -->
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; background: #eff6ff; padding: 8px 12px; border-radius: 6px; border: 1px solid #bfdbfe;">
+                <span style="font-size: 12px; font-weight: 600; color: #1e40af;">📦 Verplaats geselecteerde studenten via dropdown naar klas:</span>
+                <select id="userMoveTargetClass" class="pt-input" style="padding: 4px 8px; font-size: 12px; width: 150px;"></select>
+                <button class="pt-btn pt-btn-primary" style="padding: 5px 12px; font-size: 12px;" onclick="window.PXLApp.teacherStudio.moveSelectedToClass()">
+                  Verplaatsen
                 </button>
-                <div id="studioCsvResult" style="font-size: 12px;"></div>
+                <span id="selectedCountLabel" style="font-size: 12px; color: #64748b; margin-left: auto;">0 geselecteerd</span>
+              </div>
+
+              <!-- Blackboard CSV Collapsible Box -->
+              <div id="studioCsvBox" style="display: none; margin-bottom: 16px; background: #f8fafc; border: 1.5px dashed #0284c7; border-radius: 8px; padding: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <h4 style="margin: 0; font-size: 13px; color: #0369a1;">📥 Blackboard Student Export / CSV Importeren</h4>
+                  <button class="pt-btn-close" onclick="window.PXLApp.teacherStudio.toggleCsvImportBox()">✕</button>
+                </div>
+                <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0;">
+                  Ondersteunt direct het officiële Blackboard Grade Center CSV-formaat (<code>Achternaam,Voornaam,Gebruikersnaam</code> zoals <code>Abbiusi (2026-27 - GRSNE - 1SNEb),Matteo,12603952</code>) én standaard formaat (<code>username;wachtwoord;volledige_naam;klas</code>).
+                </p>
+                <textarea id="studioStudentCsv" class="pt-input" style="width: 100%; height: 90px; font-family: monospace; font-size: 11px; box-sizing: border-box;" placeholder="Plak hier je Blackboard CSV-inhoud..."></textarea>
+                <div style="display: flex; gap: 10px; margin-top: 8px; align-items: center;">
+                  <button class="pt-btn pt-btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="window.PXLApp.teacherStudio.importStudentCsv()">
+                    🚀 Start Import
+                  </button>
+                  <div id="studioCsvResult" style="font-size: 12px;"></div>
+                </div>
+              </div>
+
+              <!-- Toevoeg-Wachtrij Panel (Audit Queue van toegevoegde accounts met klasnaam) -->
+              <div id="studioImportQueuePanel" style="margin-bottom: 14px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 10px 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 13px; font-weight: 700; color: #166534;">📋 Toevoeg-Wachtrij (Recent Toegevoegde Accounts per Klas)</span>
+                    <span id="queueTotalBadge" style="background: #16a34a; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: bold;">0 accounts in wachtrij</span>
+                  </div>
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    <input type="text" id="queueSearchInput" placeholder="🔍 Filter wachtrij op klas of student..." class="pt-input" style="padding: 3px 8px; font-size: 11px; width: 220px;" oninput="window.PXLApp.teacherStudio.filterImportQueue()">
+                    <button class="pt-btn pt-btn-sm" style="font-size: 11px; padding: 3px 8px;" title="Wachtrij vernieuwen" onclick="window.PXLApp.teacherStudio.loadImportQueue()">🔄</button>
+                    <button class="pt-btn pt-btn-sm" id="btnToggleQueueView" style="font-size: 11px; padding: 3px 8px;" onclick="window.PXLApp.teacherStudio.toggleImportQueueView()">▲ Inklappen</button>
+                  </div>
+                </div>
+                <div id="importQueueTableContainer" style="max-height: 140px; overflow-y: auto; border: 1px solid #bbf7d0; border-radius: 6px; background: #fff;">
+                  <div style="padding: 10px; text-align: center; color: #64748b; font-size: 11px;">Wachtrij laden...</div>
+                </div>
+              </div>
+
+              <!-- Students Table Container -->
+              <div id="studioStudentsListContainer" style="max-height: 320px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <div style="padding: 30px; text-align: center; color: #64748b;">⏳ Studentenlijst ophalen uit database...</div>
               </div>
             </div>
 
-            <!-- Toevoeg-Wachtrij Panel (Audit Queue van toegevoegde accounts met klasnaam) -->
-            <div id="studioImportQueuePanel" style="margin-bottom: 14px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 10px 14px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 13px; font-weight: 700; color: #166534;">📋 Toevoeg-Wachtrij (Recent Toegevoegde Accounts per Klas)</span>
-                  <span id="queueTotalBadge" style="background: #16a34a; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: bold;">0 accounts in wachtrij</span>
-                </div>
-                <div style="display: flex; gap: 6px; align-items: center;">
-                  <input type="text" id="queueSearchInput" placeholder="🔍 Filter wachtrij op klas of student..." class="pt-input" style="padding: 3px 8px; font-size: 11px; width: 220px;" oninput="window.PXLApp.teacherStudio.filterImportQueue()">
-                  <button class="pt-btn pt-btn-sm" style="font-size: 11px; padding: 3px 8px;" title="Wachtrij vernieuwen" onclick="window.PXLApp.teacherStudio.loadImportQueue()">🔄</button>
-                  <button class="pt-btn pt-btn-sm" id="btnToggleQueueView" style="font-size: 11px; padding: 3px 8px;" onclick="window.PXLApp.teacherStudio.toggleImportQueueView()">▲ Inklappen</button>
+            <!-- SUBTAB 1B: DOCENTENBEHEER -->
+            <div id="studioSubtabTeachersContainer" style="display: none;">
+              <!-- Add Teacher Bar / Form -->
+              <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #0284c7; display: flex; align-items: center; gap: 6px;">
+                  <span>➕</span> <span>Nieuw Docentenaccount Toevoegen</span>
+                </h4>
+                <div style="display: grid; grid-template-columns: 1.5fr 1.5fr 1.5fr 1.2fr auto; gap: 10px; align-items: flex-end;">
+                  <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #334155;">Gebruikersnaam:</label>
+                    <input type="text" id="newTeacherUsername" placeholder="bv. gert of gertdp" class="pt-input" style="width: 100%; font-size: 12px; padding: 6px 8px; margin-top: 2px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #334155;">Volledige Naam:</label>
+                    <input type="text" id="newTeacherFullName" placeholder="bv. Gert De Paepe" class="pt-input" style="width: 100%; font-size: 12px; padding: 6px 8px; margin-top: 2px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #334155;">Wachtwoord:</label>
+                    <input type="password" id="newTeacherPassword" placeholder="Wachtwoord invoeren..." class="pt-input" style="width: 100%; font-size: 12px; padding: 6px 8px; margin-top: 2px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #334155;">Afdeling / Vakgroep:</label>
+                    <input type="text" id="newTeacherDept" value="PXL-SNE" class="pt-input" style="width: 100%; font-size: 12px; padding: 6px 8px; margin-top: 2px;">
+                  </div>
+                  <div>
+                    <button class="pt-btn pt-btn-primary" style="padding: 6px 14px; font-size: 12px; font-weight: 700; background: #0284c7;" onclick="window.PXLApp.teacherStudio.submitNewTeacher()">
+                      ➕ Aanmaken
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div id="importQueueTableContainer" style="max-height: 140px; overflow-y: auto; border: 1px solid #bbf7d0; border-radius: 6px; background: #fff;">
-                <div style="padding: 10px; text-align: center; color: #64748b; font-size: 11px;">Wachtrij laden...</div>
-              </div>
-            </div>
 
-            <!-- Students Table Container -->
-            <div id="studioStudentsListContainer" style="max-height: 320px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 6px;">
-              <div style="padding: 30px; text-align: center; color: #64748b;">⏳ Studentenlijst ophalen uit database...</div>
+              <!-- Teachers Table Container -->
+              <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
+                  <span style="font-size: 12px; font-weight: 700; color: #1e293b;">👨‍🏫 Actieve Docentenaccounts</span>
+                  <button class="pt-btn pt-btn-sm" onclick="window.PXLApp.teacherStudio.loadTeachersTable()">🔄 Vernieuwen</button>
+                </div>
+                <div id="studioTeachersListContainer" style="max-height: 380px; overflow-y: auto;">
+                  <div style="padding: 30px; text-align: center; color: #64748b;">⏳ Docenten ophalen uit database...</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -196,7 +257,51 @@ class TeacherStudio {
             </div>
           </div>
 
-          <!-- TAB 3: OPDRACHTEN & EXAMEN MANAGEMENT -->
+          <!-- TAB 3: LABO- & RUBRIC-OVERZICHT -->
+          <div id="studioTabLabsCatalog" class="pt-studio-pane" style="display: none;">
+            <!-- Filter & Search Toolbar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; background: #f8fafc; padding: 12px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1;">
+              <div style="display: flex; gap: 10px; align-items: center; flex: 1; min-width: 280px;">
+                <input type="text" id="labsCatalogSearchInput" placeholder="🔍 Zoek op titel, onderwerp (bv. H01, OSPF, VLAN, Subnetting)..." class="pt-input" style="padding: 6px 12px; font-size: 12px; flex: 1;" oninput="window.PXLApp.teacherStudio.filterLabsCatalog()">
+                <select id="labsCatalogCategoryFilter" class="pt-input" style="padding: 6px 10px; font-size: 12px; min-width: 180px;" onchange="window.PXLApp.teacherStudio.filterLabsCatalog()">
+                  <option value="">Alle categorieën</option>
+                  <option value="course_lab">📚 Cursuslabo's (H01-H08)</option>
+                  <option value="custom">✏️ Docent Examens & Testen</option>
+                  <option value="pka_import">📦 Packet Tracer PKA Imports</option>
+                  <option value="preset">⚡ Systeem Presets</option>
+                </select>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <span id="labsCatalogCountBadge" style="font-size: 12px; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 4px;">0 Labo's</span>
+                <button class="pt-btn pt-btn-secondary" style="padding: 5px 10px; font-size: 11px;" onclick="window.PXLApp.teacherStudio.loadLabsCatalogTab()">🔄 Vernieuwen</button>
+              </div>
+            </div>
+
+            <!-- Split View: Left list (scrollable) and Right Detail (scrollable) -->
+            <div style="display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start;">
+              <!-- Left: Scrollable Labs List -->
+              <div>
+                <div style="font-size: 11.5px; font-weight: 700; color: #475569; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Beschikbare Labo's:</div>
+                <div id="labsCatalogListContainer" style="max-height: 520px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 6px;">
+                  <div style="padding: 30px; text-align: center; color: #94a3b8;">⏳ Labo's ophalen...</div>
+                </div>
+              </div>
+
+              <!-- Right: Detail View with Instructions & Rubric -->
+              <div>
+                <div style="font-size: 11.5px; font-weight: 700; color: #475569; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Opdrachtomschrijving & Beoordelingsrubric:</div>
+                <div id="labsCatalogDetailContainer" style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 18px; max-height: 520px; overflow-y: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                  <div style="padding: 60px 20px; text-align: center; color: #94a3b8;">
+                    <span style="font-size: 32px; display: block; margin-bottom: 10px;">📚</span>
+                    <strong style="font-size: 14px; color: #475569;">Selecteer een labo aan de linkerkant</strong>
+                    <p style="font-size: 12px; margin: 6px 0 0 0;">Hier verschijnen de volledige instructies, netwerkdoelen en de bijbehorende beoordelingsrubric.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: OPDRACHTEN & EXAMEN MANAGEMENT -->
           <div id="studioTabExamMgmt" class="pt-studio-pane" style="display: none;">
             <!-- Top Controls: Choose Exam, Time Limit & Openzet Knop -->
             <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;">
@@ -649,6 +754,7 @@ class TeacherStudio {
     const tabMap = {
       'users': { pane: 'studioTabUsers', btn: 'tabBtnUsers' },
       'scores': { pane: 'studioTabScores', btn: 'tabBtnScores' },
+      'labs_catalog': { pane: 'studioTabLabsCatalog', btn: 'tabBtnLabsCatalog' },
       'exam_mgmt': { pane: 'studioTabExamMgmt', btn: 'tabBtnExamMgmt' },
       'bugs': { pane: 'studioTabBugs', btn: 'tabBtnTeacherBugs' },
       'topology': { pane: 'studioTabTopology', btn: 'tabBtnTopology' },
@@ -667,15 +773,180 @@ class TeacherStudio {
     }
 
     if (tabKey === 'users') {
-      this.loadClassesAndStudents();
+      if (this.activeUserSubtab === 'teachers') {
+        this.loadTeachersTable();
+      } else {
+        this.loadClassesAndStudents();
+      }
     } else if (tabKey === 'scores') {
       this.loadScoresTab();
       // Auto-refresh scores every 10 seconds while on scores tab
       this.scoresRefreshTimer = setInterval(() => this.loadScoresTable(), 10000);
+    } else if (tabKey === 'labs_catalog') {
+      this.loadLabsCatalogTab();
     } else if (tabKey === 'exam_mgmt') {
       this.loadExamMgmtTab();
     } else if (tabKey === 'bugs') {
       this.loadBugs();
+    }
+  }
+
+  formatLastLogin(timestamp) {
+    if (!timestamp) return '<span style="color: #94a3b8; font-style: italic;">Nooit</span>';
+    const d = new Date(timestamp);
+    if (isNaN(d.getTime())) return timestamp;
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes < 5) {
+      return `<span style="display: inline-flex; align-items: center; gap: 4px; color: #16a34a; font-weight: 700;"><span style="width: 7px; height: 7px; background: #16a34a; border-radius: 50%; display: inline-block;"></span> Nu online</span>`;
+    }
+    if (diffMinutes < 60) {
+      return `<span style="display: inline-flex; align-items: center; gap: 4px; color: #15803d;"><span style="width: 7px; height: 7px; background: #22c55e; border-radius: 50%; display: inline-block;"></span> ${diffMinutes}m geleden</span>`;
+    }
+    if (diffMinutes < 1440 && now.getDate() === d.getDate()) {
+      const hours = Math.floor(diffMinutes / 60);
+      return `<span style="color: #0369a1; font-weight: 600;">Vandaag (${hours}u geleden)</span>`;
+    }
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `<span style="color: #64748b;">${day}-${month} ${h}:${m}</span>`;
+  }
+
+  switchUserSubtab(subtab) {
+    this.activeUserSubtab = subtab;
+    const studentsContainer = document.getElementById('studioSubtabStudentsContainer');
+    const teachersContainer = document.getElementById('studioSubtabTeachersContainer');
+    const btnStudents = document.getElementById('subtabStudentsBtn');
+    const btnTeachers = document.getElementById('subtabTeachersBtn');
+
+    if (subtab === 'teachers') {
+      if (studentsContainer) studentsContainer.style.display = 'none';
+      if (teachersContainer) teachersContainer.style.display = 'block';
+      if (btnStudents) btnStudents.className = 'pt-btn pt-btn-secondary';
+      if (btnTeachers) btnTeachers.className = 'pt-btn pt-btn-primary';
+      this.loadTeachersTable();
+    } else {
+      if (studentsContainer) studentsContainer.style.display = 'block';
+      if (teachersContainer) teachersContainer.style.display = 'none';
+      if (btnStudents) btnStudents.className = 'pt-btn pt-btn-primary';
+      if (btnTeachers) btnTeachers.className = 'pt-btn pt-btn-secondary';
+      this.loadClassesAndStudents();
+    }
+  }
+
+  async loadTeachersTable() {
+    const container = document.getElementById('studioTeachersListContainer');
+    if (!container) return;
+
+    try {
+      const res = await fetch('/api/teacher/teachers');
+      const data = await res.json();
+      const teachers = data.teachers || [];
+
+      const countBadge = document.getElementById('studioTeacherCountBadge');
+      if (countBadge) countBadge.innerText = teachers.length;
+
+      if (teachers.length === 0) {
+        container.innerHTML = `<div style="padding: 30px; text-align: center; color: #94a3b8;">Geen docentenaccounts gevonden.</div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+          <thead>
+            <tr style="background: #f8fafc; border-bottom: 2px solid #cbd5e1; text-align: left; position: sticky; top: 0; z-index: 1;">
+              <th style="padding: 10px 14px;">Volledige Naam</th>
+              <th style="padding: 10px 14px;">Gebruikersnaam</th>
+              <th style="padding: 10px 14px;">Vakgroep / Afdeling</th>
+              <th style="padding: 10px 14px;">Laatst Ingelogd</th>
+              <th style="padding: 10px 14px;">Aangemaakt op</th>
+              <th style="padding: 10px 14px; text-align: right;">Actie</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${teachers.map(t => `
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 8px 14px; font-weight: 700; color: #0f172a;">${t.full_name}</td>
+                <td style="padding: 8px 14px; font-family: monospace; font-weight: 600; color: #0284c7;">${t.username}</td>
+                <td style="padding: 8px 14px;"><span style="background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">${t.department || 'PXL-SNE'}</span></td>
+                <td style="padding: 8px 14px;">${this.formatLastLogin(t.last_login_at)}</td>
+                <td style="padding: 8px 14px; color: #64748b; font-size: 11px;">${t.created_at || '-'}</td>
+                <td style="padding: 8px 14px; text-align: right;">
+                  <button class="pt-btn pt-btn-sm" style="color: #ef4444; border: 1px solid #fecaca; background: #fff; padding: 3px 8px; font-size: 11px; border-radius: 4px; cursor: pointer;" title="Docent verwijderen" onclick="window.PXLApp.teacherStudio.deleteTeacherAccount(${t.id}, '${t.full_name}')">
+                    🗑️ Verwijder
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } catch (err) {
+      container.innerHTML = `<div style="padding: 20px; color: #ef4444;">Fout bij ophalen van docenten: ${err.message}</div>`;
+    }
+  }
+
+  async submitNewTeacher() {
+    const username = document.getElementById('newTeacherUsername')?.value.trim();
+    const fullName = document.getElementById('newTeacherFullName')?.value.trim();
+    const password = document.getElementById('newTeacherPassword')?.value.trim();
+    const department = document.getElementById('newTeacherDept')?.value.trim() || 'PXL-SNE';
+
+    if (!username || !fullName || !password) {
+      alert("Vul gebruikersnaam, volledige naam en wachtwoord in.");
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/teacher/teacher/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: username,
+          full_name: fullName,
+          password: password,
+          department: department
+        })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        alert(data.message || "Docent succesvol aangemaakt!");
+        document.getElementById('newTeacherUsername').value = '';
+        document.getElementById('newTeacherFullName').value = '';
+        document.getElementById('newTeacherPassword').value = '';
+        this.loadTeachersTable();
+      } else {
+        alert("Fout bij aanmaken docent: " + (data.error || "Onbekende fout"));
+      }
+    } catch (err) {
+      alert("Netwerkfout bij aanmaken docent: " + err.message);
+    }
+  }
+
+  async deleteTeacherAccount(teacherId, teacherName) {
+    if (!confirm(`Weet je zeker dat je het docentenaccount van "${teacherName}" wilt verwijderen?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/teacher/teacher/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacher_id: teacherId })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        alert("Docentenaccount succesvol verwijderd.");
+        this.loadTeachersTable();
+      } else {
+        alert("Kon docent niet verwijderen: " + (data.error || "Onbekende fout"));
+      }
+    } catch (err) {
+      alert("Netwerkfout: " + err.message);
     }
   }
 
@@ -807,6 +1078,9 @@ class TeacherStudio {
       const data = await res.json();
       const students = data.students || [];
 
+      const countBadge = document.getElementById('studioStudentCountBadge');
+      if (countBadge) countBadge.innerText = students.length;
+
       if (students.length === 0) {
         container.innerHTML = `<div style="padding: 30px; text-align: center; color: #94a3b8;">Geen studenten gevonden voor deze selectie.</div>`;
         return;
@@ -823,6 +1097,7 @@ class TeacherStudio {
               <th style="padding: 8px 10px;">Academiejaar</th>
               <th style="padding: 8px 10px;">Richting</th>
               <th style="padding: 8px 10px;">Klas</th>
+              <th style="padding: 8px 10px;">Laatst Ingelogd</th>
               <th style="padding: 8px 10px; text-align: right;">Actie</th>
             </tr>
           </thead>
@@ -838,6 +1113,7 @@ class TeacherStudio {
                 <td style="padding: 6px 10px; color: #64748b;">${s.academic_year || '2026-27'}</td>
                 <td style="padding: 6px 10px;"><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">${s.program || '-'}</span></td>
                 <td style="padding: 6px 10px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold;">${s.class_group || 'Algemeen'}</span></td>
+                <td style="padding: 6px 10px;">${this.formatLastLogin(s.last_login_at)}</td>
                 <td style="padding: 6px 10px; text-align: right;">
                   <button class="pt-btn pt-btn-sm" style="color: #ef4444; border: none; background: transparent; cursor: pointer; font-size: 13px;" title="Verwijder student" onclick="window.PXLApp.teacherStudio.deleteSingleStudent(${s.id}, '${s.username}')">🗑️</button>
                 </td>
@@ -1141,6 +1417,7 @@ class TeacherStudio {
                 <th style="padding: 8px 10px;">Categorie</th>
                 <th style="padding: 8px 10px;">Score (pt)</th>
                 <th style="padding: 8px 10px;">Percentage</th>
+                <th style="padding: 8px 10px;">Laatst Ingelogd</th>
                 <th style="padding: 8px 10px;">Laatste Opslag</th>
               </tr>
             </thead>
@@ -1168,6 +1445,7 @@ class TeacherStudio {
                         </div>
                       </div>
                     </td>
+                    <td style="padding: 6px 10px;">${this.formatLastLogin(s.last_login_at)}</td>
                     <td style="padding: 6px 10px; color: #64748b; font-size: 11px;">${s.last_saved}</td>
                   </tr>
                 `;
@@ -1188,6 +1466,7 @@ class TeacherStudio {
               <th style="padding: 8px 10px;">Klas</th>
               <th style="padding: 8px 10px;">Score (pt)</th>
               <th style="padding: 8px 10px;">Percentage</th>
+              <th style="padding: 8px 10px;">Laatst Ingelogd</th>
               <th style="padding: 8px 10px;">Laatste Auto-save (10s)</th>
               <th style="padding: 8px 10px;">Status</th>
             </tr>
@@ -1212,6 +1491,7 @@ class TeacherStudio {
                       </div>
                     </div>
                   </td>
+                  <td style="padding: 6px 10px;">${this.formatLastLogin(s.last_login_at)}</td>
                   <td style="padding: 6px 10px; color: #64748b; font-size: 11px;">${s.last_saved}</td>
                   <td style="padding: 6px 10px;">
                     ${hasActivity ? '<span style="background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">Actief</span>' : '<span style="background: #f1f5f9; color: #94a3b8; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Niet gestart</span>'}
@@ -1235,7 +1515,247 @@ class TeacherStudio {
     window.open(url, '_blank');
   }
 
-  // --- TAB 3: OPDRACHTEN & EXAMEN TOEWIJZEN ---
+  // --- TAB 3: LABS & RUBRICS CATALOG ---
+  async loadLabsCatalogTab() {
+    const listContainer = document.getElementById('labsCatalogListContainer');
+    if (!listContainer) return;
+
+    listContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">⏳ Labo-catalogus laden...</div>';
+
+    try {
+      const res = await fetch('/api/teacher/labs-catalog');
+      const data = await res.json();
+      this.allLabsCatalog = data.labs || [];
+
+      const countBadge = document.getElementById('labsCatalogCountBadge');
+      if (countBadge) countBadge.innerText = `${this.allLabsCatalog.length} Labo's`;
+
+      this.filterLabsCatalog();
+
+      if (this.allLabsCatalog.length > 0 && !this.selectedCatalogLabId) {
+        this.selectLabForInspection(this.allLabsCatalog[0].id);
+      }
+    } catch (err) {
+      listContainer.innerHTML = `<div style="padding: 20px; color: #ef4444;">Fout bij laden catalogus: ${err.message}</div>`;
+    }
+  }
+
+  filterLabsCatalog() {
+    const search = (document.getElementById('labsCatalogSearchInput')?.value || '').toLowerCase().trim();
+    const category = document.getElementById('labsCatalogCategoryFilter')?.value || '';
+
+    let filtered = this.allLabsCatalog || [];
+
+    if (category) {
+      filtered = filtered.filter(l => l.category === category);
+    }
+
+    if (search) {
+      filtered = filtered.filter(l => 
+        (l.title && l.title.toLowerCase().includes(search)) ||
+        (l.id && l.id.toLowerCase().includes(search)) ||
+        (l.instructions && l.instructions.toLowerCase().includes(search))
+      );
+    }
+
+    this.renderLabsCatalogList(filtered);
+  }
+
+  renderLabsCatalogList(labs) {
+    const container = document.getElementById('labsCatalogListContainer');
+    if (!container) return;
+
+    if (labs.length === 0) {
+      container.innerHTML = '<div style="padding: 30px; text-align: center; color: #94a3b8;">Geen labo\'s gevonden voor deze filter.</div>';
+      return;
+    }
+
+    const catBadgeMap = {
+      course_lab: { text: '📚 Cursus', bg: '#e0f2fe', color: '#0369a1' },
+      custom: { text: '✏️ Examen', bg: '#fef3c7', color: '#b45309' },
+      pka_import: { text: '📦 PKA', bg: '#f1f5f9', color: '#475569' },
+      preset: { text: '⚡ Preset', bg: '#ede9fe', color: '#6d28d9' }
+    };
+
+    container.innerHTML = labs.map(lab => {
+      const isSelected = lab.id === this.selectedCatalogLabId;
+      const b = catBadgeMap[lab.category] || { text: lab.category, bg: '#f1f5f9', color: '#475569' };
+      const rubricCount = lab.rubric_items_count || (lab.rubric ? lab.rubric.length : 0);
+      const points = lab.total_points || 100;
+
+      return `
+        <div class="lab-catalog-card" style="background: ${isSelected ? '#f0f9ff' : '#ffffff'}; border: ${isSelected ? '2px solid #0284c7' : '1px solid #cbd5e1'}; border-radius: 8px; padding: 10px 12px; cursor: pointer; transition: all 0.15s ease;" onclick="window.PXLApp.teacherStudio.selectLabForInspection('${lab.id}')">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="background: ${b.bg}; color: ${b.color}; font-size: 10.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">${b.text}</span>
+            <span style="font-size: 11px; color: #64748b; font-family: monospace;">${lab.id}</span>
+          </div>
+          <div style="font-weight: 700; font-size: 12.5px; color: #0f172a; margin-bottom: 4px; line-height: 1.3;">${lab.title}</div>
+          <div style="display: flex; gap: 8px; font-size: 11px; color: #64748b; flex-wrap: wrap;">
+            <span>🎯 ${rubricCount} criteria</span>
+            <span>•</span>
+            <span style="font-weight: 600; color: #059669;">${points} pt</span>
+            <span>•</span>
+            <span>⏱️ ${lab.time_limit_minutes || 80}m</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  selectLabForInspection(labId) {
+    this.selectedCatalogLabId = labId;
+    const lab = (this.allLabsCatalog || []).find(l => l.id === labId);
+
+    this.filterLabsCatalog();
+
+    const detailContainer = document.getElementById('labsCatalogDetailContainer');
+    if (!detailContainer) return;
+
+    if (!lab) {
+      detailContainer.innerHTML = '<div style="padding: 30px; text-align: center; color: #94a3b8;">Labo niet gevonden.</div>';
+      return;
+    }
+
+    const rubric = lab.rubric || [];
+    const rubricPoints = lab.total_points || 100;
+    const rubricRowsHtml = rubric.length > 0 ? rubric.map((item, idx) => {
+      const pts = item.points || 0;
+      const pct = rubricPoints > 0 ? Math.round((pts / rubricPoints) * 100) : 0;
+      return `
+        <tr style="border-bottom: 1px solid #e2e8f0; font-size: 12px;">
+          <td style="padding: 7px 10px; font-weight: bold; color: #64748b; width: 24px;">${idx + 1}</td>
+          <td style="padding: 7px 10px;">
+            <span style="background: #f1f5f9; color: #334155; font-size: 10.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">
+              ${item.type || 'check'}
+            </span>
+          </td>
+          <td style="padding: 7px 10px; font-weight: 600; color: #0284c7;">
+            ${item.device || '-'}${item.port ? ` (${item.port})` : ''}
+          </td>
+          <td style="padding: 7px 10px; font-family: monospace; font-size: 11.5px; color: #1e293b;">
+            ${item.expected || item.ip || item.vlan || item.network || '-'}
+          </td>
+          <td style="padding: 7px 10px; font-weight: 700; color: #059669; white-space: nowrap;">
+            ${pts} pt <span style="font-size: 10px; color: #64748b; font-weight: normal;">(${pct}%)</span>
+          </td>
+          <td style="padding: 7px 10px; color: #475569; font-size: 11.5px;">
+            ${item.description || item.desc || '-'}
+          </td>
+        </tr>
+      `;
+    }).join('') : `
+      <tr>
+        <td colspan="6" style="padding: 20px; text-align: center; color: #94a3b8; font-style: italic;">
+          Geen formele rubric regels geconfigureerd voor dit labo.
+        </td>
+      </tr>
+    `;
+
+    let formattedInstructions = (lab.instructions || 'Geen instructies opgegeven.')
+      .replace(/\\n\\n/g, '<br><br>')
+      .replace(/\\n/g, '<br>');
+
+    detailContainer.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 12px; gap: 12px; flex-wrap: wrap;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span style="background: #0284c7; color: #fff; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px;">${lab.category}</span>
+            <span style="font-family: monospace; font-size: 11.5px; color: #64748b;">${lab.id}</span>
+          </div>
+          <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #0f172a;">${lab.title}</h3>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="pt-btn pt-btn-secondary" style="padding: 6px 12px; font-size: 11.5px;" onclick="window.PXLApp.teacherStudio.quickAssignCatalogLab('${lab.id}')" title="Schakel direct naar de Toewijzen tab met dit labo">
+            🚀 Openzetten voor Klas
+          </button>
+          <button class="pt-btn pt-btn-primary" style="padding: 6px 12px; font-size: 11.5px; background: #059669;" onclick="window.PXLApp.teacherStudio.loadCatalogLabOnCanvas('${lab.id}')" title="Laad deze topologie direct in de simulator">
+            ▶️ Laad op Canvas
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Metrics Bar -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px;">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
+          <div style="font-size: 11px; color: #64748b;">Totaal Punten</div>
+          <div style="font-size: 16px; font-weight: 800; color: #059669;">${rubricPoints} pt</div>
+        </div>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
+          <div style="font-size: 11px; color: #64748b;">Beoordelingscriteria</div>
+          <div style="font-size: 16px; font-weight: 800; color: #0284c7;">${rubric.length} checks</div>
+        </div>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
+          <div style="font-size: 11px; color: #64748b;">Aanbevolen Tijd</div>
+          <div style="font-size: 16px; font-weight: 800; color: #334155;">⏱️ ${lab.time_limit_minutes || 80} min</div>
+        </div>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
+          <div style="font-size: 11px; color: #64748b;">Netwerkapparaten</div>
+          <div style="font-size: 16px; font-weight: 800; color: #334155;">🖥️ ${lab.devices_count || 0} stuks</div>
+        </div>
+      </div>
+
+      <!-- Section 1: Opdrachtomschrijving -->
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+          <span>📋</span> <span>Opdrachtomschrijving & Doelen</span>
+        </h4>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; font-size: 12.5px; line-height: 1.55; color: #334155; max-height: 220px; overflow-y: auto;">
+          ${formattedInstructions}
+        </div>
+      </div>
+
+      <!-- Section 2: Beoordelingsrubric -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+            <span>🎯</span> <span>Beoordelingsrubric & Validatiematrix</span>
+          </h4>
+          <span style="font-size: 11px; font-weight: 600; color: #059669; background: #ecfdf5; padding: 2px 8px; border-radius: 4px; border: 1px solid #a7f3d0;">
+            100% Geautomatiseerde Evaluatie
+          </span>
+        </div>
+        <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr style="background: #f1f5f9; border-bottom: 1.5px solid #cbd5e1; text-align: left;">
+                <th style="padding: 8px 10px;">#</th>
+                <th style="padding: 8px 10px;">Type</th>
+                <th style="padding: 8px 10px;">Doel</th>
+                <th style="padding: 8px 10px;">Verwachte Configuratie</th>
+                <th style="padding: 8px 10px;">Punten</th>
+                <th style="padding: 8px 10px;">Didactische Toelichting</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rubricRowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  quickAssignCatalogLab(labId) {
+    this.switchTab('exam_mgmt');
+    setTimeout(() => {
+      const select = document.getElementById('mgmtAssignExamSelect');
+      if (select) {
+        select.value = labId;
+        this.onSelectedExamChanged();
+      }
+    }, 150);
+  }
+
+  loadCatalogLabOnCanvas(labId) {
+    if (confirm(`Wil je labo "${labId}" direct op het simulator-werkveld laden? (Niet-opgeslagen wijzigingen op het huidige werkveld worden overschreven)`)) {
+      this.closeStudioModal();
+      if (window.PXLApp && window.PXLApp.loadExamById) {
+        window.PXLApp.loadExamById(labId);
+      }
+    }
+  }
+
+  // --- TAB 4: OPDRACHTEN & EXAMEN TOEWIJZEN ---
   async loadExamMgmtTab() {
     // 1. Fetch all exams from SQLite database (course labs, PKA imports, presets, custom)
     try {

@@ -127,6 +127,7 @@ def init_db():
     _add_column_if_not_exists(cursor, 'users', 'academic_year', "TEXT DEFAULT '2026-27'")
     _add_column_if_not_exists(cursor, 'users', 'program', "TEXT DEFAULT ''")
     _add_column_if_not_exists(cursor, 'users', 'raw_display_name', "TEXT DEFAULT ''")
+    _add_column_if_not_exists(cursor, 'users', 'last_login_at', "TIMESTAMP")
 
     # Student saves table (auto-save per user per exam)
     cursor.execute("""
@@ -329,14 +330,28 @@ def init_db():
     except Exception as e:
         print(f"Error seeding course labs: {e}")
 
+def get_user_by_id(user_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, username, full_name, first_name, last_name, role, class_group, last_login_at, created_at
+        FROM users WHERE id = ?
+    """, (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
 def authenticate_user(username, password):
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users WHERE username = ?", (username.strip(),))
     row = cursor.fetchone()
-    conn.close()
 
     if row and verify_password(password, row['password_hash']):
+        cursor.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (row['id'],))
+        conn.commit()
+        conn.close()
         return {
             'id': row['id'],
             'username': row['username'],
@@ -346,8 +361,10 @@ def authenticate_user(username, password):
             'role': row['role'],
             'class_group': row['class_group'] or '',
             'program': row['program'] or '',
-            'academic_year': row['academic_year'] or '2026-27'
+            'academic_year': row['academic_year'] or '2026-27',
+            'last_login_at': row['last_login_at']
         }
+    conn.close()
     return None
 
 def create_or_update_user(username, password, full_name, role='student', class_group='',
@@ -427,6 +444,129 @@ def move_users_to_class(user_ids, new_class_group):
     conn.commit()
     conn.close()
     return updated
+
+# --- TEACHER ACCOUNTS MANAGEMENT ---
+def list_teachers():
+    """Returns all teacher accounts with their metadata and last login timestamp."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, username, full_name, first_name, last_name, class_group as department, created_at, last_login_at
+        FROM users
+        WHERE role = 'teacher'
+        ORDER BY full_name ASC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def create_teacher(username, password, full_name, department='PXL-SNE'):
+    """Creates or updates a teacher account."""
+    uname = username.strip().lower()
+    fname = full_name.strip()
+    pwd = password.strip()
+    dept = department.strip() or 'PXL-SNE'
+    if not uname or not pwd or not fname:
+        raise ValueError("Gebruikersnaam, wachtwoord en volledige naam zijn verplicht.")
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE username = ?", (uname,))
+    existing = cursor.fetchone()
+    pwd_hash = hash_password(pwd)
+
+    if existing:
+        cursor.execute("""
+            UPDATE users SET password_hash = ?, full_name = ?, role = 'teacher', class_group = ?
+            WHERE id = ?
+        """, (pwd_hash, fname, dept, existing['id']))
+        teacher_id = existing['id']
+    else:
+        cursor.execute("""
+            INSERT INTO users (username, password_hash, full_name, role, class_group)
+            VALUES (?, ?, ?, 'teacher', ?)
+        """, (uname, pwd_hash, fname, dept))
+        teacher_id = cursor.lastrowid
+
+    conn.commit()
+    conn.close()
+    return teacher_id
+
+def delete_teacher(teacher_id, requesting_user_id=None):
+    """Deletes a teacher account with strict safety checks (cannot delete self, cannot delete last teacher)."""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if requesting_user_id and int(teacher_id) == int(requesting_user_id):
+        conn.close()
+        raise ValueError("Je kunt je eigen ingelogde docentenaccount niet verwijderen.")
+
+    cursor.execute("SELECT count(*) as cnt FROM users WHERE role = 'teacher'")
+    total = cursor.fetchone()['cnt']
+    if total <= 1:
+        conn.close()
+        raise ValueError("Het laatste docentenaccount kan niet worden verwijderd.")
+
+    cursor.execute("DELETE FROM users WHERE id = ? AND role = 'teacher'", (teacher_id,))
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
+
+# --- LABS & RUBRICS CATALOG ---
+def list_labs_catalog():
+    """
+    Returns an enriched list of all labs and exams with full instructions,
+    parsed rubrics (criteria, points, description) and topology summary.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT e.id, e.title, e.instructions, e.time_limit_minutes, e.is_active,
+               e.category, e.created_by, e.created_at, e.rubric_json, e.topology_json
+        FROM exams e
+        ORDER BY CASE e.category 
+                    WHEN 'course_lab' THEN 1 
+                    WHEN 'custom' THEN 2 
+                    WHEN 'pka_import' THEN 3 
+                    ELSE 4 END, e.title ASC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+
+    catalog = []
+    for r in rows:
+        try:
+            rubric = json.loads(r['rubric_json'] or '[]')
+        except Exception:
+            rubric = []
+        try:
+            topo = json.loads(r['topology_json'] or '{}')
+        except Exception:
+            topo = {}
+
+        devices = topo.get('devices', []) if isinstance(topo, dict) else []
+        total_points = sum(item.get('points', 0) for item in rubric if isinstance(item, dict))
+        if total_points == 0 and rubric:
+            total_points = 100
+
+        catalog.append({
+            'id': r['id'],
+            'title': r['title'],
+            'instructions': r['instructions'] or '',
+            'time_limit_minutes': r['time_limit_minutes'] or 80,
+            'is_active': bool(r['is_active']),
+            'category': r['category'] or 'custom',
+            'created_by': r['created_by'] or 'teacher',
+            'created_at': r['created_at'],
+            'rubric': rubric,
+            'rubric_items_count': len(rubric),
+            'total_points': total_points,
+            'devices_count': len(devices),
+            'device_types': list(set(d.get('type', 'device') for d in devices if isinstance(d, dict)))
+        })
+    return catalog
+
 
 def parse_blackboard_student_row(raw_last, first, uname, default_password='PXL2026!'):
     """
@@ -711,7 +851,7 @@ def list_students_with_progress(exam_id='01_pxl_standard', class_groups=None, se
 
     query = """
         SELECT u.id, u.username, u.full_name, u.first_name, u.last_name,
-               u.academic_year, u.program, u.class_group, u.raw_display_name, u.created_at,
+               u.academic_year, u.program, u.class_group, u.raw_display_name, u.created_at, u.last_login_at,
                s.score, s.max_score, s.percentage, s.updated_at as last_saved
         FROM users u
         LEFT JOIN student_saves s ON u.id = s.user_id AND s.exam_id = ?
@@ -749,7 +889,8 @@ def list_students_with_progress(exam_id='01_pxl_standard', class_groups=None, se
             'score': r['score'] if r['score'] is not None else 0,
             'max_score': r['max_score'] if r['max_score'] is not None else 100,
             'percentage': round(r['percentage'], 1) if r['percentage'] is not None else 0.0,
-            'last_saved': r['last_saved'] or '-'
+            'last_saved': r['last_saved'] or '-',
+            'last_login_at': r['last_login_at']
         })
     return students
 
@@ -946,7 +1087,7 @@ def list_all_student_scores(class_groups=None, search=None):
     cursor = conn.cursor()
     query = """
         SELECT u.id as user_id, u.username, u.full_name, u.first_name, u.last_name,
-               u.academic_year, u.program, u.class_group, u.raw_display_name,
+               u.academic_year, u.program, u.class_group, u.raw_display_name, u.last_login_at,
                s.exam_id, COALESCE(e.title, s.exam_id) as exam_title, e.category as exam_category,
                s.score, s.max_score, s.percentage, s.updated_at as last_saved
         FROM users u
@@ -1022,7 +1163,7 @@ def get_students_grouped_by_class():
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT id, username, full_name, first_name, last_name, academic_year, program, class_group
+        SELECT id, username, full_name, first_name, last_name, academic_year, program, class_group, last_login_at
         FROM users
         WHERE role = 'student'
         ORDER BY class_group ASC, last_name ASC, first_name ASC
@@ -1047,7 +1188,8 @@ def get_students_grouped_by_class():
             'first_name': r['first_name'] or '',
             'last_name': r['last_name'] or '',
             'program': r['program'] or '',
-            'class_group': cg
+            'class_group': cg,
+            'last_login_at': r['last_login_at']
         })
     return list(groups.values())
 
